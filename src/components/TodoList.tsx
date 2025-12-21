@@ -5,9 +5,9 @@ import { TodoItem } from '../types';
 import { Plus, Check, Archive, Trash2, Edit2, X, Calendar, Flag, Clock, AlertCircle, CheckSquare } from 'lucide-react';
 
 const priorityColors = {
-  high: 'bg-red-100 text-red-800 border-red-200',
-  medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  low: 'bg-green-100 text-green-800 border-green-200',
+  high: 'bg-red-500/20 text-red-400 border-red-200',
+  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-200',
+  low: 'bg-green-500/20 text-green-400 border-green-200',
 };
 
 const priorityIcons = {
@@ -328,7 +328,7 @@ export const TodoList: React.FC = () => {
                   setIsAddingTodo(false);
                   setEditingTodo(null);
                 }}
-                className="px-4 py-2 bg-gray-200 text-theme-secondary rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-theme-tertiary text-theme-secondary rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Cancel
               </button>

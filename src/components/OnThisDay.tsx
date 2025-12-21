@@ -349,7 +349,7 @@ export const OnThisDay: React.FC = () => {
                                 setEditingReflection(null);
                                 setReflectionText('');
                               }}
-                              className="px-3 py-1 text-sm text-theme-tertiary hover:text-gray-800"
+                              className="px-3 py-1 text-sm text-theme-tertiary hover:text-theme-primary"
                             >
                               Cancel
                             </button>

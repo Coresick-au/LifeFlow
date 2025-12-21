@@ -5,10 +5,10 @@ import { Thought } from '../types';
 import { Lightbulb, Eye, MessageSquare, Plus, Edit2, Trash2, X, Tag, Smile } from 'lucide-react';
 
 const thoughtTypes = [
-  { value: 'idea', label: 'Idea', icon: Lightbulb, color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'observation', label: 'Observation', icon: Eye, color: 'bg-blue-100 text-blue-800' },
-  { value: 'pondering', label: 'Pondering', icon: MessageSquare, color: 'bg-purple-100 text-purple-800' },
-  { value: 'note', label: 'Note', icon: MessageSquare, color: 'bg-theme-tertiary text-gray-800' },
+  { value: 'idea', label: 'Idea', icon: Lightbulb, color: 'bg-yellow-500/20 text-yellow-400' },
+  { value: 'observation', label: 'Observation', icon: Eye, color: 'bg-blue-500/20 text-blue-400' },
+  { value: 'pondering', label: 'Pondering', icon: MessageSquare, color: 'bg-purple-500/20 text-purple-400' },
+  { value: 'note', label: 'Note', icon: MessageSquare, color: 'bg-theme-tertiary text-theme-primary' },
 ] as const;
 
 const moodEmojis = {
@@ -198,7 +198,7 @@ export const Thoughts: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-200 text-theme-secondary rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-theme-tertiary text-theme-secondary rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Cancel
               </button>
@@ -277,7 +277,7 @@ export const Thoughts: React.FC = () => {
                           </div>
                         </div>
                         
-                        <p className="text-gray-800 whitespace-pre-wrap">{thought.content}</p>
+                        <p className="text-theme-primary whitespace-pre-wrap">{thought.content}</p>
                         
                         {thought.tags && thought.tags.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1">

@@ -5,12 +5,12 @@ import { format, addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import { X, Calendar, MapPin, Users, Tag, Heart, Star, Lock, Clock, FileText, Hash, ChevronDown, Check, Save } from 'lucide-react';
 
 const moodOptions = [
-  { value: 'happy', label: '😊 Happy', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'sad', label: '😢 Sad', color: 'bg-blue-100 text-blue-800' },
-  { value: 'neutral', label: '😐 Neutral', color: 'bg-theme-tertiary text-gray-800' },
+  { value: 'happy', label: '😊 Happy', color: 'bg-yellow-500/20 text-yellow-400' },
+  { value: 'sad', label: '😢 Sad', color: 'bg-blue-500/20 text-blue-400' },
+  { value: 'neutral', label: '😐 Neutral', color: 'bg-theme-tertiary text-theme-primary' },
   { value: 'excited', label: '🎉 Excited', color: 'bg-pink-100 text-pink-800' },
-  { value: 'proud', label: '🏆 Proud', color: 'bg-purple-100 text-purple-800' },
-  { value: 'grateful', label: '🙏 Grateful', color: 'bg-green-100 text-green-800' },
+  { value: 'proud', label: '🏆 Proud', color: 'bg-purple-500/20 text-purple-400' },
+  { value: 'grateful', label: '🙏 Grateful', color: 'bg-green-500/20 text-green-400' },
 ];
 
 const importanceOptions = [
@@ -683,7 +683,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                   }
                 }}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isTimeCapsule ? 'bg-primary-600' : 'bg-gray-200'
+                  isTimeCapsule ? 'bg-primary-600' : 'bg-theme-tertiary'
                 }`}
               >
                 <span

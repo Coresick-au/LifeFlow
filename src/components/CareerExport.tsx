@@ -184,7 +184,7 @@ Based on the above history, please provide:
         <button
           onClick={() => setIsAnonymized(!isAnonymized)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            isAnonymized ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
+            isAnonymized ? 'bg-primary-600' : 'bg-theme-tertiary dark:bg-gray-700'
           }`}
         >
           <span

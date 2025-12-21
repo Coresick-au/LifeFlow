@@ -394,7 +394,7 @@ export const LikesDislikes: React.FC = () => {
                   setNewItem('');
                   setCustomCategory('');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                className="flex-1 px-4 py-2 bg-theme-tertiary text-theme-primary rounded-md hover:bg-gray-300"
               >
                 Cancel
               </button>

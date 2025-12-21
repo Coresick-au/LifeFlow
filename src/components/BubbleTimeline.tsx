@@ -240,7 +240,7 @@ export const BubbleTimeline: React.FC = () => {
             
             <button
               onClick={resetPlayback}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-theme-secondary rounded-md hover:bg-gray-300 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-theme-tertiary text-theme-secondary rounded-md hover:bg-gray-300 transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
               Reset
@@ -321,7 +321,7 @@ export const BubbleTimeline: React.FC = () => {
                     
                     {/* Year Info */}
                     <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-gray-800">{year}</h3>
+                      <h3 className="text-2xl font-bold text-theme-primary">{year}</h3>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
                         {totalEvents} events • Click pie chart to {isExpanded ? 'collapse' : 'expand'}
                       </p>
