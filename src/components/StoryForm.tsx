@@ -6,11 +6,11 @@ import { X, Calendar, MapPin, Users, Tag, Heart, Star, Lock, Clock, FileText, Ha
 
 const moodOptions = [
   { value: 'happy', label: '😊 Happy', color: 'bg-yellow-500/20 text-yellow-400' },
-  { value: 'sad', label: '😢 Sad', color: 'bg-blue-500/20 text-blue-400' },
+  { value: 'sad', label: '😢 Sad', color: 'bg-blue-500/200/20 text-blue-400' },
   { value: 'neutral', label: '😐 Neutral', color: 'bg-theme-tertiary text-theme-primary' },
   { value: 'excited', label: '🎉 Excited', color: 'bg-pink-100 text-pink-800' },
-  { value: 'proud', label: '🏆 Proud', color: 'bg-purple-500/20 text-purple-400' },
-  { value: 'grateful', label: '🙏 Grateful', color: 'bg-green-500/20 text-green-400' },
+  { value: 'proud', label: '🏆 Proud', color: 'bg-purple-500/200/20 text-purple-400' },
+  { value: 'grateful', label: '🙏 Grateful', color: 'bg-green-500/200/20 text-green-400' },
 ];
 
 const importanceOptions = [

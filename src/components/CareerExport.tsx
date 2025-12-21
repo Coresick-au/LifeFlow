@@ -214,7 +214,7 @@ Based on the above history, please provide:
       </div>
 
       {/* Export Preview */}
-      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+      <div className="mt-4 p-4 bg-blue-500/20 dark:bg-blue-900/20 rounded-lg">
         <p className="text-sm text-blue-800 dark:text-blue-300">
           <strong>AI Pivot Pack</strong> includes your career timeline, life skills, and a structured prompt for career AI analysis.
           {isAnonymized && ' Personal information will be anonymized.'}

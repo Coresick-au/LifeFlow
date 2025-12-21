@@ -6,8 +6,8 @@ import { Lightbulb, Eye, MessageSquare, Plus, Edit2, Trash2, X, Tag, Smile } fro
 
 const thoughtTypes = [
   { value: 'idea', label: 'Idea', icon: Lightbulb, color: 'bg-yellow-500/20 text-yellow-400' },
-  { value: 'observation', label: 'Observation', icon: Eye, color: 'bg-blue-500/20 text-blue-400' },
-  { value: 'pondering', label: 'Pondering', icon: MessageSquare, color: 'bg-purple-500/20 text-purple-400' },
+  { value: 'observation', label: 'Observation', icon: Eye, color: 'bg-blue-500/200/20 text-blue-400' },
+  { value: 'pondering', label: 'Pondering', icon: MessageSquare, color: 'bg-purple-500/200/20 text-purple-400' },
   { value: 'note', label: 'Note', icon: MessageSquare, color: 'bg-theme-tertiary text-theme-primary' },
 ] as const;
 

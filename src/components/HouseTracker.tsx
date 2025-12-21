@@ -37,8 +37,8 @@ export const HouseTracker: React.FC = () => {
 
   // Filter home-related stories
   const homeStories = useMemo(() => {
-    return stories.filter(story => 
-      story.tags.some(tag => 
+    return stories.filter(story =>
+      story.tags.some(tag =>
         ['home', 'house', 'renovation', 'maintenance', 'property'].includes(tag.toLowerCase())
       ) || story.location?.toLowerCase().includes('home')
     );
@@ -60,11 +60,11 @@ export const HouseTracker: React.FC = () => {
   // Process home events
   const homeEvents = useMemo(() => {
     const events: HomeEvent[] = [];
-    
+
     homeStories.forEach(story => {
       // Determine event type
       let type: HomeEvent['type'] = 'memory';
-      
+
       if (story.tags.some(t => ['purchase', 'bought'].includes(t.toLowerCase()))) {
         type = 'purchase';
       } else if (story.tags.some(t => ['renovation', 'remodel'].includes(t.toLowerCase()))) {
@@ -149,7 +149,7 @@ export const HouseTracker: React.FC = () => {
   // Group events by year
   const eventsByYear = useMemo(() => {
     const grouped: Record<number, HomeEvent[]> = {};
-    
+
     filteredEvents.forEach(event => {
       const year = event.date.getFullYear();
       if (!grouped[year]) grouped[year] = [];
@@ -192,7 +192,7 @@ export const HouseTracker: React.FC = () => {
             <h3 className="text-lg font-medium text-theme-primary mb-2">No home events yet</h3>
             <p className="text-slate-500 dark:text-slate-400 mb-4">Add stories with #home or #house tags to track your home journey</p>
             <button
-              onClick={() => setCurrentView({ type: 'add-story' })}
+              onClick={() => setShowForm(true)}
               className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
             >
               Add Home Event
@@ -208,7 +208,7 @@ export const HouseTracker: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-theme-primary">House Tracker</h2>
         <button
-          onClick={() => setCurrentView({ type: 'add-story' })}
+          onClick={() => setShowForm(true)}
           className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
         >
           Add Home Event
@@ -327,13 +327,13 @@ export const HouseTracker: React.FC = () => {
       {/* Recent Events */}
       <div>
         <h3 className="text-lg font-semibold text-theme-primary mb-4">Home History</h3>
-        
+
         <div className="space-y-6">
           {eventsByYear.map(({ year, events }) => (
             <div key={year} className="border-l-2 border-theme pl-6 relative">
               <div className="absolute -left-2 top-0 w-4 h-4 bg-primary-600 rounded-full"></div>
               <h4 className="font-bold text-theme-primary mb-3">{year}</h4>
-              
+
               <div className="space-y-4">
                 {events.map(event => (
                   <div key={event.id} className="bg-theme-tertiary rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -353,7 +353,7 @@ export const HouseTracker: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-4 text-sm text-theme-tertiary mb-2">
                       <span className="capitalize">{getEventTypeLabel(event.type)}</span>
                       {event.location !== 'My Home' && (
@@ -369,9 +369,9 @@ export const HouseTracker: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    
+
                     <p className="text-theme-secondary text-sm mb-2">{event.description}</p>
-                    
+
                     {/* Home Details */}
                     {(event.bedrooms || event.bathrooms || event.squareFootage) && (
                       <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 mt-2">
@@ -380,7 +380,7 @@ export const HouseTracker: React.FC = () => {
                         {event.squareFootage && <span>{event.squareFootage.toLocaleString()} sqft</span>}
                       </div>
                     )}
-                    
+
                     {/* Event Photos */}
                     {event.images && event.images.length > 0 && (
                       <div className="flex gap-1 mt-2">

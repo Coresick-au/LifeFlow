@@ -19,7 +19,7 @@ interface HeatmapDay {
 }
 
 const eventColors = {
-  low: 'bg-blue-500',
+  low: 'bg-blue-500/200',
   medium: 'bg-yellow-500',
   high: 'bg-red-500',
 };
@@ -96,7 +96,7 @@ export const EventHeatmap: React.FC = () => {
     
     // Default blue gradient for regular events
     if (day.intensity < 0.33) return 'bg-blue-300';
-    if (day.intensity < 0.66) return 'bg-blue-500';
+    if (day.intensity < 0.66) return 'bg-blue-500/200';
     return 'bg-blue-700';
   };
 
@@ -136,7 +136,7 @@ export const EventHeatmap: React.FC = () => {
           <span className="text-sm text-theme-tertiary">Low Activity</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 border border-theme rounded-sm"></div>
+          <div className="w-4 h-4 bg-blue-500/200 border border-theme rounded-sm"></div>
           <span className="text-sm text-theme-tertiary">Medium Activity</span>
         </div>
         <div className="flex items-center gap-2">

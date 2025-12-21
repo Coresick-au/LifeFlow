@@ -129,10 +129,10 @@ export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) 
           key={insight.id}
           className={`p-4 rounded-lg border-l-4 ${
             insight.type === 'warning' 
-              ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-400'
+              ? 'bg-amber-500/20 dark:bg-amber-900/20 border-amber-400'
               : insight.type === 'opportunity'
-              ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-400'
-              : 'bg-blue-50 dark:bg-blue-900/20 border-blue-400'
+              ? 'bg-purple-500/20 dark:bg-purple-900/20 border-purple-400'
+              : 'bg-blue-500/20 dark:bg-blue-900/20 border-blue-400'
           }`}
         >
           <div className="flex items-start gap-3">

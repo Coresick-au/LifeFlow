@@ -141,7 +141,7 @@ export const CompactNavigation: React.FC<CompactNavigationProps> = ({
               {activeView === 'profile' && onSampleData && (
                 <button
                   onClick={onSampleData}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors duration-200 ml-4"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-500/20 transition-colors duration-200 ml-4"
                   title="Load sample data"
                 >
                   <Database className="w-4 h-4" />
@@ -192,7 +192,7 @@ export const CompactNavigation: React.FC<CompactNavigationProps> = ({
             {activeView === 'profile' && onSampleData && (
               <button
                 onClick={onSampleData}
-                className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors duration-200 whitespace-nowrap"
+                className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-500/20 transition-colors duration-200 whitespace-nowrap"
               >
                 <Database className="w-4 h-4" />
                 <span>Sample Data</span>

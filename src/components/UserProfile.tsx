@@ -365,7 +365,7 @@ export const UserProfile: React.FC = () => {
             <h4 className="font-semibold text-theme-primary mb-3">Most Mentioned Person</h4>
             <div className="flex items-center justify-between">
               <span className="font-medium text-theme-primary">{dashboardStats.topPerson[0]}</span>
-              <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
+              <span className="bg-blue-500/200/20 text-blue-400 px-3 py-1 rounded-full text-sm">
                 {dashboardStats.topPerson[1]} stories
               </span>
             </div>
@@ -382,7 +382,7 @@ export const UserProfile: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <div className="w-24 bg-theme-tertiary rounded-full h-2">
                     <div 
-                      className="bg-blue-500 h-2 rounded-full"
+                      className="bg-blue-500/200 h-2 rounded-full"
                       style={{ width: `${(count / dashboardStats.totalStories) * 100}%` }}
                     />
                   </div>

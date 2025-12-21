@@ -9,11 +9,11 @@ import { Star, MapPin, Calendar, Play, Pause, RotateCcw } from 'lucide-react';
 const getMoodColor = (mood: Story['mood']) => {
   const moodColors: Record<NonNullable<Story['mood']>, string> = {
     happy: 'bg-yellow-400',
-    sad: 'bg-blue-500',
+    sad: 'bg-blue-500/200',
     neutral: 'bg-gray-400',
     excited: 'bg-orange-500',
-    proud: 'bg-purple-500',
-    grateful: 'bg-green-500',
+    proud: 'bg-purple-500/200',
+    grateful: 'bg-green-500/200',
   };
   return moodColors[mood || 'neutral'] || 'bg-gray-400';
 };
@@ -21,17 +21,17 @@ const getMoodColor = (mood: Story['mood']) => {
 // Color mapping for event categories based on tags
 const getCategoryColor = (tags: string[]) => {
   const categoryColors: Record<string, string> = {
-    career: 'bg-blue-500',
-    work: 'bg-blue-500',
-    achievement: 'bg-purple-500',
-    fitness: 'bg-green-500',
-    health: 'bg-green-500',
-    wellness: 'bg-green-500',
+    career: 'bg-blue-500/200',
+    work: 'bg-blue-500/200',
+    achievement: 'bg-purple-500/200',
+    fitness: 'bg-green-500/200',
+    health: 'bg-green-500/200',
+    wellness: 'bg-green-500/200',
     travel: 'bg-yellow-500',
     vacation: 'bg-yellow-500',
-    family: 'bg-pink-500',
-    friends: 'bg-pink-500',
-    social: 'bg-pink-500',
+    family: 'bg-pink-500/200',
+    friends: 'bg-pink-500/200',
+    social: 'bg-pink-500/200',
     hobby: 'bg-indigo-500',
     music: 'bg-indigo-500',
     learning: 'bg-indigo-500',
@@ -400,7 +400,7 @@ export const BubbleTimeline: React.FC = () => {
             <span>Happy 😊</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <div className="w-3 h-3 rounded-full bg-blue-500/200"></div>
             <span>Sad 😢</span>
           </div>
           <div className="flex items-center space-x-2">
@@ -412,11 +412,11 @@ export const BubbleTimeline: React.FC = () => {
             <span>Excited 🎉</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+            <div className="w-3 h-3 rounded-full bg-purple-500/200"></div>
             <span>Proud 🏆</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500/200"></div>
             <span>Grateful 🙏</span>
           </div>
         </div>

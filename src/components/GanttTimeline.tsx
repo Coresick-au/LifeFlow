@@ -22,10 +22,10 @@ interface Lane {
 }
 
 const categoryColors = {
-  career: 'bg-blue-500',
-  health: 'bg-green-500',
-  travel: 'bg-purple-500',
-  family: 'bg-pink-500',
+  career: 'bg-blue-500/200',
+  health: 'bg-green-500/200',
+  travel: 'bg-purple-500/200',
+  family: 'bg-pink-500/200',
   education: 'bg-yellow-500',
   personal: 'bg-theme-tertiary0',
   other: 'bg-orange-500',
@@ -36,12 +36,25 @@ const categoryColors = {
 export const GanttTimeline: React.FC = () => {
   const { stories } = useTimelineStore();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [visibleCategories, setVisibleCategories] = useState<Set<string>>(
+    new Set(['career', 'travel', 'family', 'home', 'job'])
+  );
+
+  const toggleCategory = (category: string) => {
+    const newVisible = new Set(visibleCategories);
+    if (newVisible.has(category)) {
+      newVisible.delete(category);
+    } else {
+      newVisible.add(category);
+    }
+    setVisibleCategories(newVisible);
+  };
 
   // Group stories into lanes by category
   const lanes = useMemo(() => {
     const yearStart = startOfYear(new Date(selectedYear, 0, 1));
     const yearEnd = endOfYear(new Date(selectedYear, 0, 1));
-    
+
     // Filter stories for the selected year
     const yearStories = stories.filter(story => {
       const storyDate = new Date(story.date);
@@ -52,17 +65,17 @@ export const GanttTimeline: React.FC = () => {
 
     // Group by category
     const categories: Record<string, Lane> = {};
-    
+
     // Process stories with date ranges (jobs, homes)
-    const durationStories = yearStories.filter(story => 
+    const durationStories = yearStories.filter(story =>
       story.tags.some(t => ['career', 'work', 'job', 'home', 'house'].includes(t.toLowerCase())) &&
       story.endDate
     );
-    
+
     durationStories.forEach(story => {
       const category = story.tags.find(t => ['career', 'work', 'job'].includes(t.toLowerCase())) ? 'job' :
-                     story.tags.find(t => ['home', 'house'].includes(t.toLowerCase())) ? 'home' : 'other';
-      
+        story.tags.find(t => ['home', 'house'].includes(t.toLowerCase())) ? 'home' : 'other';
+
       if (!categories[category]) {
         categories[category] = {
           id: category,
@@ -71,10 +84,10 @@ export const GanttTimeline: React.FC = () => {
           bars: []
         };
       }
-      
+
       const startDate = new Date(story.date);
       const endDate = new Date(story.endDate!);
-      
+
       categories[category].bars.push({
         id: story.id,
         title: story.title,
@@ -85,15 +98,15 @@ export const GanttTimeline: React.FC = () => {
         color: categoryColors[category as keyof typeof categoryColors],
       });
     });
-    
+
     // Process regular stories (without end dates)
     const regularStories = yearStories.filter(story => !story.endDate);
-    
+
     regularStories.forEach(story => {
       const category = story.tags[0] || 'other';
       const startDate = new Date(story.date);
       const endDate = story.endDate ? new Date(story.endDate) : startDate;
-      
+
       if (!categories[category]) {
         categories[category] = {
           id: category,
@@ -102,7 +115,7 @@ export const GanttTimeline: React.FC = () => {
           bars: [],
         };
       }
-      
+
       categories[category].bars.push({
         id: story.id,
         title: story.title,
@@ -119,18 +132,20 @@ export const GanttTimeline: React.FC = () => {
       lane.bars.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
     });
 
-    return Object.values(categories);
-  }, [stories, selectedYear]);
+    return Object.values(categories).filter(lane =>
+      visibleCategories.has(lane.id)
+    );
+  }, [stories, selectedYear, visibleCategories]);
 
   // Generate months for the timeline header
   const months = useMemo(() => {
     const yearStart = startOfYear(new Date(selectedYear, 0, 1));
     const months = [];
-    
+
     for (let i = 0; i < 12; i++) {
       months.push(addMonths(yearStart, i));
     }
-    
+
     return months;
   }, [selectedYear]);
 
@@ -139,17 +154,17 @@ export const GanttTimeline: React.FC = () => {
     const yearStart = startOfYear(new Date(selectedYear, 0, 1));
     const yearEnd = endOfYear(new Date(selectedYear, 0, 1));
     const yearDays = differenceInDays(yearEnd, yearStart) + 1;
-    
+
     // Clamp dates to year boundaries
     const clampedStart = bar.startDate < yearStart ? yearStart : bar.startDate;
     const clampedEnd = bar.endDate > yearEnd ? yearEnd : bar.endDate;
-    
+
     const startOffset = differenceInDays(clampedStart, yearStart);
     const duration = differenceInDays(clampedEnd, clampedStart) || 1;
-    
+
     const left = (startOffset / yearDays) * 100;
     const width = (duration / yearDays) * 100;
-    
+
     return {
       left: `${left}%`,
       width: `${width}%`,
@@ -163,7 +178,7 @@ export const GanttTimeline: React.FC = () => {
     <div className="bg-theme-primary rounded-lg shadow-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-theme-primary">Gantt Timeline</h2>
-        
+
         <div className="flex items-center gap-4">
           {/* Navigation Arrows */}
           <div className="flex items-center gap-2">
@@ -196,6 +211,28 @@ export const GanttTimeline: React.FC = () => {
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Category Filters */}
+      <div className="mb-6 p-4 bg-theme-tertiary rounded-lg">
+        <div className="text-sm font-medium text-theme-secondary mb-3">Filter Categories:</div>
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(categoryColors).map(([category, color]) => (
+            <label
+              key={category}
+              className="flex items-center gap-2 cursor-pointer px-3 py-2 bg-theme-primary rounded-md hover:opacity-80 transition-opacity"
+            >
+              <input
+                type="checkbox"
+                checked={visibleCategories.has(category)}
+                onChange={() => toggleCategory(category)}
+                className="w-4 h-4 text-primary-600 border-theme rounded focus:ring-2 focus:ring-primary-500"
+              />
+              <div className={`w-3 h-3 rounded ${color}`}></div>
+              <span className="text-sm text-theme-primary capitalize">{category}</span>
+            </label>
+          ))}
         </div>
       </div>
 

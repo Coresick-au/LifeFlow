@@ -219,7 +219,7 @@ export const LikesDislikes: React.FC = () => {
               .map(preference => (
                 <div
                   key={preference.id}
-                  className="flex items-center justify-between p-3 bg-green-50 rounded-lg group"
+                  className="flex items-center justify-between p-3 bg-green-500/20 rounded-lg group"
                 >
                   <span className="text-theme-primary">{preference.item}</span>
                   <button

@@ -30,12 +30,12 @@ const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Fri
 const monthsOfYear = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const moodColors = {
-  happy: 'bg-green-500',
+  happy: 'bg-green-500/200',
   excited: 'bg-yellow-500',
-  proud: 'bg-purple-500',
-  grateful: 'bg-pink-500',
+  proud: 'bg-purple-500/200',
+  grateful: 'bg-pink-500/200',
   neutral: 'bg-gray-400',
-  sad: 'bg-blue-500',
+  sad: 'bg-blue-500/200',
 };
 
 const moodEmojis = {
@@ -274,9 +274,9 @@ export const MoodHeatmap: React.FC = () => {
         <div className="text-sm text-theme-tertiary">Intensity:</div>
         <div className="flex gap-1">
           <div className="w-4 h-4 bg-theme-tertiary border border-theme rounded-sm"></div>
-          <div className="w-4 h-4 bg-green-500 opacity-30 border border-theme rounded-sm"></div>
-          <div className="w-4 h-4 bg-green-500 opacity-60 border border-theme rounded-sm"></div>
-          <div className="w-4 h-4 bg-green-500 opacity-100 border border-theme rounded-sm"></div>
+          <div className="w-4 h-4 bg-green-500/200 opacity-30 border border-theme rounded-sm"></div>
+          <div className="w-4 h-4 bg-green-500/200 opacity-60 border border-theme rounded-sm"></div>
+          <div className="w-4 h-4 bg-green-500/200 opacity-100 border border-theme rounded-sm"></div>
         </div>
         <div className="text-sm text-slate-500 dark:text-slate-400">Less → More</div>
       </div>

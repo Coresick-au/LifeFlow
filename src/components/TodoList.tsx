@@ -7,7 +7,7 @@ import { Plus, Check, Archive, Trash2, Edit2, X, Calendar, Flag, Clock, AlertCir
 const priorityColors = {
   high: 'bg-red-500/20 text-red-400 border-red-200',
   medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-200',
-  low: 'bg-green-500/20 text-green-400 border-green-200',
+  low: 'bg-green-500/200/20 text-green-400 border-green-200',
 };
 
 const priorityIcons = {

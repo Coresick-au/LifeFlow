@@ -25,8 +25,8 @@ export const JobTracker: React.FC = () => {
 
   // Filter career-related stories
   const careerStories = useMemo(() => {
-    return stories.filter(story => 
-      story.tags.some(tag => 
+    return stories.filter(story =>
+      story.tags.some(tag =>
         ['career', 'work', 'job', 'professional', 'business'].includes(tag.toLowerCase())
       )
     );
@@ -35,11 +35,11 @@ export const JobTracker: React.FC = () => {
   // Process career events
   const careerEvents = useMemo(() => {
     const events: CareerEvent[] = [];
-    
+
     careerStories.forEach(story => {
       // Determine event type based on tags and content
       let type: CareerEvent['type'] = 'position';
-      
+
       if (story.tags.some(t => ['promotion', 'promoted'].includes(t.toLowerCase()))) {
         type = 'promotion';
       } else if (story.tags.some(t => ['achievement', 'award', 'certified'].includes(t.toLowerCase()))) {
@@ -51,7 +51,7 @@ export const JobTracker: React.FC = () => {
       }
 
       // Extract company from location or content
-      const company = story.location || 
+      const company = story.location ||
         (story.content.match(/at ([A-Z][a-zA-Z\s&]+)/)?.[1] || undefined);
 
       events.push({
@@ -102,7 +102,7 @@ export const JobTracker: React.FC = () => {
   // Group events by year
   const eventsByYear = useMemo(() => {
     const grouped: Record<number, CareerEvent[]> = {};
-    
+
     careerEvents.forEach(event => {
       const year = event.date.getFullYear();
       if (!grouped[year]) grouped[year] = [];
@@ -179,6 +179,9 @@ export const JobTracker: React.FC = () => {
         </div>
       </div>
 
+      {/* Career Export Tools */}
+      <CareerExport careerEvents={careerEvents} />
+
       {/* Career Insights */}
       <CareerInsights careerEvents={careerEvents} />
 
@@ -193,9 +196,9 @@ export const JobTracker: React.FC = () => {
             {showWiki ? 'Hide' : 'Show'} Tips
           </button>
         </div>
-        
+
         {showWiki && (
-          <div className="bg-blue-50 dark:bg-blue-900 rounded-lg p-6 space-y-4">
+          <div className="bg-blue-500/20 dark:bg-blue-900 rounded-lg p-6 space-y-4">
             <div className="flex gap-3">
               <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="space-y-3 text-sm text-blue-800 dark:text-blue-300">
@@ -261,12 +264,12 @@ export const JobTracker: React.FC = () => {
       {/* Career Timeline */}
       <div className="space-y-6">
         <h3 className="text-lg font-semibold text-theme-primary mb-4">Career Timeline</h3>
-        
+
         {eventsByYear.map(({ year, events }) => (
           <div key={year} className="border-l-2 border-theme pl-6 relative">
             <div className="absolute -left-2 top-0 w-4 h-4 bg-primary-600 rounded-full"></div>
             <h4 className="font-bold text-theme-primary mb-3">{year}</h4>
-            
+
             <div className="space-y-4">
               {events.map(event => (
                 <div key={event.id} className="bg-theme-tertiary dark:bg-slate-800 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -280,14 +283,14 @@ export const JobTracker: React.FC = () => {
                       {event.endDate && ` - ${format(event.endDate, 'MMM yyyy')}`}
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 text-sm text-theme-tertiary dark:text-slate-400 mb-2">
                     <span className="capitalize text-theme-tertiary">{getEventTypeLabel(event.type)}</span>
                     {event.company && (
                       <span>at {event.company}</span>
                     )}
                   </div>
-                  
+
                   <p className="text-theme-secondary text-sm">{event.description}</p>
                 </div>
               ))}
@@ -300,9 +303,6 @@ export const JobTracker: React.FC = () => {
       {showForm && (
         <JobTrackerForm onClose={() => setShowForm(false)} />
       )}
-
-      {/* Career Export Tools */}
-      <CareerExport careerEvents={careerEvents} />
     </div>
   );
 };

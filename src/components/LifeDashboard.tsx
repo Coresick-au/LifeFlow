@@ -2,12 +2,12 @@ import React, { useMemo } from 'react';
 import { format, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { 
-  Briefcase, 
-  Baby, 
-  Home, 
-  Heart, 
-  TrendingUp, 
+import {
+  Briefcase,
+  Baby,
+  Home,
+  Heart,
+  TrendingUp,
   Calendar,
   MapPin,
   Target,
@@ -36,21 +36,21 @@ export const LifeDashboard: React.FC = () => {
 
   // Career data
   const careerData = useMemo(() => {
-    const careerStories = stories.filter(story => 
-      story.tags.some(tag => 
+    const careerStories = stories.filter(story =>
+      story.tags.some(tag =>
         ['career', 'work', 'job', 'professional', 'business'].includes(tag.toLowerCase())
       )
     );
 
-    const promotions = careerStories.filter(s => 
+    const promotions = careerStories.filter(s =>
       s.tags.some(t => ['promotion', 'promoted'].includes(t.toLowerCase()))
     ).length;
 
-    const achievements = careerStories.filter(s => 
+    const achievements = careerStories.filter(s =>
       s.tags.some(t => ['achievement', 'award', 'certified'].includes(t.toLowerCase()))
     ).length;
 
-    const totalYears = careerStories.length > 0 
+    const totalYears = careerStories.length > 0
       ? Math.round(differenceInDays(new Date(), new Date(Math.min(...careerStories.map(s => new Date(s.date).getTime())))) / 365)
       : 0;
 
@@ -69,17 +69,17 @@ export const LifeDashboard: React.FC = () => {
 
   // Child data
   const childData = useMemo(() => {
-    const childStories = stories.filter(story => 
-      story.tags.some(tag => 
+    const childStories = stories.filter(story =>
+      story.tags.some(tag =>
         ['child', 'kid', 'son', 'daughter', 'baby'].includes(tag.toLowerCase())
       )
     );
 
-    const milestones = childStories.filter(s => 
+    const milestones = childStories.filter(s =>
       s.tags.some(t => ['first', 'milestone', 'development'].includes(t.toLowerCase()))
     ).length;
 
-    const achievements = childStories.filter(s => 
+    const achievements = childStories.filter(s =>
       s.tags.some(t => ['achievement', 'proud'].includes(t.toLowerCase()))
     ).length;
 
@@ -97,17 +97,17 @@ export const LifeDashboard: React.FC = () => {
 
   // Home data
   const homeData = useMemo(() => {
-    const homeStories = stories.filter(story => 
-      story.tags.some(tag => 
+    const homeStories = stories.filter(story =>
+      story.tags.some(tag =>
         ['home', 'house', 'renovation', 'maintenance', 'property'].includes(tag.toLowerCase())
       ) || story.location?.toLowerCase().includes('home')
     );
 
-    const renovations = homeStories.filter(s => 
+    const renovations = homeStories.filter(s =>
       s.tags.some(t => ['renovation', 'remodel'].includes(t.toLowerCase()))
     ).length;
 
-    const maintenance = homeStories.filter(s => 
+    const maintenance = homeStories.filter(s =>
       s.tags.some(t => ['maintenance', 'repair'].includes(t.toLowerCase()))
     ).length;
 
@@ -130,18 +130,18 @@ export const LifeDashboard: React.FC = () => {
 
   // Relationship data
   const relationshipData = useMemo(() => {
-    const relationshipStories = stories.filter(story => 
-      story.tags.some(tag => 
+    const relationshipStories = stories.filter(story =>
+      story.tags.some(tag =>
         ['relationship', 'friend', 'family', 'partner', 'love'].includes(tag.toLowerCase())
       ) || story.people.length > 0
     );
 
-    const family = relationshipStories.filter(s => 
+    const family = relationshipStories.filter(s =>
       s.tags.some(t => ['family', 'parent', 'sibling'].includes(t.toLowerCase())) ||
       s.people.some(p => ['mom', 'dad', 'mother', 'father', 'brother', 'sister'].includes(p.toLowerCase()))
     ).length;
 
-    const friends = relationshipStories.filter(s => 
+    const friends = relationshipStories.filter(s =>
       s.tags.some(t => ['friend'].includes(t.toLowerCase()))
     ).length;
 
@@ -155,7 +155,7 @@ export const LifeDashboard: React.FC = () => {
       });
     });
 
-    const needAttention = Array.from(peopleMap.entries()).filter(([_, lastContact]) => 
+    const needAttention = Array.from(peopleMap.entries()).filter(([_, lastContact]) =>
       differenceInDays(new Date(), lastContact) > 30
     ).length;
 
@@ -259,7 +259,7 @@ export const LifeDashboard: React.FC = () => {
             </div>
             <p className="text-sm text-theme-tertiary">Total Stories</p>
           </div>
-          
+
           <div className="bg-theme-primary rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-2">
               <TrendingUp className="w-8 h-8 text-green-500" />
@@ -267,7 +267,7 @@ export const LifeDashboard: React.FC = () => {
             </div>
             <p className="text-sm text-theme-tertiary">This Year</p>
           </div>
-          
+
           <div className="bg-theme-primary rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-2">
               <MapPin className="w-8 h-8 text-purple-500" />
@@ -275,7 +275,7 @@ export const LifeDashboard: React.FC = () => {
             </div>
             <p className="text-sm text-theme-tertiary">Places</p>
           </div>
-          
+
           <div className="bg-theme-primary rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-2">
               <Target className="w-8 h-8 text-orange-500" />
@@ -288,7 +288,7 @@ export const LifeDashboard: React.FC = () => {
         {/* Tracker Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {dashboardCards.map(card => (
-            <div 
+            <div
               key={card.title}
               className="bg-theme-primary rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => handleCardClick(card.viewName)}
@@ -344,29 +344,61 @@ export const LifeDashboard: React.FC = () => {
               <Calendar className="w-4 h-4" />
               Add Story
             </button>
-            
+
             <button
-              onClick={() => setCurrentView({ type: 'timeline' })}
+              onClick={() => setCurrentView({ type: 'gantt' })}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
             >
               <Target className="w-4 h-4" />
-              View Timeline
+              Gantt Timeline
             </button>
-            
+
             <button
-              onClick={() => setCurrentView({ type: 'bubble' })}
+              onClick={() => setCurrentView({ type: 'thoughts' })}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
+            >
+              <Briefcase className="w-4 h-4" />
+              Thoughts
+            </button>
+
+            <button
+              onClick={() => setCurrentView({ type: 'ai-insights' })}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
+            >
+              <TrendingUp className="w-4 h-4" />
+              AI Insights
+            </button>
+
+            <button
+              onClick={() => setCurrentView({ type: 'user-profile' })}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
             >
               <Users className="w-4 h-4" />
-              Bubble View
+              PDF Export
             </button>
-            
+
             <button
               onClick={() => setCurrentView({ type: 'location-map' })}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
             >
               <MapPin className="w-4 h-4" />
               Locations
+            </button>
+
+            <button
+              onClick={() => setCurrentView({ type: 'bubble' })}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
+            >
+              <Target className="w-4 h-4" />
+              Bubble View
+            </button>
+
+            <button
+              onClick={() => setCurrentView({ type: 'timeline' })}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
+            >
+              <Calendar className="w-4 h-4" />
+              Timeline
             </button>
           </div>
         </div>
