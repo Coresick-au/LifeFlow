@@ -276,7 +276,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     {new Date().getFullYear() - new Date(userProfile.birthDate).getFullYear()} years old
                   </p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+                <div className="w-10 h-10 rounded-full bg-primary-500/200 flex items-center justify-center text-white font-semibold">
                   {userProfile.avatar ? (
                     <img
                       src={userProfile.avatar}

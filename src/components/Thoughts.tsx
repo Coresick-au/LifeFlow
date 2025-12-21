@@ -177,7 +177,7 @@ export const Thoughts: React.FC = () => {
                     })}
                     className={`w-10 h-10 rounded-md text-lg transition-colors ${
                       formData.mood === mood
-                        ? 'bg-primary-100 ring-2 ring-primary-500'
+                        ? 'bg-primary-500/30 ring-2 ring-primary-500'
                         : 'bg-theme-tertiary hover:opacity-80'
                     }`}
                   >

@@ -595,7 +595,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     onClick={() => setFormData({ ...formData, importance: option.value as Story['importance'] })}
                     className={`flex items-center space-x-2 py-2 px-4 rounded-md font-medium transition-colors ${
                       formData.importance === option.value
-                        ? 'bg-primary-100 text-primary-700'
+                        ? 'bg-primary-500/30 text-primary-700'
                         : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
                     }`}
                   >

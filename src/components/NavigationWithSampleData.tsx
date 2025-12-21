@@ -48,7 +48,7 @@ export const NavigationWithSampleData: React.FC<NavigationWithSampleDataProps> =
                       flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium
                       transition-colors duration-200
                       ${isActive
-                        ? 'bg-primary-100 text-primary-700'
+                        ? 'bg-primary-500/30 text-primary-700'
                         : 'text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary'
                       }
                     `}
@@ -77,7 +77,7 @@ export const NavigationWithSampleData: React.FC<NavigationWithSampleDataProps> =
           {userProfile && (
             <div className="flex items-center space-x-4">
               <span className="text-sm text-theme-tertiary">Welcome, {userProfile.name}</span>
-              <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+              <div className="w-10 h-10 rounded-full bg-primary-500/200 flex items-center justify-center text-white font-semibold">
                 {userProfile.name.charAt(0).toUpperCase()}
               </div>
             </div>
@@ -98,7 +98,7 @@ export const NavigationWithSampleData: React.FC<NavigationWithSampleDataProps> =
                   flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium
                   whitespace-nowrap transition-colors duration-200
                   ${isActive
-                    ? 'bg-primary-100 text-primary-700'
+                    ? 'bg-primary-500/30 text-primary-700'
                     : 'text-theme-tertiary hover:text-theme-primary hover:bg-theme-tertiary'
                   }
                 `}

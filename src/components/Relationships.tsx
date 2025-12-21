@@ -241,7 +241,7 @@ export const Relationships: React.FC = () => {
                 key={relationship.id}
                 className={`p-3 rounded-lg border cursor-pointer transition-all group ${
                   selectedPerson === relationship.id
-                    ? 'border-primary-500 bg-primary-50'
+                    ? 'border-primary-500 bg-primary-500/20'
                     : 'border-theme hover:border-theme hover:bg-theme-tertiary'
                 }`}
               >
@@ -250,7 +250,7 @@ export const Relationships: React.FC = () => {
                     className="flex items-center gap-3 flex-1"
                     onClick={() => setSelectedPerson(relationship.id)}
                   >
-                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-primary-500/30 rounded-full flex items-center justify-center">
                       <User className="w-5 h-5 text-primary-600" />
                     </div>
                     <div className="flex-1">
@@ -368,7 +368,7 @@ export const Relationships: React.FC = () => {
                   </button>
                   <button
                     onClick={() => incrementRelationshipInteraction(selectedPersonData.id)}
-                    className="flex-1 px-4 py-2 bg-primary-100 text-primary-700 rounded-md hover:bg-primary-200"
+                    className="flex-1 px-4 py-2 bg-primary-500/30 text-primary-700 rounded-md hover:bg-primary-200"
                   >
                     Add Interaction
                   </button>

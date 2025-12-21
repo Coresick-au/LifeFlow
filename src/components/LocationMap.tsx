@@ -365,13 +365,13 @@ export const LocationMap: React.FC = () => {
                   onClick={() => setSelectedLocation(location.name)}
                   className={`p-3 rounded-lg border cursor-pointer transition-all ${
                     selectedLocation === location.name
-                      ? 'border-primary-500 bg-primary-50'
+                      ? 'border-primary-500 bg-primary-500/20'
                       : 'border-theme hover:border-theme hover:bg-theme-tertiary'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-primary-500/30 rounded-full flex items-center justify-center">
                         <MapPin className="w-5 h-5 text-primary-600" />
                       </div>
                       <div>

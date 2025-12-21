@@ -225,7 +225,7 @@ export const OnThisDay: React.FC = () => {
           
           <button
             onClick={goToToday}
-            className="px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded-md hover:bg-primary-200 transition-colors"
+            className="px-3 py-1 text-sm bg-primary-500/30 text-primary-700 rounded-md hover:bg-primary-200 transition-colors"
           >
             Today
           </button>

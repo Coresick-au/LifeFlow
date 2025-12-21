@@ -208,7 +208,7 @@ export const CalendarView: React.FC = () => {
                 onClick={() => handleDayClick(day)}
                 className={`
                   aspect-square p-2 rounded-lg border transition-all duration-200 transform hover:scale-105
-                  ${isSelected ? 'border-primary-500 bg-primary-50 shadow-md' : 'border-theme'}
+                  ${isSelected ? 'border-primary-500 bg-primary-500/20 shadow-md' : 'border-theme'}
                   ${isToday ? 'border-2 border-primary-500 ring-2 ring-primary-200' : ''}
                   ${dayStories.length > 0 ? 'hover:border-primary-400 hover:shadow-lg' : 'hover:bg-theme-tertiary'}
                 `}
@@ -312,7 +312,7 @@ export const CalendarView: React.FC = () => {
                           onClick={() => handleDayClick(day)}
                           className={`
                             aspect-square p-1 rounded text-xs
-                            ${hasEvents ? 'bg-primary-100 hover:bg-primary-200 font-medium' : 'hover:bg-theme-tertiary'}
+                            ${hasEvents ? 'bg-primary-500/30 hover:bg-primary-200 font-medium' : 'hover:bg-theme-tertiary'}
                             ${isSameDay(day, new Date()) ? 'ring-2 ring-primary-500' : ''}
                           `}
                         >
@@ -390,7 +390,7 @@ export const CalendarView: React.FC = () => {
                   setCurrentDate(month);
                   setViewMode('month');
                 }}
-                className="border border-theme rounded-lg p-4 hover:border-primary-500 hover:bg-primary-50 transition-all hover:shadow-md transform hover:scale-105"
+                className="border border-theme rounded-lg p-4 hover:border-primary-500 hover:bg-primary-500/20 transition-all hover:shadow-md transform hover:scale-105"
               >
                 <h4 className="font-medium text-theme-primary mb-2">
                   {format(month, 'MMMM')}

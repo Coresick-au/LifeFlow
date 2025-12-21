@@ -143,7 +143,7 @@ export const TodoList: React.FC = () => {
               </button>
             )}
             {todo.status === 'completed' && (
-              <div className="w-5 h-5 rounded bg-primary-500 flex items-center justify-center">
+              <div className="w-5 h-5 rounded bg-primary-500/200 flex items-center justify-center">
                 <Check className="w-3 h-3 text-white" />
               </div>
             )}
