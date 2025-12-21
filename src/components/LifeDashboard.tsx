@@ -346,7 +346,7 @@ export const LifeDashboard: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setCurrentView({ type: 'gantt' })}
+              onClick={() => setCurrentView({ type: 'gantt-timeline' })}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
             >
               <Target className="w-4 h-4" />
@@ -362,15 +362,15 @@ export const LifeDashboard: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setCurrentView({ type: 'ai-insights' })}
+              onClick={() => setCurrentView({ type: 'life-dashboard' })}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
             >
               <TrendingUp className="w-4 h-4" />
-              AI Insights
+              Life Insights
             </button>
 
             <button
-              onClick={() => setCurrentView({ type: 'user-profile' })}
+              onClick={() => setCurrentView({ type: 'profile' })}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
             >
               <Users className="w-4 h-4" />
