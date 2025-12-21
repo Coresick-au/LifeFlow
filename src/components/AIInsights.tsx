@@ -30,7 +30,7 @@ export const AIInsights: React.FC = () => {
     // Find correlations with people
     const peopleMoodCorrelations: { person: string; mood: string; correlation: number }[] = [];
     const peopleGroups: Record<string, Story[]> = {};
-    
+
     storiesWithMood.forEach(story => {
       story.people.forEach(person => {
         if (!peopleGroups[person]) peopleGroups[person] = [];
@@ -40,7 +40,7 @@ export const AIInsights: React.FC = () => {
 
     Object.entries(peopleGroups).forEach(([person, personStories]) => {
       if (personStories.length < 3) return; // Need at least 3 stories
-      
+
       const personMoodCounts = personStories.reduce((acc, story) => {
         acc[story.mood!] = (acc[story.mood!] || 0) + 1;
         return acc;
@@ -50,7 +50,7 @@ export const AIInsights: React.FC = () => {
         const baselinePercentage = (moodCounts[mood] || 0) / totalMoods;
         const personPercentage = count / personStories.length;
         const correlation = Math.round(((personPercentage - baselinePercentage) / baselinePercentage) * 100);
-        
+
         if (Math.abs(correlation) > 20) { // Only show significant correlations
           peopleMoodCorrelations.push({ person, mood, correlation });
         }
@@ -60,7 +60,7 @@ export const AIInsights: React.FC = () => {
     // Find correlations with locations
     const locationMoodCorrelations: { location: string; mood: string; correlation: number }[] = [];
     const locationGroups: Record<string, Story[]> = {};
-    
+
     storiesWithMood.forEach(story => {
       if (story.location) {
         if (!locationGroups[story.location]) locationGroups[story.location] = [];
@@ -70,7 +70,7 @@ export const AIInsights: React.FC = () => {
 
     Object.entries(locationGroups).forEach(([location, locationStories]) => {
       if (locationStories.length < 3) return;
-      
+
       const locationMoodCounts = locationStories.reduce((acc, story) => {
         acc[story.mood!] = (acc[story.mood!] || 0) + 1;
         return acc;
@@ -80,7 +80,7 @@ export const AIInsights: React.FC = () => {
         const baselinePercentage = (moodCounts[mood] || 0) / totalMoods;
         const locationPercentage = count / locationStories.length;
         const correlation = Math.round(((locationPercentage - baselinePercentage) / baselinePercentage) * 100);
-        
+
         if (Math.abs(correlation) > 20) {
           locationMoodCorrelations.push({ location, mood, correlation });
         }
@@ -90,7 +90,7 @@ export const AIInsights: React.FC = () => {
     // Find correlations with tags
     const tagMoodCorrelations: { tag: string; mood: string; correlation: number }[] = [];
     const tagGroups: Record<string, Story[]> = {};
-    
+
     storiesWithMood.forEach(story => {
       story.tags.forEach(tag => {
         if (!tagGroups[tag]) tagGroups[tag] = [];
@@ -100,7 +100,7 @@ export const AIInsights: React.FC = () => {
 
     Object.entries(tagGroups).forEach(([tag, tagStories]) => {
       if (tagStories.length < 3) return;
-      
+
       const tagMoodCounts = tagStories.reduce((acc, story) => {
         acc[story.mood!] = (acc[story.mood!] || 0) + 1;
         return acc;
@@ -110,7 +110,7 @@ export const AIInsights: React.FC = () => {
         const baselinePercentage = (moodCounts[mood] || 0) / totalMoods;
         const tagPercentage = count / tagStories.length;
         const correlation = Math.round(((tagPercentage - baselinePercentage) / baselinePercentage) * 100);
-        
+
         if (Math.abs(correlation) > 20) {
           tagMoodCorrelations.push({ tag, mood, correlation });
         }
@@ -130,7 +130,7 @@ export const AIInsights: React.FC = () => {
     if (stories.length === 0) return [];
 
     // Sort stories by date
-    const sortedStories = [...stories].sort((a, b) => 
+    const sortedStories = [...stories].sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
@@ -139,7 +139,7 @@ export const AIInsights: React.FC = () => {
 
     sortedStories.forEach((story, index) => {
       const storyDate = new Date(story.date);
-      
+
       // Check if we should start a new chapter
       if (!currentChapter) {
         currentChapter = {
@@ -152,11 +152,11 @@ export const AIInsights: React.FC = () => {
         const daysSinceLastStory = Math.abs(
           (storyDate.getTime() - currentChapter.endDate.getTime()) / (1000 * 60 * 60 * 24)
         );
-        
+
         // New chapter if gap > 30 days or significant location change
-        const locationChanged = story.location && 
+        const locationChanged = story.location &&
           currentChapter.stories.some(s => s.location && s.location !== story.location);
-        
+
         if (daysSinceLastStory > 30 || (locationChanged && currentChapter.stories.length > 5)) {
           chapters.push(currentChapter);
           currentChapter = {
@@ -180,7 +180,7 @@ export const AIInsights: React.FC = () => {
     chapters.forEach(chapter => {
       const tagCounts: Record<string, number> = {};
       const locationCounts: Record<string, number> = {};
-      
+
       chapter.stories.forEach(story => {
         story.tags.forEach(tag => {
           tagCounts[tag] = (tagCounts[tag] || 0) + 1;
@@ -192,7 +192,7 @@ export const AIInsights: React.FC = () => {
 
       const topTag = Object.entries(tagCounts).sort((a, b) => b[1] - a[1])[0];
       const topLocation = Object.entries(locationCounts).sort((a, b) => b[1] - a[1])[0];
-      
+
       if (topLocation && topLocation[1] > chapter.stories.length * 0.5) {
         chapter.name = `The ${topLocation[0].split(',')[0]} Years`;
         chapter.theme = 'location';
@@ -209,17 +209,17 @@ export const AIInsights: React.FC = () => {
   const gapsInStory = useMemo(() => {
     if (stories.length < 2) return [];
 
-    const sortedStories = [...stories].sort((a, b) => 
+    const sortedStories = [...stories].sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     const gaps: { startDate: Date; endDate: Date; days: number }[] = [];
-    
+
     for (let i = 1; i < sortedStories.length; i++) {
       const prevDate = new Date(sortedStories[i - 1].date);
       const currDate = new Date(sortedStories[i].date);
       const daysGap = Math.abs((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (daysGap > 60) { // Gap of more than 2 months
         gaps.push({
           startDate: prevDate,
@@ -261,11 +261,11 @@ export const AIInsights: React.FC = () => {
                 {moodInsights.moodDistribution.map(({ mood, count, percentage }) => (
                   <div key={mood} className="text-center p-3 bg-theme-tertiary rounded-lg">
                     <div className="text-2xl mb-1">
-                      {mood === 'happy' ? '😊' : 
-                       mood === 'sad' ? '😢' :
-                       mood === 'excited' ? '🎉' :
-                       mood === 'proud' ? '🏆' :
-                       mood === 'grateful' ? '🙏' : '😐'}
+                      {mood === 'happy' ? '😊' :
+                        mood === 'sad' ? '😢' :
+                          mood === 'excited' ? '🎉' :
+                            mood === 'proud' ? '🏆' :
+                              mood === 'grateful' ? '🙏' : '😐'}
                     </div>
                     <div className="text-sm font-medium text-theme-primary capitalize">{mood}</div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">{percentage}%</div>
@@ -368,7 +368,7 @@ export const AIInsights: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-theme-primary">{chapter.name}</h4>
                       <p className="text-sm text-theme-tertiary">
-                        {chapter.stories.length} stories • 
+                        {chapter.stories.length} stories •
                         {new Date(chapter.startDate).getFullYear()} - {new Date(chapter.endDate).getFullYear()}
                       </p>
                     </div>
@@ -390,7 +390,7 @@ export const AIInsights: React.FC = () => {
                 <AlertCircle className="w-5 h-5 text-orange-500" />
                 <h3 className="text-lg font-semibold text-theme-primary">Missing Pieces</h3>
               </div>
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="bg-theme-tertiary border border-theme rounded-lg p-4">
                 <p className="text-sm text-theme-secondary mb-3">
                   You might want to add stories from these periods:
                 </p>
