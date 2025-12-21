@@ -1,0 +1,312 @@
+import React, { useState, useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Navigation } from './components/Navigation';
+import { Timeline } from './components/Timeline';
+import { CalendarView } from './components/CalendarView';
+import { EventHeatmap } from './components/EventHeatmap';
+import { GanttTimeline } from './components/GanttTimeline';
+import { OnThisDay } from './components/OnThisDay';
+import { Relationships } from './components/Relationships';
+import { LocationMap } from './components/LocationMap';
+import { LikesDislikes } from './components/LikesDislikes';
+import { UserProfile } from './components/UserProfile';
+import { Settings } from './components/Settings';
+import { MoodHeatmap } from './components/MoodHeatmap';
+import { LifeDashboard } from './components/LifeDashboard';
+import { JobTracker } from './components/JobTracker';
+import { ChildTracker } from './components/ChildTracker';
+import { HouseTracker } from './components/HouseTracker';
+import { RelationshipTracker } from './components/RelationshipTracker';
+import { StoryForm } from './components/StoryForm';
+import { Thoughts } from './components/Thoughts';
+import { TodoList } from './components/TodoList';
+import { BubbleTimeline } from './components/BubbleTimeline';
+import { AIInsights } from './components/AIInsights';
+import { useTimelineStore } from './store/timelineStore';
+import { useThemeStore } from './store/themeStore';
+import { generateExtendedSampleData } from './store/timelineStore';
+import { Story } from './types';
+import {
+  Calendar as CalendarIcon,
+  MapPin,
+  Users,
+  Heart,
+  BarChart3,
+  Brain,
+  Settings as SettingsIcon,
+  TrendingUp,
+  Smile,
+  Lightbulb,
+  CheckSquare
+} from 'lucide-react';
+import type { TimelineView } from './types';
+
+export const App: React.FC = () => {
+  const { stories, userProfile, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile, addStory } = useTimelineStore();
+  const { theme, setTheme } = useThemeStore();
+  const [currentView, setCurrentViewState] = useState<TimelineView>({ type: 'timeline' });
+  const [searchResults, setSearchResults] = useState<Story[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Initialize theme on mount
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const handleSampleData = async () => {
+    if (!userProfile) return;
+
+    if (window.confirm('This will add sample stories to your timeline. Continue?')) {
+      const sampleStories = generateExtendedSampleData();
+      for (const story of sampleStories) {
+        await addStory(story);
+      }
+      setCurrentViewState({ type: 'timeline' });
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = useTimelineStore.persist.onFinishHydration(() => {
+      console.log('Store hydrated');
+      setIsLoading(false);
+    });
+
+    if (useTimelineStore.persist.hasHydrated()) {
+      setIsLoading(false);
+    }
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      loadStories();
+      loadUserProfile();
+      loadThoughts();
+      loadTodos();
+    }
+  }, [loadStories, loadUserProfile, loadThoughts, loadTodos, isLoading]);
+
+  useEffect(() => {
+    const handleLoadSampleData = () => {
+      handleSampleData();
+    };
+
+    window.addEventListener('loadSampleData', handleLoadSampleData);
+    return () => window.removeEventListener('loadSampleData', handleLoadSampleData);
+  }, [handleSampleData]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-theme-secondary">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-accent mx-auto"></div>
+          <p className="mt-4 text-theme-secondary">Loading LifeFlow...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSearch = (query: string) => {
+    const filtered = stories.filter(story =>
+      story.title.toLowerCase().includes(query.toLowerCase()) ||
+      story.content.toLowerCase().includes(query.toLowerCase())
+    );
+    setSearchResults(filtered);
+    setCurrentViewState({ type: 'timeline' });
+  };
+
+  const handleQuickAdd = () => {
+    setCurrentViewState({ type: 'add-story' });
+  };
+
+  const handleAddStory = () => {
+    setCurrentViewState({ type: 'add-story' });
+  };
+
+  const getBreadcrumbs = () => {
+    const crumbs: { label: string; onClick?: () => void }[] = [];
+
+    if (currentView.type !== 'timeline') {
+      crumbs.push({ label: 'Timeline' });
+    }
+
+    switch (currentView.type) {
+      case 'on-this-day':
+        crumbs.push({ label: 'On This Day' });
+        break;
+      case 'relationships':
+        crumbs.push({ label: 'Relationships' });
+        break;
+      case 'location-map':
+        crumbs.push({ label: 'Location Map' });
+        break;
+      case 'event-heatmap':
+        crumbs.push({ label: 'Event Heatmap' });
+        break;
+      case 'gantt-timeline':
+        crumbs.push({ label: 'Gantt Timeline' });
+        break;
+      case 'likes-dislikes':
+        crumbs.push({ label: 'Likes & Dislikes' });
+        break;
+      case 'add-story':
+        crumbs.push({ label: 'Add Story' });
+        break;
+      case 'edit-story':
+        crumbs.push({ label: 'Edit Story' });
+        break;
+      case 'profile':
+        crumbs.push({ label: 'Profile' });
+        break;
+      case 'settings':
+        crumbs.push({ label: 'Settings' });
+        break;
+    }
+
+    return crumbs;
+  };
+
+  const renderView = () => {
+    if (!userProfile && currentView.type !== 'profile') {
+      return <UserProfile />;
+    }
+
+    switch (currentView.type) {
+      case 'timeline':
+        return <Timeline searchResults={searchResults} onAddStory={handleAddStory} />;
+      case 'bubble':
+        return <BubbleTimeline />;
+      case 'calendar':
+        return <CalendarView />;
+      case 'profile':
+        return <UserProfile />;
+      case 'settings':
+        return <Settings />;
+      case 'event-heatmap':
+        return <AIInsights />;
+      case 'gantt-timeline':
+        return <GanttTimeline />;
+      case 'on-this-day':
+        return <OnThisDay />;
+      case 'relationships':
+        return <Relationships />;
+      case 'location-map':
+        return <LocationMap />;
+      case 'likes-dislikes':
+        return <LikesDislikes />;
+      case 'life-dashboard':
+        return <LifeDashboard />;
+      case 'job-tracker':
+        return <JobTracker />;
+      case 'child-tracker':
+        return <ChildTracker />;
+      case 'house-tracker':
+        return <HouseTracker />;
+      case 'relationship-tracker':
+        return <RelationshipTracker />;
+      case 'thoughts':
+        return <Thoughts />;
+      case 'todos':
+        return <TodoList />;
+      case 'add-story':
+        return <StoryForm />;
+      case 'edit-story':
+        return <StoryForm storyId={currentView.storyId} />;
+      default:
+        return <Timeline />;
+    }
+  };
+
+  const navigationItems = [
+    { type: 'timeline', icon: CalendarIcon, label: 'Timeline' },
+    { type: 'calendar', icon: CalendarIcon, label: 'Calendar' },
+    { type: 'life-dashboard', icon: BarChart3, label: 'Dashboard' },
+    { type: 'thoughts', icon: Lightbulb, label: 'Thoughts' },
+    { type: 'todos', icon: CheckSquare, label: 'To-Do List' },
+    { type: 'event-heatmap', icon: Brain, label: 'Event Heatmap' },
+    { type: 'gantt-timeline', icon: BarChart3, label: 'Gantt Timeline' },
+    { type: 'on-this-day', icon: CalendarIcon, label: 'On This Day' },
+    { type: 'relationships', icon: Users, label: 'Relationships' },
+    { type: 'location-map', icon: MapPin, label: 'Location Map' },
+    { type: 'likes-dislikes', icon: Smile, label: 'Likes & Dislikes' },
+    { type: 'job-tracker', icon: TrendingUp, label: 'Career Tracker' },
+    { type: 'child-tracker', icon: Heart, label: 'Child Tracker' },
+    { type: 'house-tracker', icon: Heart, label: 'House Tracker' },
+    { type: 'relationship-tracker', icon: Users, label: 'Relationship Tracker' },
+    { type: 'profile', icon: Smile, label: 'Profile' },
+    { type: 'settings', icon: SettingsIcon, label: 'Settings' },
+  ];
+
+  const showBackButton = currentView.type === 'edit-story';
+
+  const handleBackClick = () => {
+    setCurrentViewState({ type: 'timeline' });
+  };
+
+  return (
+    <div className="min-h-screen bg-theme-secondary">
+      <Navigation
+        items={navigationItems}
+        activeView={currentView.type}
+        onViewChange={(type) => setCurrentViewState({ type: type as any })}
+        userProfile={userProfile}
+        onQuickAdd={() => setCurrentViewState({ type: 'add-story' })}
+        onSearch={handleSearch}
+        onSampleData={handleSampleData}
+        breadcrumbs={getBreadcrumbs()}
+        showBackButton={showBackButton}
+        onBackClick={handleBackClick}
+      />
+
+      <main className="container mx-auto px-4 py-8">
+        <div
+          key={currentView.type}
+          className="animate-fade-in"
+        >
+          {renderView()}
+        </div>
+      </main>
+
+      {/* Toast notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+    </div>
+  );
+}
+
+// Wrap App with ErrorBoundary
+const AppWithErrorBoundary: React.FC = () => (
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
+
+export default AppWithErrorBoundary;
