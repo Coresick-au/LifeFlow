@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
-import { WealthItem, WealthHistoryEntry } from '../types';
-import { DollarSign, TrendingUp, TrendingDown, Lock, AlertCircle, Plus, Edit2, Trash2, PiggyBank, BarChart3, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { WealthItem } from '../types';
+import { DollarSign, TrendingUp, Lock, AlertCircle, Plus, Edit2, Trash2, PiggyBank, BarChart3, History } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 
 export function WealthTracker() {
     const {
         wealthItems,
-        wealthHistory,
         loadWealthItems,
         loadWealthHistory,
         getWealthItemHistory,
@@ -48,10 +47,12 @@ export function WealthTracker() {
         );
         if (homeEvents.length === 0) return 0;
 
-        // Get most recent home
-        const latestHome = homeEvents.sort((a, b) =>
+        // Get most recent home - just verify it exists
+        const [latestHome] = homeEvents.sort((a, b) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
-        )[0];
+        );
+
+        if (!latestHome) return 0;
 
         // Extract property value from metadata (if exists)
         // This is a simplified calculation - in reality would need purchase price and current value

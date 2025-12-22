@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Navigation } from './components/Navigation';
-import { Sidebar } from './components/Sidebar';
 import { Timeline } from './components/Timeline';
 import { CalendarView } from './components/CalendarView';
 import { EventHeatmap } from './components/EventHeatmap';
@@ -54,20 +53,10 @@ import type { TimelineView } from './types';
 
 export const App: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { stories, userProfile, currentView, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile, addStory } = useTimelineStore();
+  const { stories, userProfile, currentView, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile } = useTimelineStore();
   const { theme } = useThemeStore();
   const [searchResults, setSearchResults] = useState<Story[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [useSidebar, setUseSidebar] = useState(() => {
-    const saved = localStorage.getItem('lifeflow-use-sidebar');
-    return saved === 'true';
-  });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Persist sidebar preference
-  useEffect(() => {
-    localStorage.setItem('lifeflow-use-sidebar', String(useSidebar));
-  }, [useSidebar]);
 
   // Initialize theme on mount
   useEffect(() => {
@@ -275,69 +264,23 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen bg-theme-secondary ${useSidebar ? 'flex' : ''}`}>
-      {useSidebar ? (
-        <>
-          <Sidebar
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-            onViewChange={(type) => setCurrentView({ type: type as any })}
-            activeView={currentView.type}
-          />
-          <div className="flex-1 md:ml-0">
-            {/* Mobile sidebar toggle */}
-            <div className="md:hidden p-4 border-b border-theme bg-theme-primary">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 hover:bg-theme-tertiary rounded-md"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            </div>
-            <main className="container mx-auto px-4 py-8">
-              <div key={currentView.type} className="animate-fade-in">
-                {renderView()}
-              </div>
-            </main>
-          </div>
-        </>
-      ) : (
-        <>
-          <Navigation
-            items={navigationItems}
-            activeView={currentView.type}
-            onViewChange={(type) => setCurrentView({ type: type as any })}
-            userProfile={userProfile}
-            onQuickAdd={() => setCurrentView({ type: 'add-story' })}
-            onSearch={handleSearch}
-            breadcrumbs={getBreadcrumbs()}
-            showBackButton={showBackButton}
-            onBackClick={handleBackClick}
-          />
-          <main className="container mx-auto px-4 py-8">
-            <div key={currentView.type} className="animate-fade-in">
-              {renderView()}
-            </div>
-          </main>
-        </>
-      )}
-
-      {/* Layout Toggle FAB */}
-      <button
-        onClick={() => setUseSidebar(!useSidebar)}
-        className="fixed top-20 left-4 p-3 bg-theme-accent text-white rounded-full shadow-lg hover:opacity-90 transition-opacity z-50"
-        title={useSidebar ? 'Switch to Top Menu' : 'Switch to Side Panel'}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {useSidebar ? (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
-          )}
-        </svg>
-      </button>
+    <div className="min-h-screen bg-theme-secondary">
+      <Navigation
+        items={navigationItems}
+        activeView={currentView.type}
+        onViewChange={(type) => setCurrentView({ type: type as any })}
+        userProfile={userProfile}
+        onQuickAdd={() => setCurrentView({ type: 'add-story' })}
+        onSearch={handleSearch}
+        breadcrumbs={getBreadcrumbs()}
+        showBackButton={showBackButton}
+        onBackClick={handleBackClick}
+      />
+      <main className="container mx-auto px-4 py-8">
+        <div key={currentView.type} className="animate-fade-in">
+          {renderView()}
+        </div>
+      </main>
 
       {/* Toast notifications */}
       <Toaster

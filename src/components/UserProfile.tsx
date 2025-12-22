@@ -10,6 +10,7 @@ export const UserProfile: React.FC = () => {
   const [formData, setFormData] = useState<Partial<UserProfileType>>({
     name: userProfile?.name || '',
     birthDate: userProfile?.birthDate ? new Date(userProfile.birthDate) : new Date(),
+    birthLocation: userProfile?.birthLocation || '',
     location: userProfile?.location || '',
     bio: userProfile?.bio || '',
     avatar: userProfile?.avatar || '',
@@ -27,6 +28,7 @@ export const UserProfile: React.FC = () => {
       setFormData({
         name: userProfile.name || '',
         birthDate: new Date(userProfile.birthDate),
+        birthLocation: userProfile.birthLocation || '',
         location: userProfile.location || '',
         bio: userProfile.bio || '',
         avatar: userProfile.avatar || '',
@@ -171,6 +173,7 @@ export const UserProfile: React.FC = () => {
       id: userProfile?.id || crypto.randomUUID(),
       name: formData.name,
       birthDate: formData.birthDate,
+      birthLocation: formData.birthLocation,
       location: formData.location,
       bio: formData.bio,
       avatar: formData.avatar,
@@ -635,9 +638,25 @@ export const UserProfile: React.FC = () => {
           </div>
 
           <div>
+            <label htmlFor="birthLocation" className="block text-sm font-medium text-theme-secondary mb-1">
+              <MapPin className="inline w-4 h-4 mr-1" />
+              Birth Location (optional)
+            </label>
+            <input
+              type="text"
+              id="birthLocation"
+              value={formData.birthLocation}
+              onChange={(e) => setFormData({ ...formData, birthLocation: e.target.value })}
+              className="w-full px-3 py-2 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="City, Country where you were born"
+            />
+            <p className="mt-1 text-xs text-theme-tertiary">This will appear on your birth event in the timeline</p>
+          </div>
+
+          <div>
             <label htmlFor="location" className="block text-sm font-medium text-theme-secondary mb-1">
               <MapPin className="inline w-4 h-4 mr-1" />
-              Location (optional)
+              Current Location (optional)
             </label>
             <input
               type="text"

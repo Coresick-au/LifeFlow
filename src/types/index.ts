@@ -53,6 +53,7 @@ export interface UserProfile {
   id: string;
   name: string;
   birthDate: Date;
+  birthLocation?: string;
   location?: string;
   bio?: string;
   avatar?: string;

@@ -93,8 +93,32 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
 
   console.log('Timeline render - stories:', stories.length, 'userProfile:', userProfile ? 'exists' : 'null');
 
-  // Use search results if provided, otherwise use all stories
-  const baseStories = searchResults != null ? searchResults : stories;
+  // Create a synthetic birth story if user has a birth date
+  const birthStory: Story | null = userProfile?.birthDate ? {
+    id: 'birth-event-synthetic',
+    title: 'I Was Born! 🎉',
+    content: userProfile.birthLocation
+      ? `The beginning of my life story, born in ${userProfile.birthLocation}.`
+      : 'The beginning of my life story.',
+    type: 'short',
+    date: new Date(userProfile.birthDate),
+    fuzzyDate: false,
+    tags: ['birth', 'milestone', 'beginning'],
+    people: [],
+    importance: 'high',
+    mood: 'happy',
+    location: userProfile.birthLocation || '',
+    images: [],
+    createdAt: new Date(userProfile.birthDate),
+    updatedAt: new Date(userProfile.birthDate),
+  } : null;
+
+  // Use search results if provided, otherwise use all stories (including birth story)
+  const baseStories = searchResults != null
+    ? searchResults
+    : birthStory
+      ? [...stories, birthStory]
+      : stories;
 
   // Sort stories by date (newest first)
   const sortedStories = [...baseStories].sort((a, b) =>
@@ -203,16 +227,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
   return (
     <div className="w-full">
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <h2 className="text-3xl font-bold text-theme-primary">Timeline</h2>
-          <button
-            onClick={() => setCurrentView({ type: 'add-story' })}
-            className="w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-md transition-all hover:scale-110 flex items-center justify-center text-xl leading-none"
-            title="Add new story"
-          >
-            +
-          </button>
-        </div>
+        <h2 className="text-3xl font-bold text-theme-primary mb-2">Timeline</h2>
         <p className="text-theme-secondary">Your life's journey, moment by moment</p>
       </div>
 
@@ -385,8 +400,8 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                         </div>
                       )}
 
-                      {/* Actions - hide for locked stories */}
-                      {!isLocked && (
+                      {/* Actions - hide for locked stories and synthetic birth story */}
+                      {!isLocked && story.id !== 'birth-event-synthetic' && (
                         <div className="flex space-x-2 mt-4 pt-4 border-t border-theme">
                           <button
                             onClick={(e) => {

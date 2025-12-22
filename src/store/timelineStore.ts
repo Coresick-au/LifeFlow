@@ -218,13 +218,17 @@ export const useTimelineStore = create<TimelineStore>()(
             await supabaseService.upsertProfile(profile);
           }
 
+          // Always save to local Dexie for offline support and reliability
+          // We use a fixed ID of '1' for the primary user profile in Dexie
+          await db.table('userProfile').put({ ...profile, id: '1' });
+
           // Convert Date to string for localStorage serialization
           const serializableProfile = {
             ...profile,
             birthDate: profile.birthDate instanceof Date ? profile.birthDate.toISOString() : profile.birthDate,
           };
           set({ userProfile: serializableProfile as unknown as UserProfile, isSaving: false });
-          console.log('Profile saved to store:', serializableProfile);
+          console.log('Profile saved to store and DB:', serializableProfile);
         } catch (error) {
           console.error('Failed to save profile:', error);
           set({ error: 'Failed to save profile', isSaving: false });
@@ -242,10 +246,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudStories = await supabaseService.getStories(user.id);
-            if (cloudStories && cloudStories.length > 0) {
-              // Sync to local Dexie
+            if (cloudStories) {
+              // Sync to local Dexie - always trust cloud data when authenticated
               await db.table('stories').clear();
-              await db.table('stories').bulkPut(cloudStories);
+              if (cloudStories.length > 0) {
+                await db.table('stories').bulkPut(cloudStories);
+              }
               set({ stories: cloudStories, isLoading: false });
               return;
             }
@@ -269,9 +275,36 @@ export const useTimelineStore = create<TimelineStore>()(
       },
 
       loadUserProfile: async () => {
-        // Profile is now loaded from localStorage via persist middleware
-        // This function is kept for compatibility but no longer needed
-        console.log('Profile loading from localStorage via persist');
+        set({ isLoading: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudProfile = await supabaseService.getProfile(user.id);
+            if (cloudProfile) {
+              // Sync to local Dexie
+              await db.table('userProfile').put({ ...cloudProfile, id: '1' });
+              set({ userProfile: cloudProfile, isLoading: false });
+              return;
+            }
+          }
+
+          // Fallback to Dexie
+          const profiles = await db.table('userProfile').toArray();
+          if (profiles.length > 0) {
+            const profile = profiles[0];
+            const hydratedProfile = {
+              ...profile,
+              birthDate: new Date(profile.birthDate)
+            };
+            set({ userProfile: hydratedProfile as UserProfile, isLoading: false });
+          } else {
+            set({ isLoading: false });
+          }
+        } catch (error) {
+          console.error('Failed to load profile:', error);
+          set({ error: 'Failed to load profile', isLoading: false });
+        }
       },
 
       loadPreferences: async () => {
@@ -281,9 +314,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudPrefs = await supabaseService.getPreferences(user.id);
-            if (cloudPrefs && cloudPrefs.length > 0) {
+            if (cloudPrefs) {
+              // Always trust cloud data when authenticated
               await db.table('preferences').clear();
-              await db.table('preferences').bulkPut(cloudPrefs);
+              if (cloudPrefs.length > 0) {
+                await db.table('preferences').bulkPut(cloudPrefs);
+              }
               set({ preferences: cloudPrefs, isLoading: false });
               return;
             }
@@ -359,9 +395,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudThoughts = await supabaseService.getThoughts(user.id);
-            if (cloudThoughts && cloudThoughts.length > 0) {
+            if (cloudThoughts) {
+              // Always trust cloud data when authenticated
               await db.table('thoughts').clear();
-              await db.table('thoughts').bulkPut(cloudThoughts);
+              if (cloudThoughts.length > 0) {
+                await db.table('thoughts').bulkPut(cloudThoughts);
+              }
               set({ thoughts: cloudThoughts, isLoading: false });
               return;
             }
@@ -461,9 +500,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudTodos = await supabaseService.getTodos(user.id);
-            if (cloudTodos && cloudTodos.length > 0) {
+            if (cloudTodos) {
+              // Always trust cloud data when authenticated
               await db.table('todos').clear();
-              await db.table('todos').bulkPut(cloudTodos);
+              if (cloudTodos.length > 0) {
+                await db.table('todos').bulkPut(cloudTodos);
+              }
               set({ todos: cloudTodos, isLoading: false });
               return;
             }
@@ -643,9 +685,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudAdvice = await supabaseService.getAdvice(user.id);
-            if (cloudAdvice && cloudAdvice.length > 0) {
+            if (cloudAdvice) {
+              // Always trust cloud data when authenticated
               await db.table('advice').clear();
-              await db.table('advice').bulkPut(cloudAdvice);
+              if (cloudAdvice.length > 0) {
+                await db.table('advice').bulkPut(cloudAdvice);
+              }
               set({ advice: cloudAdvice, isLoading: false });
               return;
             }
@@ -810,9 +855,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudRelationships = await supabaseService.getRelationships(user.id);
-            if (cloudRelationships && cloudRelationships.length > 0) {
+            if (cloudRelationships) {
+              // Always trust cloud data when authenticated
               await db.table('relationships').clear();
-              await db.table('relationships').bulkPut(cloudRelationships);
+              if (cloudRelationships.length > 0) {
+                await db.table('relationships').bulkPut(cloudRelationships);
+              }
               set({ relationships: cloudRelationships, isLoading: false });
               return;
             }
@@ -953,9 +1001,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudTags = await supabaseService.getManagedTags(user.id);
-            if (cloudTags && cloudTags.length > 0) {
+            if (cloudTags) {
+              // Always trust cloud data when authenticated
               await db.table('managedTags').clear();
-              await db.table('managedTags').bulkPut(cloudTags);
+              if (cloudTags.length > 0) {
+                await db.table('managedTags').bulkPut(cloudTags);
+              }
               set({ managedTags: cloudTags, isLoading: false });
               return;
             }
@@ -1054,9 +1105,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudItems = await supabaseService.getWealthItems(user.id);
-            if (cloudItems && cloudItems.length > 0) {
+            if (cloudItems) {
+              // Always trust cloud data when authenticated
               await db.table('wealthItems').clear();
-              await db.table('wealthItems').bulkPut(cloudItems);
+              if (cloudItems.length > 0) {
+                await db.table('wealthItems').bulkPut(cloudItems);
+              }
               set({ wealthItems: cloudItems, isLoading: false });
               return;
             }
@@ -1193,9 +1247,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           if (user && navigator.onLine) {
             const cloudHistory = await supabaseService.getWealthHistory(user.id);
-            if (cloudHistory && cloudHistory.length > 0) {
+            if (cloudHistory) {
+              // Always trust cloud data when authenticated
               await db.table('wealthHistory').clear();
-              await db.table('wealthHistory').bulkPut(cloudHistory);
+              if (cloudHistory.length > 0) {
+                await db.table('wealthHistory').bulkPut(cloudHistory);
+              }
               set({ wealthHistory: cloudHistory });
               return;
             }

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   birth_date DATE NOT NULL,
+  birth_location TEXT,
   location TEXT,
   bio TEXT,
   avatar_url TEXT,

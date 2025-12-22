@@ -1,18 +1,11 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Story, Thought, TodoItem, Relationship, ManagedTag, Advice, UserProfile, Preference, WealthItem, WealthHistoryEntry } from '../types';
 
-// Helper to get current user ID
-const getUserId = (): string | null => {
-    if (!supabase) return null;
-    return supabase.auth.getUser().then(({ data }) => data.user?.id ?? null) as unknown as string;
-};
-
 // Sync helper to get current user synchronously from session
 export const getCurrentUserId = (): string | null => {
     if (!supabase) return null;
-    const session = supabase.auth.getSession();
-    // This is async but we need it sync - use the cached session
-    return null; // Will be set properly when we refactor
+    // We can't easily get the session sync if not already handled
+    return null;
 };
 
 // ==========================================
@@ -34,6 +27,7 @@ export async function getProfile(userId: string): Promise<UserProfile | null> {
         id: data.id,
         name: data.name,
         birthDate: new Date(data.birth_date),
+        birthLocation: data.birth_location,
         location: data.location,
         bio: data.bio,
         avatar: data.avatar_url,
@@ -51,6 +45,7 @@ export async function upsertProfile(profile: UserProfile): Promise<boolean> {
             birth_date: profile.birthDate instanceof Date
                 ? profile.birthDate.toISOString().split('T')[0]
                 : profile.birthDate,
+            birth_location: profile.birthLocation,
             location: profile.location,
             bio: profile.bio,
             avatar_url: profile.avatar,

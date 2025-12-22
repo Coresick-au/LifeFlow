@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, Settings, ChevronDown, ArrowLeft, Plus, Wifi, WifiOff, Database } from 'lucide-react';
 import { UserProfile } from '../types';
 import { Logo } from './Logo';
@@ -38,6 +38,24 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close More menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMoreMenu]);
 
   // Split navigation items into primary and secondary
   const primaryItems = items.slice(0, 4); // Show first 4 items
@@ -72,9 +90,14 @@ export const Navigation: React.FC<NavigationProps> = ({
               >
                 <Plus className="w-6 h-6" />
               </button>
-              <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--theme-accent)' }}>
+              <button
+                onClick={() => onViewChange('timeline')}
+                className="text-2xl font-bold tracking-tight hover:opacity-80 transition-opacity cursor-pointer"
+                style={{ color: 'var(--theme-accent)' }}
+                title="Go to Timeline"
+              >
                 LifeFlow
-              </h1>
+              </button>
             </div>
 
             {/* Navigation Items */}
@@ -104,7 +127,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
               {/* More dropdown for secondary items */}
               {secondaryItems.length > 0 && (
-                <div className="relative">
+                <div className="relative" ref={moreMenuRef}>
                   <button
                     onClick={() => setShowMoreMenu(!showMoreMenu)}
                     className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors rounded-theme"
@@ -149,9 +172,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-3">
-            {/* Theme Switcher */}
-            <ThemeSwitcher />
-
             {/* Search Bar */}
             {showSearch ? (
               <form onSubmit={handleSearch} className="flex items-center">
@@ -181,17 +201,6 @@ export const Navigation: React.FC<NavigationProps> = ({
               </button>
             )}
 
-            {/* Quick Add Button */}
-            {onQuickAdd && (
-              <button
-                onClick={onQuickAdd}
-                className="p-2 text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary rounded-md transition-colors rounded-theme"
-                title="Add new story"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            )}
-
             {/* Settings Button */}
             <button
               onClick={() => onViewChange('settings')}
@@ -204,35 +213,31 @@ export const Navigation: React.FC<NavigationProps> = ({
               <Settings className="w-5 h-5" />
             </button>
 
-
-
             {/* Data Sync Status */}
-            <div className="flex items-center space-x-2">
-              <div className="relative group">
-                <button
-                  className={`p-2 rounded-md transition-colors ${needsBackup
-                    ? 'text-orange-600 hover:bg-orange-50'
-                    : 'text-gray-400 hover:text-theme-tertiary hover:bg-theme-tertiary'
-                    }`}
-                  title={isDataLocal ? 'Data saved locally' : 'Data synced'}
-                >
-                  {isDataLocal ? <WifiOff className="w-5 h-5" /> : <Wifi className="w-5 h-5" />}
-                </button>
-                <div className="absolute right-0 top-full mt-2 w-48 p-2 bg-theme-primary border border-theme rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <p className="text-xs text-theme-tertiary">
-                    {isDataLocal ? 'Data stored locally on this device' : 'Data synced to cloud'}
+            <div className="relative group">
+              <button
+                className={`p-2 rounded-md transition-colors ${needsBackup
+                  ? 'text-orange-600 hover:bg-orange-50'
+                  : 'text-gray-400 hover:text-theme-tertiary hover:bg-theme-tertiary'
+                  }`}
+                title={isDataLocal ? 'Data saved locally' : 'Data synced'}
+              >
+                {isDataLocal ? <WifiOff className="w-5 h-5" /> : <Wifi className="w-5 h-5" />}
+              </button>
+              <div className="absolute right-0 top-full mt-2 w-48 p-2 bg-theme-primary border border-theme rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <p className="text-xs text-theme-tertiary">
+                  {isDataLocal ? 'Data stored locally on this device' : 'Data synced to cloud'}
+                </p>
+                {needsBackup && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    ⚠️ Backup recommended
                   </p>
-                  {needsBackup && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      ⚠️ Backup recommended
-                    </p>
-                  )}
-                  {lastBackupDate && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Last backup: {new Date(lastBackupDate).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
+                )}
+                {lastBackupDate && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Last backup: {new Date(lastBackupDate).toLocaleDateString()}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -262,6 +267,9 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </div>
               </button>
             )}
+
+            {/* Theme Switcher - moved to end */}
+            <ThemeSwitcher />
           </div>
         </div>
 

@@ -428,8 +428,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 <label htmlFor="endDate" className="block text-sm font-medium mb-1 text-theme-primary">
                   End Date (optional)
                 </label>
-                {/* Spacer to align with toggle buttons in left column */}
-                <div className="h-[42px] mb-3"></div>
+                {/* Spacer to match left column's toggle buttons */}
+                <div className="h-[36px] mb-3"></div>
                 <input
                   type="date"
                   id="endDate"
@@ -465,16 +465,54 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
               Tags
             </label>
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowTagSuggestions(!showTagSuggestions)}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 text-left flex items-center justify-between input-field rounded-theme"
-              >
-                <span className="text-theme-tertiary">
-                  {(formData.tags || []).length > 0 ? (formData.tags || []).join(', ') : 'Select tags...'}
-                </span>
-                <ChevronDown className="w-4 h-4 text-theme-tertiary" />
-              </button>
+              {/* Manual entry input */}
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Type a new tag and press Enter..."
+                  className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const input = e.target as HTMLInputElement;
+                      const value = input.value.trim();
+                      if (value && !(formData.tags || []).includes(value)) {
+                        setFormData({ ...formData, tags: [...(formData.tags || []), value] });
+                        input.value = '';
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowTagSuggestions(!showTagSuggestions)}
+                  className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 flex items-center gap-1 input-field rounded-theme text-sm text-theme-secondary hover:text-theme-primary"
+                >
+                  <span>Select</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Selected tags display */}
+              {(formData.tags || []).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(formData.tags || []).map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-theme-accent/20 text-theme-accent"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        className="ml-1 hover:text-red-400"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {showTagSuggestions && (
                 <div className="absolute z-10 w-full mt-1 border rounded-md shadow-lg max-h-48 overflow-y-auto bg-theme-primary border-theme shadow-theme">
@@ -500,7 +538,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     ))
                   ) : (
                     <div className="px-3 py-2 text-theme-tertiary text-sm">
-                      No tags available. Add some in the settings.
+                      No tags available. Add some in the settings or type above.
                     </div>
                   )}
                 </div>
@@ -515,30 +553,58 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
               People
             </label>
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowPersonSuggestions(!showPersonSuggestions)}
-                className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between"
-              >
-                <span className="text-slate-500 dark:text-slate-400">
-                  {(formData.people || []).length > 0 ? (formData.people || []).join(', ') : 'Select people...'}
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              </button>
+              {/* Manual entry input */}
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Type a name and press Enter..."
+                  value={peopleSearchTerm}
+                  onChange={(e) => setPeopleSearchTerm(e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const value = peopleSearchTerm.trim();
+                      if (value && !(formData.people || []).includes(value)) {
+                        setFormData({ ...formData, people: [...(formData.people || []), value] });
+                        setPeopleSearchTerm('');
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPersonSuggestions(!showPersonSuggestions)}
+                  className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 flex items-center gap-1 input-field rounded-theme text-sm text-theme-secondary hover:text-theme-primary"
+                >
+                  <span>Select</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Selected people tags */}
+              {(formData.people || []).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(formData.people || []).map((person) => (
+                    <span
+                      key={person}
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-theme-tertiary text-theme-secondary"
+                    >
+                      {person}
+                      <button
+                        type="button"
+                        onClick={() => togglePerson(person)}
+                        className="ml-1 text-slate-500 dark:text-slate-400 hover:text-red-400"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {showPersonSuggestions && (
                 <div className="absolute z-10 w-full mt-1 bg-theme-primary border border-theme rounded-md shadow-lg max-h-48 overflow-y-auto">
-                  {/* Search input */}
-                  <div className="p-2 border-b border-theme">
-                    <input
-                      type="text"
-                      placeholder="Search people..."
-                      value={peopleSearchTerm}
-                      onChange={(e) => setPeopleSearchTerm(e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-theme rounded bg-theme-primary text-theme-primary focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </div>
-
                   {/* Suggested people from content */}
                   {formData.content && extractPeopleFromContent().length > 0 && (
                     <div className="p-2 bg-theme-tertiary border-b border-theme">
@@ -583,30 +649,9 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                       ))
                   ) : (
                     <div className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">
-                      No people available. Add some in the relationships tab.
+                      No saved people. Type a name above or add in Relationships.
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Selected people tags */}
-              {(formData.people || []).length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {(formData.people || []).map((person) => (
-                    <span
-                      key={person}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-theme-tertiary text-theme-secondary"
-                    >
-                      {person}
-                      <button
-                        type="button"
-                        onClick={() => togglePerson(person)}
-                        className="ml-1 text-slate-500 dark:text-slate-400 hover:text-theme-secondary"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
                 </div>
               )}
             </div>
