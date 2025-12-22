@@ -31,6 +31,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
   const [isLoading, setIsLoading] = useState(!!storyId);
   const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [inputMode, setInputMode] = useState<'date' | 'age'>('date');
+  const [ageValue, setAgeValue] = useState('');
   const debounceTimer = useRef<NodeJS.Timeout>();
 
   const isEditing = !!storyId;
@@ -103,21 +105,21 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.title?.trim() || !formData.content?.trim()) {
       alert('Please fill in both title and content');
       return;
     }
-    
+
     if (isTimeCapsule && !formData.lockedUntil) {
       alert('Please select a date for the time capsule');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     const existingStory = storyId ? stories.find(s => s.id === storyId) : null;
-    
+
     const storyData: Story = {
       id: storyId || generateId(),
       title: formData.title,
@@ -180,8 +182,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
     const words = (formData.content || '').match(/\b[A-Z][a-z]+\b/g) || [];
     const potentialNames = Array.from(new Set(words));
     const currentPeople = formData.people || [];
-    return potentialNames.filter(name => 
-      !currentPeople.includes(name) && 
+    return potentialNames.filter(name =>
+      !currentPeople.includes(name) &&
       relationships.some(r => r.fullName.includes(name))
     );
   };
@@ -202,6 +204,17 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
     const date = new Date();
     date.setDate(date.getDate() - daysAgo);
     setFormData({ ...formData, date: date });
+  };
+
+  const calculateDateFromAge = (age: number): Date => {
+    if (!userProfile?.birthDate) {
+      // Fallback: use current year minus age
+      const currentYear = new Date().getFullYear();
+      return new Date(currentYear - age, 0, 1);
+    }
+
+    const birthYear = new Date(userProfile.birthDate).getFullYear();
+    return new Date(birthYear + age, 0, 1); // Start of that year (January 1st)
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,22 +256,20 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
             <button
               type="button"
               onClick={() => handleTypeChange('short')}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors rounded-theme ${
-                formData.type === 'short'
+              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors rounded-theme ${formData.type === 'short'
                   ? 'bg-theme-accent text-white'
                   : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-              }`}
+                }`}
             >
               Quick Note
             </button>
             <button
               type="button"
               onClick={() => handleTypeChange('long')}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors rounded-theme ${
-                formData.type === 'long'
+              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors rounded-theme ${formData.type === 'long'
                   ? 'bg-theme-accent text-white'
                   : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-              }`}
+                }`}
             >
               Detailed Story
             </button>
@@ -299,7 +310,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
               required
             />
             <div className="mt-1 text-sm text-theme-tertiary">
-              {formData.type === 'short' 
+              {formData.type === 'short'
                 ? `${(formData.content || '').length}/280 characters`
                 : `${(formData.content || '').split(/\s+/).filter(word => word.length > 0).length} words`
               }
@@ -328,40 +339,95 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
               <div>
                 <label htmlFor="date" className="block text-sm font-medium mb-1 text-theme-primary">
                   <Calendar className="inline w-4 h-4 mr-1" />
-                  Start Date
+                  When did this happen?
                 </label>
-                <input
-                  type="date"
-                  id="date"
-                  value={format(formData.date!, 'yyyy-MM-dd')}
-                  onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
-                  required
-                />
-                {/* Quick date buttons */}
-                <div className="flex gap-2 mt-2">
+
+                {/* Toggle buttons for Date/Age input */}
+                <div className="flex gap-2 mb-3">
                   <button
                     type="button"
-                    onClick={() => setQuickDate(0)}
-                    className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                    onClick={() => setInputMode('date')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'date'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                      }`}
                   >
-                    Today
+                    Exact Date
                   </button>
                   <button
                     type="button"
-                    onClick={() => setQuickDate(1)}
-                    className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                    onClick={() => setInputMode('age')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'age'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                      }`}
                   >
-                    Yesterday
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickDate(7)}
-                    className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
-                  >
-                    Last Week
+                    I Was Age...
                   </button>
                 </div>
+
+                {/* Conditional input based on mode */}
+                {inputMode === 'date' ? (
+                  <>
+                    <input
+                      type="date"
+                      id="date"
+                      value={format(formData.date!, 'yyyy-MM-dd')}
+                      onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
+                      required
+                    />
+                    {/* Quick date buttons */}
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuickDate(0)}
+                        className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuickDate(1)}
+                        className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                      >
+                        Yesterday
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuickDate(7)}
+                        className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                      >
+                        Last Week
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="150"
+                      placeholder="Enter your age (e.g., 14)"
+                      value={ageValue}
+                      onChange={(e) => {
+                        setAgeValue(e.target.value);
+                        if (e.target.value) {
+                          const calculatedDate = calculateDateFromAge(parseInt(e.target.value));
+                          setFormData({ ...formData, date: calculatedDate });
+                        }
+                      }}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
+                      required={inputMode === 'age'}
+                    />
+                    {ageValue && formData.date && (
+                      <p className="text-xs text-theme-tertiary">
+                        📅 Approximate date: {format(formData.date, 'MMMM yyyy')} (start of the year you turned {ageValue})
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Age display */}
                 {formData.date && calculateAge(format(formData.date, 'yyyy-MM-dd')) !== null && (
                   <p className="mt-1 text-xs text-theme-tertiary">
@@ -369,7 +435,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                   </p>
                 )}
               </div>
-              
+
               <div>
                 <label htmlFor="endDate" className="block text-sm font-medium mb-1 text-theme-primary">
                   End Date (optional)
@@ -419,7 +485,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 </span>
                 <ChevronDown className="w-4 h-4 text-theme-tertiary" />
               </button>
-              
+
               {showTagSuggestions && (
                 <div className="absolute z-10 w-full mt-1 border rounded-md shadow-lg max-h-48 overflow-y-auto bg-theme-primary border-theme shadow-theme">
                   {managedTags.length > 0 ? (
@@ -469,7 +535,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 </span>
                 <ChevronDown className="w-4 h-4 text-gray-400" />
               </button>
-              
+
               {showPersonSuggestions && (
                 <div className="absolute z-10 w-full mt-1 bg-theme-primary border border-theme rounded-md shadow-lg max-h-48 overflow-y-auto">
                   {/* Search input */}
@@ -482,7 +548,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                       className="w-full px-2 py-1 text-sm border border-theme rounded bg-theme-primary text-theme-primary focus:outline-none focus:ring-1 focus:ring-primary-500"
                     />
                   </div>
-                  
+
                   {/* Suggested people from content */}
                   {formData.content && extractPeopleFromContent().length > 0 && (
                     <div className="p-2 bg-theme-tertiary border-b border-theme">
@@ -502,11 +568,11 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                       ))}
                     </div>
                   )}
-                  
+
                   {/* All relationships */}
                   {relationships.length > 0 ? (
                     relationships
-                      .filter(r => 
+                      .filter(r =>
                         r.fullName.toLowerCase().includes(peopleSearchTerm.toLowerCase())
                       )
                       .map((person) => (
@@ -532,7 +598,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                   )}
                 </div>
               )}
-              
+
               {/* Selected people tags */}
               {(formData.people || []).length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -568,11 +634,10 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                   key={mood.value}
                   type="button"
                   onClick={() => setFormData({ ...formData, mood: mood.value as Story['mood'] })}
-                  className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                    formData.mood === mood.value
+                  className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${formData.mood === mood.value
                       ? mood.color
                       : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
-                  }`}
+                    }`}
                 >
                   {mood.label}
                 </button>
@@ -593,11 +658,10 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     key={option.value}
                     type="button"
                     onClick={() => setFormData({ ...formData, importance: option.value as Story['importance'] })}
-                    className={`flex items-center space-x-2 py-2 px-4 rounded-md font-medium transition-colors ${
-                      formData.importance === option.value
+                    className={`flex items-center space-x-2 py-2 px-4 rounded-md font-medium transition-colors ${formData.importance === option.value
                         ? 'bg-primary-500/30 text-primary-700'
                         : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
-                    }`}
+                      }`}
                   >
                     <Icon className={`w-4 h-4 ${option.className}`} />
                     <span>{option.label}</span>
@@ -682,18 +746,16 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     setFormData({ ...formData, lockedUntil: undefined });
                   }
                 }}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isTimeCapsule ? 'bg-primary-600' : 'bg-theme-tertiary'
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isTimeCapsule ? 'bg-primary-600' : 'bg-theme-tertiary'
+                  }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-theme-primary transition-transform ${
-                    isTimeCapsule ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-theme-primary transition-transform ${isTimeCapsule ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                 />
               </button>
             </div>
-            
+
             {isTimeCapsule && (
               <div className="bg-amber-900/20 border border-amber-800/30 rounded-lg p-4">
                 <div className="flex items-start gap-3">

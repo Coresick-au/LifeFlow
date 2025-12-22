@@ -49,7 +49,7 @@ export interface UserProfile {
   avatar?: string;
 }
 
-export type TimelineView = 
+export type TimelineView =
   | { type: 'timeline' }
   | { type: 'bubble' }
   | { type: 'calendar' }
@@ -66,12 +66,14 @@ export type TimelineView =
   | { type: 'life-dashboard' }
   | { type: 'job-tracker' }
   | { type: 'child-tracker' }
-  | { type: 'house-tracker' }
+  | { type: 'home-tracker' }
   | { type: 'relationship-tracker' }
   | { type: 'thoughts' }
   | { type: 'add-thought' }
   | { type: 'edit-thought'; thoughtId: string }
-  | { type: 'todos' };
+  | { type: 'todos' }
+  | { type: 'wealth-tracker' }
+  | { type: 'experimental' };
 
 export interface HistoricalQuestion {
   id: string;

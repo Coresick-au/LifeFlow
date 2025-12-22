@@ -9,7 +9,14 @@ interface CareerExportProps {
 }
 
 export const CareerExport: React.FC<CareerExportProps> = ({ careerEvents }) => {
-  const { stories, userProfile } = useTimelineStore();
+  const {
+    stories,
+    userProfile,
+    getTotalNetWorth,
+    getLiquidAssets,
+    getTotalDebt,
+    getSuperannuation,
+  } = useTimelineStore();
   const [isAnonymized, setIsAnonymized] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -30,16 +37,16 @@ export const CareerExport: React.FC<CareerExportProps> = ({ careerEvents }) => {
   // Generate AI Pivot Pack Markdown
   const generateAIPivotPack = () => {
     const currentDate = new Date();
-    
+
     // Get current company for anonymization reference
     const currentCompany = careerEvents.find(e => !e.endDate)?.company;
-    
+
     // Process career events
     const processedEvents = careerEvents.map(event => {
-      const duration = event.endDate 
+      const duration = event.endDate
         ? (event.endDate.getTime() - event.date.getTime()) / (1000 * 60 * 60 * 24 * 365)
         : (currentDate.getTime() - event.date.getTime()) / (1000 * 60 * 60 * 24 * 365);
-      
+
       const eventData = {
         title: event.title,
         type: event.type,
@@ -50,18 +57,18 @@ export const CareerExport: React.FC<CareerExportProps> = ({ careerEvents }) => {
         duration: duration,
         description: event.description
       };
-      
+
       return applyPrivacyMask(eventData, isAnonymized);
     });
 
     // Extract life skills from non-career stories
     const lifeSkills = stories
-      .filter(story => 
+      .filter(story =>
         !story.tags.some(tag => ['career', 'work', 'job', 'professional', 'business'].includes(tag.toLowerCase())) &&
         (story.tags.some(tag => ['achievement', 'skill', 'learning'].includes(tag.toLowerCase())) ||
-         story.content.toLowerCase().includes('learned') ||
-         story.content.toLowerCase().includes('achieved') ||
-         story.content.toLowerCase().includes('mastered'))
+          story.content.toLowerCase().includes('learned') ||
+          story.content.toLowerCase().includes('achieved') ||
+          story.content.toLowerCase().includes('mastered'))
       )
       .map(story => {
         const skillData = {
@@ -123,6 +130,51 @@ Generated: ${format(currentDate, 'MMMM d, yyyy')}
       });
     }
 
+    // Add Financial Health section
+    const netWorth = getTotalNetWorth();
+    const liquidAssets = getLiquidAssets();
+    const totalDebt = getTotalDebt();
+    const superannuation = getSuperannuation();
+    const lockedAssets = superannuation; // Could add real estate equity here
+
+    // Helper function to convert value to range (for privacy masking)
+    const valueToRange = (value: number): string => {
+      if (value < 0) return 'Negative';
+      if (value < 10000) return '$0-$10k';
+      if (value < 25000) return '$10k-$25k';
+      if (value < 50000) return '$25k-$50k';
+      if (value < 100000) return '$50k-$100k';
+      if (value < 250000) return '$100k-$250k';
+      if (value < 500000) return '$250k-$500k';
+      if (value < 1000000) return '$500k-$1M';
+      return '$1M+';
+    };
+
+    const formatFinancialValue = (value: number): string => {
+      if (isAnonymized) {
+        return valueToRange(value);
+      }
+      return `$${value.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    };
+
+    // Calculate liquid runway (months at $5k/month burn rate)
+    const liquidRunwayMonths = liquidAssets > 0 ? Math.floor(liquidAssets / 5000) : 0;
+
+    markdown += `---
+
+## Financial Health Context
+
+- **Net Worth**: ${formatFinancialValue(netWorth)}
+- **Liquid Runway**: ${formatFinancialValue(liquidAssets)}${liquidAssets > 0 ? ` (~${liquidRunwayMonths} months at $5k/month)` : ''}
+- **Locked Assets**: ${formatFinancialValue(lockedAssets)} (Superannuation + Real Estate Equity)
+- **Total Liabilities**: ${formatFinancialValue(totalDebt)}
+
+${isAnonymized
+        ? '*Financial values shown as ranges for privacy.*'
+        : '*Use this context to assess career risk tolerance and pivot feasibility.*'}
+
+`;
+
     markdown += `---
 
 ## Analysis Request
@@ -169,7 +221,7 @@ Based on the above history, please provide:
   return (
     <div className="bg-theme-primary rounded-lg shadow-lg p-6 mt-8">
       <h3 className="text-lg font-semibold text-theme-primary mb-4">Career Export Tools</h3>
-      
+
       {/* Privacy Mask Toggle */}
       <div className="flex items-center justify-between p-4 bg-theme-tertiary dark:bg-slate-800 rounded-lg mb-4">
         <div className="flex items-center gap-3">
@@ -183,14 +235,12 @@ Based on the above history, please provide:
         </div>
         <button
           onClick={() => setIsAnonymized(!isAnonymized)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            isAnonymized ? 'bg-primary-600' : 'bg-theme-tertiary dark:bg-gray-700'
-          }`}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isAnonymized ? 'bg-primary-600' : 'bg-theme-tertiary dark:bg-gray-700'
+            }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-theme-primary transition-transform ${
-              isAnonymized ? 'translate-x-6' : 'translate-x-1'
-            }`}
+            className={`inline-block h-4 w-4 transform rounded-full bg-theme-primary transition-transform ${isAnonymized ? 'translate-x-6' : 'translate-x-1'
+              }`}
           />
         </button>
       </div>
@@ -216,8 +266,8 @@ Based on the above history, please provide:
       {/* Export Preview */}
       <div className="mt-4 p-4 bg-blue-500/20 dark:bg-blue-900/20 rounded-lg">
         <p className="text-sm text-blue-800 dark:text-blue-300">
-          <strong>AI Pivot Pack</strong> includes your career timeline, life skills, and a structured prompt for career AI analysis.
-          {isAnonymized && ' Personal information will be anonymized.'}
+          <strong>AI Pivot Pack</strong> includes your career timeline, life skills, financial health context, and a structured prompt for career AI analysis.
+          {isAnonymized && ' Personal and financial information will be anonymized.'}
         </p>
       </div>
     </div>

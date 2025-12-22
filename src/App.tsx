@@ -16,13 +16,15 @@ import { MoodHeatmap } from './components/MoodHeatmap';
 import { LifeDashboard } from './components/LifeDashboard';
 import { JobTracker } from './components/JobTracker';
 import { ChildTracker } from './components/ChildTracker';
-import { HouseTracker } from './components/HouseTracker';
+import { HomeTracker } from './components/HomeTracker';
 import { RelationshipTracker } from './components/RelationshipTracker';
 import { StoryForm } from './components/StoryForm';
 import { Thoughts } from './components/Thoughts';
 import { TodoList } from './components/TodoList';
 import { BubbleTimeline } from './components/BubbleTimeline';
 import { AIInsights } from './components/AIInsights';
+import { WealthTracker } from './components/WealthTracker';
+import { ExperimentalComparison } from './components/ExperimentalComparison';
 import { useTimelineStore } from './store/timelineStore';
 import { useThemeStore } from './store/themeStore';
 import { generateExtendedSampleData } from './store/timelineStore';
@@ -38,9 +40,14 @@ import {
   TrendingUp,
   Smile,
   Lightbulb,
-  CheckSquare
+  CheckSquare,
+  PiggyBank,
+  AlertTriangle,
+  Home
 } from 'lucide-react';
 import type { TimelineView } from './types';
+
+// Force recompile to fix Home icon import
 
 export const App: React.FC = () => {
   const { stories, userProfile, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile, addStory } = useTimelineStore();
@@ -206,14 +213,18 @@ export const App: React.FC = () => {
         return <JobTracker />;
       case 'child-tracker':
         return <ChildTracker />;
-      case 'house-tracker':
-        return <HouseTracker />;
+      case 'home-tracker':
+        return <HomeTracker />;
       case 'relationship-tracker':
         return <RelationshipTracker />;
       case 'thoughts':
         return <Thoughts />;
       case 'todos':
         return <TodoList />;
+      case 'wealth-tracker':
+        return <WealthTracker />;
+      case 'experimental':
+        return <ExperimentalComparison />;
       case 'add-story':
         return <StoryForm />;
       case 'edit-story':
@@ -237,8 +248,10 @@ export const App: React.FC = () => {
     { type: 'likes-dislikes', icon: Smile, label: 'Likes & Dislikes' },
     { type: 'job-tracker', icon: TrendingUp, label: 'Career Tracker' },
     { type: 'child-tracker', icon: Heart, label: 'Child Tracker' },
-    { type: 'house-tracker', icon: Heart, label: 'House Tracker' },
+    { type: 'home-tracker', icon: Home, label: 'Home Tracker' },
     { type: 'relationship-tracker', icon: Users, label: 'Relationship Tracker' },
+    { type: 'wealth-tracker', icon: PiggyBank, label: 'Wealth' },
+    { type: 'experimental', icon: AlertTriangle, label: 'Experimental' },
     { type: 'profile', icon: Smile, label: 'Profile' },
     { type: 'settings', icon: SettingsIcon, label: 'Settings' },
   ];

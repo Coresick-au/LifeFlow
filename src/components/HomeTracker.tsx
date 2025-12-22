@@ -30,7 +30,7 @@ interface HomeStats {
   estimatedValue?: number;
 }
 
-export const HouseTracker: React.FC = () => {
+export const HomeTracker: React.FC = () => {
   const { stories, setCurrentView } = useTimelineStore();
   const [selectedHome, setSelectedHome] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);

@@ -14,9 +14,18 @@ interface Preference {
   dateAdded: Date;
 }
 
+export interface WealthItem {
+  id: string;
+  category: 'savings' | 'investment' | 'business' | 'superannuation' | 'debt' | 'other';
+  name: string;
+  value: number; // Positive for assets, negative for debts
+  isLiquid: boolean;
+  lastUpdated: Date;
+}
+
 // Initialize IndexedDB
 const db = new Dexie('LifeFlowDB');
-db.version(2).stores({
+db.version(3).stores({
   stories: '++id, title, content, type, date, endDate, fuzzyDate, tags, people, importance, mood, location, images, createdAt, updatedAt',
   thoughts: '++id, content, type, createdAt, tags, mood',
   todos: '++id, title, description, status, priority, createdAt, completedAt, archivedAt, tags, dueDate',
@@ -24,6 +33,7 @@ db.version(2).stores({
   preferences: '++id, item, category, type, dateAdded',
   relationships: '++id, firstName, lastName, fullName, relationshipType, interactionCount, notes, createdAt, updatedAt',
   managedTags: '++id, name, category, color, createdAt',
+  wealthItems: '++id, category, name, value, isLiquid, lastUpdated',
 });
 
 // Export the database instance for use in other modules
@@ -35,6 +45,8 @@ export { generateExtendedSampleData, generateSampleRelationships };
 type TimelineStore = TimelineState & {
   // Preferences state
   preferences: Preference[];
+  // Wealth state
+  wealthItems: WealthItem[];
   // Loading states
   isLoading: boolean;
   isSaving: boolean;
@@ -72,6 +84,16 @@ type TimelineStore = TimelineState & {
   addManagedTag: (tag: Omit<ManagedTag, 'id' | 'createdAt'>) => Promise<void>;
   updateManagedTag: (id: string, updates: Partial<ManagedTag>) => Promise<void>;
   deleteManagedTag: (id: string) => Promise<void>;
+  // Wealth methods
+  loadWealthItems: () => Promise<void>;
+  addWealthItem: (item: Omit<WealthItem, 'id' | 'lastUpdated'>) => Promise<void>;
+  updateWealthItem: (id: string, updates: Partial<WealthItem>) => Promise<void>;
+  removeWealthItem: (id: string) => Promise<void>;
+  // Computed wealth getters
+  getTotalNetWorth: () => number;
+  getLiquidAssets: () => number;
+  getTotalDebt: () => number;
+  getSuperannuation: () => number;
   // Seed data
   seedData: () => Promise<void>;
   setLoading: (loading: boolean) => void;
@@ -96,6 +118,7 @@ export const useTimelineStore = create<TimelineStore>()(
       preferences: [],
       relationships: [],
       managedTags: [],
+      wealthItems: [],
       currentView: initialView,
       isLoading: false,
       isSaving: false,
@@ -111,11 +134,11 @@ export const useTimelineStore = create<TimelineStore>()(
             createdAt: new Date(),
             updatedAt: new Date(),
           };
-          
+
           await db.table('stories').add(newStory);
-          
+
           set((state: TimelineStore) => ({
-            stories: [...state.stories, newStory].sort((a, b) => 
+            stories: [...state.stories, newStory].sort((a, b) =>
               new Date(b.date).getTime() - new Date(a.date).getTime()
             ),
             isLoading: false,
@@ -132,9 +155,9 @@ export const useTimelineStore = create<TimelineStore>()(
             ...updates,
             updatedAt: new Date(),
           };
-          
+
           await db.table('stories').update(id, updatedStory);
-          
+
           set((state: TimelineStore) => ({
             stories: state.stories.map((story: Story) =>
               story.id === id ? { ...story, ...updatedStory } : story
@@ -150,7 +173,7 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isLoading: true, error: null });
         try {
           await db.table('stories').delete(id);
-          
+
           set((state: TimelineStore) => ({
             stories: state.stories.filter((story: Story) => story.id !== id),
             isLoading: false,
@@ -224,13 +247,13 @@ export const useTimelineStore = create<TimelineStore>()(
             id: crypto.randomUUID(),
             dateAdded: new Date(),
           };
-          
+
           await db.table('preferences').add(newPreference);
-          
+
           const currentPreferences = get().preferences;
-          set({ 
+          set({
             preferences: [...currentPreferences, newPreference],
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to add preference', isSaving: false });
@@ -241,11 +264,11 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isSaving: true, error: null });
         try {
           await db.table('preferences').delete(id);
-          
+
           const currentPreferences = get().preferences;
-          set({ 
+          set({
             preferences: currentPreferences.filter(p => p.id !== id),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to remove preference', isSaving: false });
@@ -275,15 +298,15 @@ export const useTimelineStore = create<TimelineStore>()(
             ...thoughtData,
             id: crypto.randomUUID(),
           };
-          
+
           await db.table('thoughts').add(newThought);
-          
+
           const currentThoughts = get().thoughts;
-          set({ 
-            thoughts: [newThought, ...currentThoughts].sort((a, b) => 
+          set({
+            thoughts: [newThought, ...currentThoughts].sort((a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             ),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to add thought', isSaving: false });
@@ -294,13 +317,13 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isSaving: true, error: null });
         try {
           await db.table('thoughts').update(id, updates);
-          
+
           const currentThoughts = get().thoughts;
-          set({ 
-            thoughts: currentThoughts.map(t => 
+          set({
+            thoughts: currentThoughts.map(t =>
               t.id === id ? { ...t, ...updates } : t
             ),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to update thought', isSaving: false });
@@ -311,11 +334,11 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isSaving: true, error: null });
         try {
           await db.table('thoughts').delete(id);
-          
+
           const currentThoughts = get().thoughts;
-          set({ 
+          set({
             thoughts: currentThoughts.filter(t => t.id !== id),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to delete thought', isSaving: false });
@@ -348,11 +371,11 @@ export const useTimelineStore = create<TimelineStore>()(
             ...todoData,
             id: crypto.randomUUID(),
           };
-          
+
           await db.table('todos').add(newTodo);
-          
+
           const currentTodos = get().todos;
-          set({ 
+          set({
             todos: [newTodo, ...currentTodos].sort((a, b) => {
               // Sort by priority first, then by creation date
               const priorityOrder = { high: 3, medium: 2, low: 1 };
@@ -360,7 +383,7 @@ export const useTimelineStore = create<TimelineStore>()(
               if (priorityDiff !== 0) return priorityDiff;
               return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             }),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to add todo', isSaving: false });
@@ -371,13 +394,13 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isSaving: true, error: null });
         try {
           await db.table('todos').update(id, updates);
-          
+
           const currentTodos = get().todos;
-          set({ 
-            todos: currentTodos.map(t => 
+          set({
+            todos: currentTodos.map(t =>
               t.id === id ? { ...t, ...updates } : t
             ),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to update todo', isSaving: false });
@@ -388,11 +411,11 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isSaving: true, error: null });
         try {
           await db.table('todos').delete(id);
-          
+
           const currentTodos = get().todos;
-          set({ 
+          set({
             todos: currentTodos.filter(t => t.id !== id),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to delete todo', isSaving: false });
@@ -402,17 +425,17 @@ export const useTimelineStore = create<TimelineStore>()(
       completeTodo: async (id: string) => {
         set({ isSaving: true, error: null });
         try {
-          await db.table('todos').update(id, { 
+          await db.table('todos').update(id, {
             status: 'completed',
             completedAt: new Date()
           });
-          
+
           const currentTodos = get().todos;
-          set({ 
-            todos: currentTodos.map(t => 
+          set({
+            todos: currentTodos.map(t =>
               t.id === id ? { ...t, status: 'completed' as const, completedAt: new Date() } : t
             ),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to complete todo', isSaving: false });
@@ -422,17 +445,17 @@ export const useTimelineStore = create<TimelineStore>()(
       archiveTodo: async (id: string) => {
         set({ isSaving: true, error: null });
         try {
-          await db.table('todos').update(id, { 
+          await db.table('todos').update(id, {
             status: 'archived',
             archivedAt: new Date()
           });
-          
+
           const currentTodos = get().todos;
-          set({ 
-            todos: currentTodos.map(t => 
+          set({
+            todos: currentTodos.map(t =>
               t.id === id ? { ...t, status: 'archived' as const, archivedAt: new Date() } : t
             ),
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to archive todo', isSaving: false });
@@ -445,26 +468,26 @@ export const useTimelineStore = create<TimelineStore>()(
           // Clear existing stories
           await db.table('stories').clear();
           await db.table('relationships').clear();
-          
+
           // Add seed profile to localStorage via persist (convert Date to string)
           const serializableProfile = {
             ...seedProfile,
             birthDate: seedProfile.birthDate.toISOString(),
           };
           set({ userProfile: serializableProfile as unknown as UserProfile });
-          
+
           // Generate extended sample data
           const generatedStories = generateExtendedSampleData();
           const generatedRelationships = generateSampleRelationships();
-          
+
           await db.table('stories').bulkAdd(generatedStories);
           await db.table('relationships').bulkAdd(generatedRelationships);
-          
+
           // Update store state
-          set({ 
+          set({
             stories: generatedStories,
             relationships: generatedRelationships,
-            isLoading: false 
+            isLoading: false
           });
         } catch (error) {
           set({ error: 'Failed to seed data', isLoading: false });
@@ -484,7 +507,7 @@ export const useTimelineStore = create<TimelineStore>()(
         const relationships = await db.table('relationships').toArray();
         const managedTags = await db.table('managedTags').toArray();
         const preferences = await db.table('preferences').toArray();
-        
+
         const exportData = {
           stories,
           userProfile,
@@ -494,22 +517,22 @@ export const useTimelineStore = create<TimelineStore>()(
           exportedAt: new Date().toISOString(),
           version: '1.0'
         };
-        
+
         return JSON.stringify(exportData, null, 2);
       },
-      
+
       // Import data from JSON
       importData: async (jsonData: string) => {
         try {
           const importData = JSON.parse(jsonData);
-          
+
           // Clear existing data
           await db.table('stories').clear();
           await db.table('userProfile').clear();
           await db.table('relationships').clear();
           await db.table('managedTags').clear();
           await db.table('preferences').clear();
-          
+
           // Import new data
           if (importData.stories) {
             await db.table('stories').bulkAdd(importData.stories);
@@ -526,14 +549,14 @@ export const useTimelineStore = create<TimelineStore>()(
           if (importData.preferences) {
             await db.table('preferences').bulkAdd(importData.preferences);
           }
-          
+
           // Reload all data
           await get().loadStories();
           await get().loadUserProfile();
           await get().loadRelationships();
           await get().loadManagedTags();
           await get().loadPreferences();
-          
+
         } catch (error) {
           throw new Error('Failed to import data: ' + (error as Error).message);
         }
@@ -560,13 +583,13 @@ export const useTimelineStore = create<TimelineStore>()(
             createdAt: new Date(),
             updatedAt: new Date(),
           };
-          
+
           await db.table('relationships').add(newRelationship);
-          
+
           const currentRelationships = get().relationships;
-          set({ 
+          set({
             relationships: [...currentRelationships, newRelationship],
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to add relationship', isSaving: false });
@@ -580,9 +603,9 @@ export const useTimelineStore = create<TimelineStore>()(
             ...updates,
             updatedAt: new Date(),
           };
-          
+
           await db.table('relationships').update(id, updatedRelationship);
-          
+
           set((state: TimelineStore) => ({
             relationships: state.relationships.map((relationship: Relationship) =>
               relationship.id === id ? { ...relationship, ...updatedRelationship } : relationship
@@ -598,7 +621,7 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isLoading: true, error: null });
         try {
           await db.table('relationships').delete(id);
-          
+
           set((state: TimelineStore) => ({
             relationships: state.relationships.filter((relationship: Relationship) => relationship.id !== id),
             isLoading: false,
@@ -618,9 +641,9 @@ export const useTimelineStore = create<TimelineStore>()(
               interactionCount: relationship.interactionCount + 1,
               updatedAt: new Date(),
             };
-            
+
             await db.table('relationships').update(id, updatedRelationship);
-            
+
             set((state: TimelineStore) => ({
               relationships: state.relationships.map((r: Relationship) =>
                 r.id === id ? updatedRelationship : r
@@ -652,13 +675,13 @@ export const useTimelineStore = create<TimelineStore>()(
             id: crypto.randomUUID(),
             createdAt: new Date(),
           };
-          
+
           await db.table('managedTags').add(newTag);
-          
+
           const currentTags = get().managedTags;
-          set({ 
+          set({
             managedTags: [...currentTags, newTag],
-            isSaving: false 
+            isSaving: false
           });
         } catch (error) {
           set({ error: 'Failed to add managed tag', isSaving: false });
@@ -669,7 +692,7 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isLoading: true, error: null });
         try {
           await db.table('managedTags').update(id, updates);
-          
+
           set((state: TimelineStore) => ({
             managedTags: state.managedTags.map((tag: ManagedTag) =>
               tag.id === id ? { ...tag, ...updates } : tag
@@ -685,7 +708,7 @@ export const useTimelineStore = create<TimelineStore>()(
         set({ isLoading: true, error: null });
         try {
           await db.table('managedTags').delete(id);
-          
+
           set((state: TimelineStore) => ({
             managedTags: state.managedTags.filter((tag: ManagedTag) => tag.id !== id),
             isLoading: false,
@@ -693,6 +716,113 @@ export const useTimelineStore = create<TimelineStore>()(
         } catch (error) {
           set({ error: 'Failed to delete managed tag', isLoading: false });
         }
+      },
+
+      // Wealth methods
+      loadWealthItems: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const wealthItems = await db.table('wealthItems').toArray();
+          // Convert strings back to Date objects
+          const hydratedWealthItems = wealthItems.map(w => ({
+            ...w,
+            lastUpdated: new Date(w.lastUpdated)
+          }));
+          set({ wealthItems: hydratedWealthItems, isLoading: false });
+        } catch (error) {
+          set({ error: 'Failed to load wealth items', isLoading: false });
+        }
+      },
+
+      addWealthItem: async (itemData: Omit<WealthItem, 'id' | 'lastUpdated'>) => {
+        set({ isSaving: true, error: null });
+        try {
+          const newItem: WealthItem = {
+            ...itemData,
+            id: crypto.randomUUID(),
+            lastUpdated: new Date(),
+          };
+
+          await db.table('wealthItems').add(newItem);
+
+          const currentItems = get().wealthItems;
+          set({
+            wealthItems: [...currentItems, newItem],
+            isSaving: false
+          });
+        } catch (error) {
+          set({ error: 'Failed to add wealth item', isSaving: false });
+        }
+      },
+
+      updateWealthItem: async (id: string, updates: Partial<WealthItem>) => {
+        set({ isSaving: true, error: null });
+        try {
+          const updatedItem = {
+            ...updates,
+            lastUpdated: new Date(),
+          };
+
+          await db.table('wealthItems').update(id, updatedItem);
+
+          const currentItems = get().wealthItems;
+          set({
+            wealthItems: currentItems.map(item =>
+              item.id === id ? { ...item, ...updatedItem } : item
+            ),
+            isSaving: false
+          });
+        } catch (error) {
+          set({ error: 'Failed to update wealth item', isSaving: false });
+        }
+      },
+
+      removeWealthItem: async (id: string) => {
+        set({ isSaving: true, error: null });
+        try {
+          await db.table('wealthItems').delete(id);
+
+          const currentItems = get().wealthItems;
+          set({
+            wealthItems: currentItems.filter(item => item.id !== id),
+            isSaving: false
+          });
+        } catch (error) {
+          set({ error: 'Failed to remove wealth item', isSaving: false });
+        }
+      },
+
+      // Computed wealth getters
+      getTotalNetWorth: () => {
+        const items = get().wealthItems;
+        return items.reduce((total, item) => {
+          // Debt category items should be negative
+          if (item.category === 'debt') {
+            return total - Math.abs(item.value);
+          }
+          return total + item.value;
+        }, 0);
+      },
+
+      getLiquidAssets: () => {
+        const items = get().wealthItems;
+        return items
+          .filter(item => item.isLiquid && item.category !== 'debt')
+          .reduce((total, item) => total + item.value, 0);
+      },
+
+      getTotalDebt: () => {
+        const items = get().wealthItems;
+        return items
+          .filter(item => item.category === 'debt')
+          .reduce((total, item) => total + Math.abs(item.value), 0);
+      },
+
+      getSuperannuation: () => {
+        const items = get().wealthItems;
+        return items
+          .filter(item => item.category === 'superannuation')
+          .reduce((total, item) => total + item.value, 0);
       },
     }),
     {
@@ -702,7 +832,7 @@ export const useTimelineStore = create<TimelineStore>()(
         currentView: state.currentView,
         userProfile: state.userProfile ? {
           ...state.userProfile,
-          birthDate: state.userProfile.birthDate instanceof Date 
+          birthDate: state.userProfile.birthDate instanceof Date
             ? state.userProfile.birthDate.toISOString()
             : state.userProfile.birthDate,
         } : null,
