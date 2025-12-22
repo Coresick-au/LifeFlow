@@ -135,11 +135,47 @@ export const ageBenchmarks: AgeBenchmark[] = [
 ];
 
 /**
+ * Get age benchmarks, checking localStorage for custom data first
+ */
+export function getAgeBenchmarks(): AgeBenchmark[] {
+    try {
+        const customData = localStorage.getItem('lifeflow-custom-benchmarks');
+        if (customData) {
+            const parsed = JSON.parse(customData);
+            // Convert custom format to AgeBenchmark format
+            return parsed.map((item: any) => {
+                const ageGroup = item.agegroup || item.age_group || item.ageGroup || '0-0';
+                const [minStr, maxStr] = ageGroup.replace('+', '-100').split('-');
+                return {
+                    ageGroup,
+                    minAge: parseInt(minStr) || 0,
+                    maxAge: parseInt(maxStr) || 100,
+                    medianNetWorth: item.mediannetworth || item.median_net_worth || item.medianNetWorth || 0,
+                    medianIncome: item.medianincome || item.median_income || item.medianIncome || 0,
+                    medianSuperannuation: item.mediansuperannuation || item.median_superannuation || item.medianSuperannuation || 0,
+                };
+            });
+        }
+    } catch (e) {
+        console.error('Error parsing custom benchmarks:', e);
+    }
+    return ageBenchmarks;
+}
+
+/**
+ * Check if custom benchmarks are active
+ */
+export function hasCustomBenchmarks(): boolean {
+    return !!localStorage.getItem('lifeflow-custom-benchmarks');
+}
+
+/**
  * Get user's age bracket based on birth date
  */
 export function getUserAgeBracket(birthDate: Date): AgeBenchmark | null {
     const age = new Date().getFullYear() - new Date(birthDate).getFullYear();
-    return ageBenchmarks.find(b => age >= b.minAge && age <= b.maxAge) || null;
+    const benchmarks = getAgeBenchmarks();
+    return benchmarks.find(b => age >= b.minAge && age <= b.maxAge) || null;
 }
 
 
@@ -208,7 +244,7 @@ export function getLocationDisplayName(location: LocationKey): string {
         perth: 'Perth',
         adelaide: 'Adelaide',
         regional: 'Regional Australia',
-        australia: 'Australia (Average)',
+        australia: 'National Median',
     };
     return names[location];
 }

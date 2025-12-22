@@ -220,7 +220,40 @@ Based on the above history, please provide:
 
   return (
     <div className="bg-theme-primary rounded-lg shadow-lg p-6 mt-8">
-      <h3 className="text-lg font-semibold text-theme-primary mb-4">Career Export Tools</h3>
+      <h3 className="text-lg font-semibold text-theme-primary mb-2">Career Export Tools</h3>
+
+      {/* How to Use Section */}
+      <details className="mb-4">
+        <summary className="text-sm font-medium text-primary-600 dark:text-primary-400 cursor-pointer hover:underline">
+          ℹ️ How to use these tools
+        </summary>
+        <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-sm space-y-3">
+          <div>
+            <strong className="text-blue-800 dark:text-blue-300">📋 Copy AI Pivot Pack</strong>
+            <p className="text-blue-700 dark:text-blue-400 mt-1">
+              Generates a structured prompt you can paste into ChatGPT, Claude, or other AI assistants. The AI will analyze your career history and provide:
+            </p>
+            <ul className="list-disc ml-5 mt-1 text-blue-700 dark:text-blue-400">
+              <li>Market value assessment</li>
+              <li>Career pivot recommendations</li>
+              <li>Skills gap analysis</li>
+              <li>Resume optimization tips</li>
+            </ul>
+          </div>
+          <div>
+            <strong className="text-blue-800 dark:text-blue-300">📥 Download Markdown</strong>
+            <p className="text-blue-700 dark:text-blue-400 mt-1">
+              Saves your career data as a .md file for backup, sharing with recruiters, or importing into other tools like Notion or Obsidian.
+            </p>
+          </div>
+          <div>
+            <strong className="text-blue-800 dark:text-blue-300">🔒 Privacy Mask</strong>
+            <p className="text-blue-700 dark:text-blue-400 mt-1">
+              Toggle to hide personal details (name, exact dates, specific companies, exact financial figures) before sharing. Great for getting advice while maintaining privacy.
+            </p>
+          </div>
+        </div>
+      </details>
 
       {/* Privacy Mask Toggle */}
       <div className="flex items-center justify-between p-4 bg-theme-tertiary dark:bg-slate-800 rounded-lg mb-4">

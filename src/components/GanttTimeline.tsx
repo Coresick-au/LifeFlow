@@ -1,8 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { format, eachDayOfInterval, startOfYear, endOfYear, addMonths, differenceInDays, isWithinInterval } from 'date-fns';
+import { format, differenceInMonths, addMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isWithinInterval, startOfYear, endOfYear, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Download,
+  Search,
+  ZoomIn,
+  ZoomOut,
+  Maximize2
+} from 'lucide-react';
 
 interface TimelineBar {
   id: string;
@@ -166,8 +175,8 @@ export const GanttTimeline: React.FC = () => {
     const width = (duration / yearDays) * 100;
 
     return {
-      left: `${left}%`,
-      width: `${width}%`,
+      left: `${left}% `,
+      width: `${width}% `,
       minWidth: '2px',
     };
   };
@@ -229,7 +238,7 @@ export const GanttTimeline: React.FC = () => {
                 onChange={() => toggleCategory(category)}
                 className="w-4 h-4 text-primary-600 border-theme rounded focus:ring-2 focus:ring-primary-500"
               />
-              <div className={`w-3 h-3 rounded ${color}`}></div>
+              <div className={`w - 3 h - 3 rounded ${color} `}></div>
               <span className="text-sm text-theme-primary capitalize">{category}</span>
             </label>
           ))}
@@ -261,7 +270,7 @@ export const GanttTimeline: React.FC = () => {
                 {/* Lane Label */}
                 <div className="w-32 flex-shrink-0 pr-4">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${lane.color}`}></div>
+                    <div className={`w - 3 h - 3 rounded - full ${lane.color} `}></div>
                     <span className="text-sm font-medium text-theme-secondary">{lane.name}</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400">({lane.bars.length})</span>
                   </div>
@@ -274,9 +283,9 @@ export const GanttTimeline: React.FC = () => {
                     return (
                       <div
                         key={bar.id}
-                        className={`absolute top-1 h-6 ${bar.color} rounded cursor-pointer hover:opacity-80 transition-opacity flex items-center px-2`}
+                        className={`absolute top - 1 h - 6 ${bar.color} rounded cursor - pointer hover: opacity - 80 transition - opacity flex items - center px - 2`}
                         style={style}
-                        title={`${bar.title}\n${format(bar.startDate, 'MMM d')} - ${format(bar.endDate, 'MMM d')}`}
+                        title={`${bar.title} \n${format(bar.startDate, 'MMM d')} - ${format(bar.endDate, 'MMM d')} `}
                       >
                         <span className="text-white text-xs truncate">
                           {bar.title}
@@ -305,7 +314,7 @@ export const GanttTimeline: React.FC = () => {
         <div className="flex flex-wrap gap-4">
           {Object.entries(categoryColors).map(([category, color]) => (
             <div key={category} className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded ${color}`}></div>
+              <div className={`w - 3 h - 3 rounded ${color} `}></div>
               <span className="text-sm text-theme-tertiary capitalize">{category}</span>
             </div>
           ))}

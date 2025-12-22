@@ -7,6 +7,15 @@ export interface Thought {
   mood?: 'happy' | 'sad' | 'neutral' | 'excited' | 'proud' | 'grateful';
 }
 
+export interface Advice {
+  id: string;
+  content: string;
+  category: 'life' | 'career' | 'financial' | 'relationships' | 'health';
+  source?: string;
+  createdAt: Date;
+  tags?: string[];
+}
+
 export interface TodoItem {
   id: string;
   title: string;
@@ -73,7 +82,8 @@ export type TimelineView =
   | { type: 'edit-thought'; thoughtId: string }
   | { type: 'todos' }
   | { type: 'wealth-tracker' }
-  | { type: 'experimental' };
+  | { type: 'experimental' }
+  | { type: 'advice' };
 
 export interface HistoricalQuestion {
   id: string;
@@ -105,6 +115,34 @@ export interface ManagedTag {
   category: string;
   color: string;
   createdAt: Date;
+}
+
+export interface Preference {
+  id: string;
+  item: string;
+  category: string;
+  type: 'like' | 'dislike';
+  dateAdded: Date;
+}
+
+export interface WealthItem {
+  id: string;
+  category: 'savings' | 'investment' | 'business' | 'superannuation' | 'debt' | 'other';
+  name: string;
+  value: number; // Positive for assets, negative for debts
+  isLiquid: boolean;
+  lastUpdated: Date;
+}
+
+export interface WealthHistoryEntry {
+  id: string;
+  wealthItemId: string;
+  wealthItemName: string;
+  previousValue: number;
+  newValue: number;
+  changeAmount: number;
+  timestamp: Date;
+  note?: string;
 }
 
 export interface TimelineState {

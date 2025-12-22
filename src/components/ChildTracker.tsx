@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { format, differenceInYears, differenceInMonths, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
-import { Story } from '../types';
-import { Baby, Calendar, MapPin, Users, Heart, Plus, Camera, Trophy, School } from 'lucide-react';
+import { Baby, Users, Heart, Plus, Camera, Trophy, School } from 'lucide-react';
 import { ChildTrackerForm } from './ChildTrackerForm';
 
 interface Milestone {
@@ -40,31 +39,31 @@ export const ChildTracker: React.FC = () => {
 
   // Filter child-related stories and extract child profiles
   const childData = useMemo(() => {
-    const childStories = stories.filter(story => 
-      story.tags.some(tag => 
+    const childStories = stories.filter(story =>
+      story.tags.some(tag =>
         ['child', 'kid', 'son', 'daughter', 'baby'].includes(tag.toLowerCase())
       )
     );
 
     // Extract child profiles from stories or use default
     const childrenMap = new Map<string, ChildProfile>();
-    
+
     // Try to extract child info from stories
     childStories.forEach(story => {
-      const childName = story.people.find(p => 
+      const childName = story.people.find(p =>
         ['son', 'daughter', 'child'].some(t => p.toLowerCase().includes(t))
       );
-      
+
       if (childName && !childrenMap.has(childName)) {
         // Look for birth date in story content or use a default
         const birthDateMatch = story.content.match(/born on (\d{1,2}\/\d{1,2}\/\d{4})/);
         const birthDate = story.metadata?.birthDate ? new Date(story.metadata.birthDate) : birthDateMatch ? new Date(birthDateMatch[1]) : new Date('2020-01-01');
         const birthLocation = story.metadata?.birthLocation;
         const babyPhoto = story.metadata?.babyPhoto || story.images?.[0];
-        const parents = story.metadata?.parents || story.people.filter(p => 
+        const parents = story.metadata?.parents || story.people.filter(p =>
           ['mom', 'dad', 'mother', 'father', 'parent'].some(t => p.toLowerCase().includes(t))
         );
-        
+
         childrenMap.set(childName, {
           name: childName,
           birthDate,
@@ -100,11 +99,11 @@ export const ChildTracker: React.FC = () => {
   // Process milestones for selected child
   const milestones = useMemo(() => {
     const milestones: Milestone[] = [];
-    
+
     childData.stories.forEach(story => {
       // Determine milestone type
       let type: Milestone['type'] = 'memory';
-      
+
       if (story.tags.some(t => ['first'].includes(t.toLowerCase()))) {
         type = 'first';
       } else if (story.tags.some(t => ['development', 'milestone'].includes(t.toLowerCase()))) {
@@ -121,10 +120,10 @@ export const ChildTracker: React.FC = () => {
       const child = childData.children[0]; // For now, use first child
       if (child) {
         const ageAtMilestone = calculateAgeAt(child.birthDate, new Date(story.date));
-        const person = story.people.find(p => 
+        const person = story.people.find(p =>
           ['son', 'daughter', 'child'].some(t => p.toLowerCase().includes(t))
         );
-        const relationshipType = story.people.find(p => 
+        const relationshipType = story.people.find(p =>
           ['mom', 'dad', 'mother', 'father', 'parent'].some(t => p.toLowerCase().includes(t))
         );
 
@@ -159,9 +158,9 @@ export const ChildTracker: React.FC = () => {
   // Format age for display
   function formatAge(age: { years: number; months: number; days: number }) {
     if (age.years > 0) {
-      return `${age.years}y ${age.months}m`;
+      return `${age.years}y ${age.months} m`;
     } else if (age.months > 0) {
-      return `${age.months}m ${age.days}d`;
+      return `${age.months}m ${age.days} d`;
     } else {
       return `${age.days} days`;
     }
@@ -179,8 +178,8 @@ export const ChildTracker: React.FC = () => {
     }
   };
 
-  const currentChild = selectedChild 
-    ? childData.children.find(c => c.name === selectedChild) 
+  const currentChild = selectedChild
+    ? childData.children.find(c => c.name === selectedChild)
     : childData.children[0];
 
   if (!currentChild) {
@@ -261,17 +260,17 @@ export const ChildTracker: React.FC = () => {
           {currentChild.babyPhoto ? (
             <img
               src={currentChild.babyPhoto}
-              alt={`${currentChild.name}'s baby photo`}
+              alt={`${currentChild.name} 's baby photo`}
               className="w-24 h-24 object-cover rounded-lg shadow-md"
             />
           ) : (
             <Baby className="w-16 h-16 text-pink-300" />
           )}
-        </div>
-      </div>
+        </div >
+      </div >
 
       {/* Milestone Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      < div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8" >
         <div className="text-center p-4 bg-theme-tertiary rounded-lg">
           <div className="text-2xl font-bold text-theme-primary">{milestones.length}</div>
           <div className="text-sm text-theme-tertiary">Total Milestones</div>
@@ -300,43 +299,47 @@ export const ChildTracker: React.FC = () => {
           </div>
           <div className="text-sm text-theme-tertiary">School</div>
         </div>
-      </div>
+      </div >
 
       {/* Recent Milestones */}
-      <div>
+      < div >
         <h3 className="text-lg font-semibold text-theme-primary mb-4">Recent Milestones</h3>
-        
-        {milestones.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-slate-500 dark:text-slate-400">No milestones recorded yet</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {milestones.slice(0, 10).map(milestone => (
-              <div key={milestone.id} className="flex items-start gap-4 p-4 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary transition-colors">
-                <div className="flex-shrink-0 w-10 h-10 bg-theme-primary rounded-full flex items-center justify-center shadow-sm">
-                  {getMilestoneIcon(milestone.type)}
-                </div>
-                
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-medium text-theme-primary">{milestone.title}</h4>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">
-                      {milestone.age} • {format(milestone.date, 'MMM yyyy')}
-                    </div>
+
+        {
+          milestones.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-slate-500 dark:text-slate-400">No milestones recorded yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {milestones.slice(0, 10).map(milestone => (
+                <div key={milestone.id} className="flex items-start gap-4 p-4 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary transition-colors">
+                  <div className="flex-shrink-0 w-10 h-10 bg-theme-primary rounded-full flex items-center justify-center shadow-sm">
+                    {getMilestoneIcon(milestone.type)}
                   </div>
-                  <p className="text-sm text-theme-tertiary">{milestone.description}</p>
+
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-medium text-theme-primary">{milestone.title}</h4>
+                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                        {milestone.age} • {format(milestone.date, 'MMM yyyy')}
+                      </div>
+                    </div>
+                    <p className="text-sm text-theme-tertiary">{milestone.description}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )
+        }
+      </div >
 
       {/* Child Tracker Form */}
-      {showForm && (
-        <ChildTrackerForm onClose={() => setShowForm(false)} />
-      )}
-    </div>
+      {
+        showForm && (
+          <ChildTrackerForm onClose={() => setShowForm(false)} />
+        )
+      }
+    </div >
   );
 };

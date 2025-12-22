@@ -2,7 +2,27 @@ import React, { useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { format } from 'date-fns';
-import { Edit, Trash2, MapPin, Tag, Star, Calendar, Lock } from 'lucide-react';
+import {
+  Edit,
+  Trash2,
+  MapPin,
+  Tag,
+  Star,
+  Calendar,
+  Lock,
+  Plane,
+  Briefcase,
+  Heart,
+  GraduationCap,
+  Music,
+  Dumbbell,
+  Home,
+  Baby,
+  Gift,
+  Camera,
+  Coffee,
+  Sparkles
+} from 'lucide-react';
 
 const getMoodEmoji = (mood: Story['mood']) => {
   const moods: Record<NonNullable<Story['mood']>, string> = {
@@ -25,29 +45,71 @@ const getImportanceStars = (importance: Story['importance']) => {
   return stars[importance];
 };
 
+// Contextual icon based on story tags
+const getCategoryIcon = (tags: string[]) => {
+  const lowerTags = tags.map(t => t.toLowerCase());
+
+  if (lowerTags.some(t => ['travel', 'vacation', 'trip', 'holiday'].includes(t))) {
+    return <Plane className="w-5 h-5 text-blue-500" />;
+  }
+  if (lowerTags.some(t => ['career', 'work', 'job', 'professional'].includes(t))) {
+    return <Briefcase className="w-5 h-5 text-slate-600 dark:text-slate-400" />;
+  }
+  if (lowerTags.some(t => ['family', 'love', 'relationship', 'partner'].includes(t))) {
+    return <Heart className="w-5 h-5 text-red-500" />;
+  }
+  if (lowerTags.some(t => ['education', 'school', 'university', 'learning', 'graduation'].includes(t))) {
+    return <GraduationCap className="w-5 h-5 text-purple-500" />;
+  }
+  if (lowerTags.some(t => ['music', 'concert', 'festival'].includes(t))) {
+    return <Music className="w-5 h-5 text-pink-500" />;
+  }
+  if (lowerTags.some(t => ['fitness', 'health', 'sport', 'exercise', 'gym'].includes(t))) {
+    return <Dumbbell className="w-5 h-5 text-green-500" />;
+  }
+  if (lowerTags.some(t => ['home', 'house', 'property', 'moving'].includes(t))) {
+    return <Home className="w-5 h-5 text-amber-600" />;
+  }
+  if (lowerTags.some(t => ['child', 'baby', 'kids', 'parenting'].includes(t))) {
+    return <Baby className="w-5 h-5 text-pink-400" />;
+  }
+  if (lowerTags.some(t => ['birthday', 'celebration', 'party', 'anniversary'].includes(t))) {
+    return <Gift className="w-5 h-5 text-rose-500" />;
+  }
+  if (lowerTags.some(t => ['photo', 'memory', 'moment'].includes(t))) {
+    return <Camera className="w-5 h-5 text-indigo-500" />;
+  }
+  if (lowerTags.some(t => ['milestone', 'achievement', 'accomplishment'].includes(t))) {
+    return <Sparkles className="w-5 h-5 text-yellow-500" />;
+  }
+
+  // Default icon
+  return <Coffee className="w-5 h-5 text-theme-tertiary" />;
+};
+
 export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: () => void }> = ({ searchResults, onAddStory }) => {
-  const { stories, userProfile, deleteStory, setCurrentView, seedData } = useTimelineStore();
+  const { stories, userProfile, deleteStory, setCurrentView } = useTimelineStore();
   const [filterTags, setFilterTags] = useState<string[]>([]);
 
   console.log('Timeline render - stories:', stories.length, 'userProfile:', userProfile ? 'exists' : 'null');
 
   // Use search results if provided, otherwise use all stories
   const baseStories = searchResults != null ? searchResults : stories;
-  
+
   // Sort stories by date (newest first)
-  const sortedStories = [...baseStories].sort((a, b) => 
+  const sortedStories = [...baseStories].sort((a, b) =>
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
-  
+
   console.log('Sorted stories:', sortedStories.length);
 
   // Filter stories by tags if selected
   const filteredStories = filterTags.length > 0
-    ? sortedStories.filter(story => 
-        filterTags.some(tag => story.tags.includes(tag))
-      )
+    ? sortedStories.filter(story =>
+      filterTags.some(tag => story.tags.includes(tag))
+    )
     : sortedStories;
-    
+
   console.log('Filtered stories:', filteredStories.length, 'Filter tags:', filterTags);
 
   // Get all unique tags from all stories (not just search results)
@@ -80,8 +142,8 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
   };
 
   const handleTagClick = (tag: string) => {
-    setFilterTags(prev => 
-      prev.includes(tag) 
+    setFilterTags(prev =>
+      prev.includes(tag)
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
@@ -114,7 +176,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
           {hasFilters ? 'No stories found' : 'No stories yet'}
         </h2>
         <p className="mb-6 text-theme-secondary">
-          {hasFilters 
+          {hasFilters
             ? 'Try adjusting your filters or search terms'
             : 'Start adding your memories to build your timeline'
           }
@@ -141,7 +203,16 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
   return (
     <div className="w-full">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold mb-2 text-theme-primary">Timeline</h2>
+        <div className="flex items-center gap-3 mb-2">
+          <h2 className="text-3xl font-bold text-theme-primary">Timeline</h2>
+          <button
+            onClick={() => setCurrentView({ type: 'add-story' })}
+            className="w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-md transition-all hover:scale-110 flex items-center justify-center text-xl leading-none"
+            title="Add new story"
+          >
+            +
+          </button>
+        </div>
         <p className="text-theme-secondary">Your life's journey, moment by moment</p>
       </div>
 
@@ -151,11 +222,10 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleClearFilters}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors rounded-theme ${
-                filterTags.length === 0
-                  ? 'bg-theme-accent text-white'
-                  : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-              }`}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors rounded-theme ${filterTags.length === 0
+                ? 'bg-theme-accent text-white'
+                : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                }`}
             >
               All Stories {filterTags.length > 0 && `(${filterTags.length})`}
             </button>
@@ -163,11 +233,10 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
               <button
                 key={tag}
                 onClick={() => handleTagClick(tag)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors rounded-theme ${
-                  filterTags.includes(tag)
-                    ? 'bg-theme-accent text-white'
-                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-                }`}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors rounded-theme ${filterTags.includes(tag)
+                  ? 'bg-theme-accent text-white'
+                  : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                  }`}
               >
                 #{tag}
               </button>
@@ -189,30 +258,18 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                 <Calendar className="w-12 h-12 text-theme-tertiary" style={{ color: 'var(--theme-text-secondary)' }} />
               </div>
               <h3 className="text-xl font-semibold mb-2 text-theme-primary">
-                {filterTags.length > 0 
-                  ? `No stories tagged with ${filterTags.map(t => `"#${t}"`).join(' or ')}` 
+                {filterTags.length > 0
+                  ? `No stories tagged with ${filterTags.map(t => `"#${t}"`).join(' or ')}`
                   : 'Your timeline is empty'
                 }
               </h3>
               <p className="mb-6 text-theme-secondary">
-                {filterTags.length > 0 
+                {filterTags.length > 0
                   ? 'Try clearing filters or add stories with these tags'
                   : 'Start building your life story by adding your first memories'
                 }
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                {filterTags.length === 0 && (
-                  <button
-                    onClick={async () => {
-                      if (window.confirm('This will add sample stories to your timeline. Continue?')) {
-                        await seedData();
-                      }
-                    }}
-                    className="px-6 py-3 text-white rounded-md transition-colors font-medium btn-primary rounded-theme"
-                  >
-                    Load Sample Data
-                  </button>
-                )}
                 <button
                   onClick={onAddStory}
                   className="px-6 py-3 border rounded-md transition-colors font-medium bg-theme-primary border-theme text-theme-primary hover:bg-theme-tertiary rounded-theme"
@@ -232,18 +289,25 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
               {/* Stories for this month */}
               {stories.map((story: Story, index: number) => {
                 const isLocked = isTimeCapsuleLocked(story);
-                
+                const isEven = index % 2 === 0;
+
                 return (
                   <div
                     key={story.id}
-                    className="relative mb-8 animate-slide-up"
+                    className={`relative mb-8 animate-slide-up flex items-start md:justify-center ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'
+                      }`}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    {/* Timeline dot */}
-                    <div className="timeline-dot" />
-                    
+                    {/* Spacer for desktop alternating layout */}
+                    <div className="hidden md:block md:w-[calc(50%-2.5rem)]" />
+
+                    {/* Timeline dot with contextual icon */}
+                    <div className="timeline-dot">
+                      {getCategoryIcon(story.tags)}
+                    </div>
+
                     {/* Story card */}
-                    <div className={`story-card ${isLocked ? 'relative' : ''}`}>
+                    <div className={`story-card ${isEven ? 'md:story-card-right' : 'md:story-card-left'} ${isLocked ? 'relative' : ''}`}>
                       {/* Time capsule overlay */}
                       {isLocked && (
                         <div className="absolute inset-0 backdrop-blur-sm rounded-lg z-10 flex flex-col items-center justify-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
@@ -257,14 +321,14 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                           </p>
                         </div>
                       )}
-                      
+
                       <div className={`flex items-start justify-between mb-2 ${isLocked ? 'opacity-30' : ''}`}>
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold mb-1 text-theme-primary">
                             {story.title}
                             {isLocked && <Lock className="inline w-4 h-4 ml-2" style={{ color: '#f59e0b' }} />}
                           </h3>
-                          <div className="flex items-center space-x-4 text-sm text-theme-secondary">
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-theme-secondary">
                             <span className="flex items-center">
                               <Calendar className="w-4 h-4 mr-1" />
                               {format(new Date(story.date), 'MMM d, yyyy')}
@@ -281,8 +345,28 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                         </div>
                       </div>
 
-                      {/* Content - always show full content */}
-                      <p className={`${isLocked ? 'opacity-30' : ''} text-theme-primary`}>
+                      {/* Image Gallery */}
+                      {story.images && story.images.length > 0 && !isLocked && (
+                        <div className={`grid gap-2 mb-3 mt-2 ${story.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                          {story.images.slice(0, 4).map((img, i) => (
+                            <img
+                              key={i}
+                              src={img}
+                              alt={`Memory ${i + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border border-theme hover:opacity-90 transition-opacity cursor-pointer"
+                              onClick={() => window.open(img, '_blank')}
+                            />
+                          ))}
+                          {story.images.length > 4 && (
+                            <div className="w-full h-32 flex items-center justify-center bg-theme-tertiary rounded-lg border border-theme text-theme-secondary">
+                              +{story.images.length - 4} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <p className={`${isLocked ? 'opacity-30' : ''} text-theme-primary leading-relaxed`}>
                         {story.content}
                       </p>
 

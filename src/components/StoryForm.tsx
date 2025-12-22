@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { format, addDays, addWeeks, addMonths, addYears } from 'date-fns';
-import { X, Calendar, MapPin, Users, Tag, Heart, Star, Lock, Clock, FileText, Hash, ChevronDown, Check, Save } from 'lucide-react';
+import { format, addDays } from 'date-fns';
+import { X, Calendar, MapPin, Users, Tag, Heart, Star, Lock, Clock, FileText, ChevronDown, Check, Save } from 'lucide-react';
 
 const moodOptions = [
   { value: 'happy', label: '😊 Happy', color: 'bg-yellow-500/20 text-yellow-400' },
@@ -21,19 +21,15 @@ const importanceOptions = [
 
 export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
   const { addStory, updateStory, setCurrentView, stories, relationships, managedTags, loadRelationships, loadManagedTags, userProfile } = useTimelineStore();
-  const [tagInput, setTagInput] = useState('');
   const [personInput, setPersonInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showPersonSuggestions, setShowPersonSuggestions] = useState(false);
   const [isTimeCapsule, setIsTimeCapsule] = useState(false);
-  const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
   const [peopleSearchTerm, setPeopleSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(!!storyId);
-  const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [inputMode, setInputMode] = useState<'date' | 'age'>('date');
   const [ageValue, setAgeValue] = useState('');
-  const debounceTimer = useRef<NodeJS.Timeout>();
 
   const isEditing = !!storyId;
   const [formData, setFormData] = useState<Partial<Story>>({
@@ -73,17 +69,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
 
   useEffect(() => {
     if (!isEditing) {
-      clearTimeout(debounceTimer.current);
-      debounceTimer.current = setTimeout(() => {
-        localStorage.setItem('storyFormDraft', JSON.stringify(formData));
-      }, 1000);
+      localStorage.setItem('storyFormDraft', JSON.stringify(formData));
     }
-
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
   }, [formData, isEditing]);
 
   useEffect(() => {
@@ -192,12 +179,9 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
     if (!userProfile?.birthDate) return null;
     const birthDate = new Date(userProfile.birthDate);
     const storyDate = new Date(date);
-    const age = storyDate.getFullYear() - birthDate.getFullYear();
-    const monthDiff = storyDate.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && storyDate.getDate() < birthDate.getDate())) {
-      return age - 1;
-    }
-    return age;
+    const diffMs = storyDate.getTime() - birthDate.getTime();
+    const age = diffMs / (365.25 * 24 * 60 * 60 * 1000);
+    return Math.max(0, Math.round(age * 10) / 10);
   };
 
   const setQuickDate = (daysAgo: number) => {
@@ -210,27 +194,30 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
     if (!userProfile?.birthDate) {
       // Fallback: use current year minus age
       const currentYear = new Date().getFullYear();
-      return new Date(currentYear - age, 0, 1);
+      const years = Math.floor(age);
+      const months = Math.round((age - years) * 12);
+      return new Date(currentYear - years, months, 1);
     }
 
-    const birthYear = new Date(userProfile.birthDate).getFullYear();
-    return new Date(birthYear + age, 0, 1); // Start of that year (January 1st)
+    const birthDate = new Date(userProfile.birthDate);
+    const msInYear = 365.25 * 24 * 60 * 60 * 1000;
+    return new Date(birthDate.getTime() + age * msInYear);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
       const newImages = Array.from(files).map(file => URL.createObjectURL(file));
-      setImages(prev => [...prev, ...newImages]);
+      setFormData(prev => ({ ...prev, images: [...(prev.images || []), ...newImages] }));
     }
   };
 
   const removeImage = (index: number) => {
-    setImages(prev => {
-      const newImages = [...prev];
+    setFormData(prev => {
+      const newImages = [...(prev.images || [])];
       URL.revokeObjectURL(newImages[index]);
       newImages.splice(index, 1);
-      return newImages;
+      return { ...prev, images: newImages };
     });
   };
 
@@ -257,8 +244,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
               type="button"
               onClick={() => handleTypeChange('short')}
               className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors rounded-theme ${formData.type === 'short'
-                  ? 'bg-theme-accent text-white'
-                  : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                ? 'bg-theme-accent text-white'
+                : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                 }`}
             >
               Quick Note
@@ -267,8 +254,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
               type="button"
               onClick={() => handleTypeChange('long')}
               className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors rounded-theme ${formData.type === 'long'
-                  ? 'bg-theme-accent text-white'
-                  : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                ? 'bg-theme-accent text-white'
+                : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                 }`}
             >
               Detailed Story
@@ -335,7 +322,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
             </div>
 
             {/* Date and End Date */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <div>
                 <label htmlFor="date" className="block text-sm font-medium mb-1 text-theme-primary">
                   <Calendar className="inline w-4 h-4 mr-1" />
@@ -348,8 +335,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     type="button"
                     onClick={() => setInputMode('date')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'date'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                       }`}
                   >
                     Exact Date
@@ -358,8 +345,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     type="button"
                     onClick={() => setInputMode('age')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'age'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                       }`}
                   >
                     I Was Age...
@@ -408,12 +395,13 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                       type="number"
                       min="0"
                       max="150"
-                      placeholder="Enter your age (e.g., 14)"
+                      step="0.1"
+                      placeholder="Enter your age (e.g., 14.5)"
                       value={ageValue}
                       onChange={(e) => {
                         setAgeValue(e.target.value);
                         if (e.target.value) {
-                          const calculatedDate = calculateDateFromAge(parseInt(e.target.value));
+                          const calculatedDate = calculateDateFromAge(parseFloat(e.target.value));
                           setFormData({ ...formData, date: calculatedDate });
                         }
                       }}
@@ -440,6 +428,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 <label htmlFor="endDate" className="block text-sm font-medium mb-1 text-theme-primary">
                   End Date (optional)
                 </label>
+                {/* Spacer to align with toggle buttons in left column */}
+                <div className="h-[42px] mb-3"></div>
                 <input
                   type="date"
                   id="endDate"
@@ -635,8 +625,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                   type="button"
                   onClick={() => setFormData({ ...formData, mood: mood.value as Story['mood'] })}
                   className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${formData.mood === mood.value
-                      ? mood.color
-                      : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
+                    ? mood.color
+                    : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
                     }`}
                 >
                   {mood.label}
@@ -659,8 +649,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     type="button"
                     onClick={() => setFormData({ ...formData, importance: option.value as Story['importance'] })}
                     className={`flex items-center space-x-2 py-2 px-4 rounded-md font-medium transition-colors ${formData.importance === option.value
-                        ? 'bg-primary-500/30 text-primary-700'
-                        : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
+                      ? 'bg-primary-500/30 text-primary-700'
+                      : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
                       }`}
                   >
                     <Icon className={`w-4 h-4 ${option.className}`} />

@@ -54,41 +54,72 @@ code {
 }
 
 @layer components {
+
+  /* Timeline Line - Left on mobile, centered on desktop */
   .timeline-line {
-    @apply absolute left-8 top-0 bottom-0 w-0.5;
+    @apply absolute left-4 top-0 bottom-0 w-0.5;
     background-color: var(--theme-border);
   }
-  
-  .timeline-dot {
-    @apply absolute left-6 w-4 h-4 -translate-x-1/2;
-    background-color: var(--theme-bg-primary);
-    border: 2px solid var(--theme-bg-secondary);
-    border-radius: var(--theme-radius);
+
+  @media (min-width: 768px) {
+    .timeline-line {
+      @apply left-1/2 -translate-x-1/2;
+    }
   }
-  
+
+  /* Timeline Dot/Icon Container - Left on mobile, centered on desktop */
+  .timeline-dot {
+    @apply absolute left-4 -translate-x-1/2 w-10 h-10 flex items-center justify-center z-20;
+    background-color: var(--theme-bg-primary);
+    border: 3px solid var(--theme-border);
+    border-radius: 50%;
+  }
+
+  @media (min-width: 768px) {
+    .timeline-dot {
+      @apply left-1/2;
+    }
+  }
+
+  /* Story Card - Left on mobile, alternating on desktop */
   .story-card {
-    @apply p-4 ml-16 transition-all;
+    @apply p-5 ml-14 transition-all backdrop-blur-sm;
     background-color: var(--theme-bg-primary);
     border: 1px solid var(--theme-border);
-    border-radius: var(--theme-radius);
+    border-radius: calc(var(--theme-radius) * 2);
     box-shadow: var(--theme-shadow);
   }
-  
+
+  @media (min-width: 768px) {
+    .story-card {
+      @apply ml-0 w-[calc(50%-2.5rem)];
+    }
+
+    .story-card-left {
+      @apply mr-auto;
+    }
+
+    .story-card-right {
+      @apply ml-auto;
+    }
+  }
+
   .story-card:hover {
     box-shadow: var(--theme-shadow-lg);
+    transform: translateY(-2px);
   }
-  
+
   .btn-primary {
     @apply px-4 py-2 font-medium transition-all;
     background-color: var(--theme-accent);
     color: white;
     border-radius: var(--theme-radius);
   }
-  
+
   .btn-primary:hover {
     background-color: var(--theme-accent-hover);
   }
-  
+
   .input-field {
     @apply px-3 py-2 transition-all;
     background-color: var(--theme-bg-primary);
@@ -96,7 +127,7 @@ code {
     border-radius: var(--theme-radius);
     color: var(--theme-text-primary);
   }
-  
+
   .input-field:focus {
     outline: none;
     border-color: var(--theme-accent);
@@ -108,78 +139,80 @@ code {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-in-out;
   }
-  
+
   .animate-slide-up {
     animation: slideUp 0.3s ease-out;
   }
-  
+
   /* Theme utility classes */
   .bg-theme-primary {
     background-color: var(--theme-bg-primary);
   }
-  
+
   .bg-theme-secondary {
     background-color: var(--theme-bg-secondary);
   }
-  
+
   .bg-theme-tertiary {
     background-color: var(--theme-bg-tertiary);
   }
-  
+
   .text-theme-primary {
     color: var(--theme-text-primary);
   }
-  
+
   .text-theme-secondary {
     color: var(--theme-text-secondary);
   }
-  
+
   .text-theme-tertiary {
     color: var(--theme-text-tertiary);
   }
-  
+
   .border-theme {
     border-color: var(--theme-border);
   }
-  
+
   .border-theme-hover:hover {
     border-color: var(--theme-border-hover);
   }
-  
+
   .bg-theme-accent {
     background-color: var(--theme-accent);
   }
-  
+
   .bg-theme-accent:hover {
     background-color: var(--theme-accent-hover);
   }
-  
+
   .rounded-theme {
     border-radius: var(--theme-radius);
   }
-  
+
   .shadow-theme {
     box-shadow: var(--theme-shadow);
   }
-  
+
   .shadow-theme-lg {
     box-shadow: var(--theme-shadow-lg);
   }
-  
+
   @keyframes fadeIn {
     from {
       opacity: 0;
     }
+
     to {
       opacity: 1;
     }
   }
-  
+
   @keyframes slideUp {
     from {
       opacity: 0;
       transform: translateY(10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);

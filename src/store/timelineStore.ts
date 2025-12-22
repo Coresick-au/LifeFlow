@@ -1,31 +1,18 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { TimelineState, Story, UserProfile, TimelineView, Relationship, ManagedTag, Thought, TodoItem } from '../types';
+import {
+  TimelineState, Story, UserProfile, TimelineView, Relationship,
+  ManagedTag, Thought, TodoItem, Advice, Preference, WealthItem,
+  WealthHistoryEntry
+} from '../types';
 import { Dexie } from 'dexie';
-import { generateExtendedSampleData, seedProfile } from '../data/generateSampleData';
-import { generateSampleRelationships } from '../data/generateSampleRelationships';
+import * as supabaseService from '../services/supabaseService';
+import { supabase } from '../lib/supabaseClient';
 import type { StateCreator } from 'zustand';
-
-interface Preference {
-  id: string;
-  item: string;
-  category: string;
-  type: 'like' | 'dislike';
-  dateAdded: Date;
-}
-
-export interface WealthItem {
-  id: string;
-  category: 'savings' | 'investment' | 'business' | 'superannuation' | 'debt' | 'other';
-  name: string;
-  value: number; // Positive for assets, negative for debts
-  isLiquid: boolean;
-  lastUpdated: Date;
-}
 
 // Initialize IndexedDB
 const db = new Dexie('LifeFlowDB');
-db.version(3).stores({
+db.version(5).stores({
   stories: '++id, title, content, type, date, endDate, fuzzyDate, tags, people, importance, mood, location, images, createdAt, updatedAt',
   thoughts: '++id, content, type, createdAt, tags, mood',
   todos: '++id, title, description, status, priority, createdAt, completedAt, archivedAt, tags, dueDate',
@@ -34,19 +21,21 @@ db.version(3).stores({
   relationships: '++id, firstName, lastName, fullName, relationshipType, interactionCount, notes, createdAt, updatedAt',
   managedTags: '++id, name, category, color, createdAt',
   wealthItems: '++id, category, name, value, isLiquid, lastUpdated',
+  advice: '++id, content, category, source, createdAt, tags',
+  wealthHistory: '++id, wealthItemId, wealthItemName, previousValue, newValue, changeAmount, timestamp, note',
 });
 
 // Export the database instance for use in other modules
 export { db };
-
-// Export sample data generators
-export { generateExtendedSampleData, generateSampleRelationships };
 
 type TimelineStore = TimelineState & {
   // Preferences state
   preferences: Preference[];
   // Wealth state
   wealthItems: WealthItem[];
+  wealthHistory: WealthHistoryEntry[];
+  // Advice state
+  advice: Advice[];
   // Loading states
   isLoading: boolean;
   isSaving: boolean;
@@ -87,15 +76,23 @@ type TimelineStore = TimelineState & {
   // Wealth methods
   loadWealthItems: () => Promise<void>;
   addWealthItem: (item: Omit<WealthItem, 'id' | 'lastUpdated'>) => Promise<void>;
-  updateWealthItem: (id: string, updates: Partial<WealthItem>) => Promise<void>;
+  updateWealthItem: (id: string, updates: Partial<WealthItem>, note?: string) => Promise<void>;
   removeWealthItem: (id: string) => Promise<void>;
+  // Wealth history methods
+  loadWealthHistory: () => Promise<void>;
+  getWealthItemHistory: (wealthItemId: string) => WealthHistoryEntry[];
   // Computed wealth getters
   getTotalNetWorth: () => number;
   getLiquidAssets: () => number;
   getTotalDebt: () => number;
   getSuperannuation: () => number;
   // Seed data
-  seedData: () => Promise<void>;
+  clearAllData: () => Promise<void>;
+  // Advice methods
+  loadAdvice: () => Promise<void>;
+  addAdvice: (advice: Omit<Advice, 'id'>) => Promise<void>;
+  updateAdvice: (id: string, updates: Partial<Advice>) => Promise<void>;
+  deleteAdvice: (id: string) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setSaving: (saving: boolean) => void;
   // Backup/Restore
@@ -119,6 +116,8 @@ export const useTimelineStore = create<TimelineStore>()(
       relationships: [],
       managedTags: [],
       wealthItems: [],
+      wealthHistory: [],
+      advice: [],
       currentView: initialView,
       isLoading: false,
       isSaving: false,
@@ -126,31 +125,51 @@ export const useTimelineStore = create<TimelineStore>()(
 
       // Actions
       addStory: async (storyData: Omit<Story, 'id' | 'createdAt' | 'updatedAt'>) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
-          const newStory: Story = {
-            ...storyData,
-            id: crypto.randomUUID(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newStory: Story;
 
-          await db.table('stories').add(newStory);
+          if (user && navigator.onLine) {
+            const cloudStory = await supabaseService.addStory(user.id, storyData);
+            if (cloudStory) {
+              newStory = cloudStory;
+            } else {
+              throw new Error('Failed to add story to cloud');
+            }
+          } else {
+            newStory = {
+              ...storyData,
+              id: crypto.randomUUID(),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+          }
+
+          // Always add to local Dexie for offline support
+          await db.table('stories').put(newStory);
 
           set((state: TimelineStore) => ({
             stories: [...state.stories, newStory].sort((a, b) =>
               new Date(b.date).getTime() - new Date(a.date).getTime()
             ),
-            isLoading: false,
+            isSaving: false,
           }));
         } catch (error) {
-          set({ error: 'Failed to add story', isLoading: false });
+          console.error('Failed to add story:', error);
+          set({ error: 'Failed to add story', isSaving: false });
         }
       },
 
       updateStory: async (id: string, updates: Partial<Story>) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.updateStory(id, updates);
+          }
+
           const updatedStory = {
             ...updates,
             updatedAt: new Date(),
@@ -162,39 +181,54 @@ export const useTimelineStore = create<TimelineStore>()(
             stories: state.stories.map((story: Story) =>
               story.id === id ? { ...story, ...updatedStory } : story
             ),
-            isLoading: false,
+            isSaving: false,
           }));
         } catch (error) {
-          set({ error: 'Failed to update story', isLoading: false });
+          console.error('Failed to update story:', error);
+          set({ error: 'Failed to update story', isSaving: false });
         }
       },
 
       deleteStory: async (id: string) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteStory(id);
+          }
+
           await db.table('stories').delete(id);
 
           set((state: TimelineStore) => ({
             stories: state.stories.filter((story: Story) => story.id !== id),
-            isLoading: false,
+            isSaving: false,
           }));
         } catch (error) {
-          set({ error: 'Failed to delete story', isLoading: false });
+          console.error('Failed to delete story:', error);
+          set({ error: 'Failed to delete story', isSaving: false });
         }
       },
 
       setUserProfile: async (profile: UserProfile) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.upsertProfile(profile);
+          }
+
           // Convert Date to string for localStorage serialization
           const serializableProfile = {
             ...profile,
-            birthDate: profile.birthDate.toISOString(),
+            birthDate: profile.birthDate instanceof Date ? profile.birthDate.toISOString() : profile.birthDate,
           };
-          set({ userProfile: serializableProfile as unknown as UserProfile, isLoading: false });
+          set({ userProfile: serializableProfile as unknown as UserProfile, isSaving: false });
           console.log('Profile saved to store:', serializableProfile);
         } catch (error) {
-          set({ error: 'Failed to save profile', isLoading: false });
+          console.error('Failed to save profile:', error);
+          set({ error: 'Failed to save profile', isSaving: false });
         }
       },
 
@@ -205,8 +239,20 @@ export const useTimelineStore = create<TimelineStore>()(
       loadStories: async () => {
         set({ isLoading: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudStories = await supabaseService.getStories(user.id);
+            if (cloudStories && cloudStories.length > 0) {
+              // Sync to local Dexie
+              await db.table('stories').clear();
+              await db.table('stories').bulkPut(cloudStories);
+              set({ stories: cloudStories, isLoading: false });
+              return;
+            }
+          }
+
           const stories = await db.table('stories').toArray();
-          console.log('Raw stories from IndexedDB:', stories.length, stories);
           // Convert strings back to Date objects
           const hydratedStories = stories.map(s => ({
             ...s,
@@ -214,8 +260,8 @@ export const useTimelineStore = create<TimelineStore>()(
             endDate: s.endDate ? new Date(s.endDate) : undefined,
             createdAt: new Date(s.createdAt),
             updatedAt: new Date(s.updatedAt)
-          }));
-          console.log('Hydrated stories:', hydratedStories.length);
+          })).sort((a, b) => b.date.getTime() - a.date.getTime());
+
           set({ stories: hydratedStories, isLoading: false });
         } catch (error) {
           console.error('Failed to load stories:', error);
@@ -232,9 +278,22 @@ export const useTimelineStore = create<TimelineStore>()(
       loadPreferences: async () => {
         set({ isLoading: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudPrefs = await supabaseService.getPreferences(user.id);
+            if (cloudPrefs && cloudPrefs.length > 0) {
+              await db.table('preferences').clear();
+              await db.table('preferences').bulkPut(cloudPrefs);
+              set({ preferences: cloudPrefs, isLoading: false });
+              return;
+            }
+          }
+
           const preferences = await db.table('preferences').toArray();
           set({ preferences, isLoading: false });
         } catch (error) {
+          console.error('Failed to load preferences:', error);
           set({ error: 'Failed to load preferences', isLoading: false });
         }
       },
@@ -242,20 +301,32 @@ export const useTimelineStore = create<TimelineStore>()(
       addPreference: async (preferenceData: Omit<Preference, 'id' | 'dateAdded'>) => {
         set({ isSaving: true, error: null });
         try {
-          const newPreference: Preference = {
-            ...preferenceData,
-            id: crypto.randomUUID(),
-            dateAdded: new Date(),
-          };
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newPreference: Preference;
 
-          await db.table('preferences').add(newPreference);
+          if (user && navigator.onLine) {
+            const cloudPref = await supabaseService.addPreference(user.id, preferenceData);
+            if (cloudPref) {
+              newPreference = cloudPref;
+            } else {
+              throw new Error('Failed to add preference to cloud');
+            }
+          } else {
+            newPreference = {
+              ...preferenceData,
+              id: crypto.randomUUID(),
+              dateAdded: new Date(),
+            };
+          }
 
-          const currentPreferences = get().preferences;
-          set({
-            preferences: [...currentPreferences, newPreference],
+          await db.table('preferences').put(newPreference);
+
+          set((state: TimelineStore) => ({
+            preferences: [...state.preferences, newPreference],
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to add preference:', error);
           set({ error: 'Failed to add preference', isSaving: false });
         }
       },
@@ -263,14 +334,20 @@ export const useTimelineStore = create<TimelineStore>()(
       removePreference: async (id: string) => {
         set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deletePreference(id);
+          }
+
           await db.table('preferences').delete(id);
 
-          const currentPreferences = get().preferences;
-          set({
-            preferences: currentPreferences.filter(p => p.id !== id),
+          set((state: TimelineStore) => ({
+            preferences: state.preferences.filter(p => p.id !== id),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to remove preference:', error);
           set({ error: 'Failed to remove preference', isSaving: false });
         }
       },
@@ -279,14 +356,27 @@ export const useTimelineStore = create<TimelineStore>()(
       loadThoughts: async () => {
         set({ isLoading: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudThoughts = await supabaseService.getThoughts(user.id);
+            if (cloudThoughts && cloudThoughts.length > 0) {
+              await db.table('thoughts').clear();
+              await db.table('thoughts').bulkPut(cloudThoughts);
+              set({ thoughts: cloudThoughts, isLoading: false });
+              return;
+            }
+          }
+
           const thoughts = await db.table('thoughts').toArray();
-          // Convert strings back to Date objects
           const hydratedThoughts = thoughts.map(t => ({
             ...t,
             createdAt: new Date(t.createdAt)
-          }));
+          })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
           set({ thoughts: hydratedThoughts, isLoading: false });
         } catch (error) {
+          console.error('Failed to load thoughts:', error);
           set({ error: 'Failed to load thoughts', isLoading: false });
         }
       },
@@ -294,21 +384,34 @@ export const useTimelineStore = create<TimelineStore>()(
       addThought: async (thoughtData: Omit<Thought, 'id'>) => {
         set({ isSaving: true, error: null });
         try {
-          const newThought: Thought = {
-            ...thoughtData,
-            id: crypto.randomUUID(),
-          };
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newThought: Thought;
 
-          await db.table('thoughts').add(newThought);
+          if (user && navigator.onLine) {
+            const cloudThought = await supabaseService.addThought(user.id, thoughtData);
+            if (cloudThought) {
+              newThought = cloudThought;
+            } else {
+              throw new Error('Failed to add thought to cloud');
+            }
+          } else {
+            newThought = {
+              ...thoughtData,
+              id: crypto.randomUUID(),
+              createdAt: new Date(),
+            };
+          }
 
-          const currentThoughts = get().thoughts;
-          set({
-            thoughts: [newThought, ...currentThoughts].sort((a, b) =>
+          await db.table('thoughts').put(newThought);
+
+          set((state: TimelineStore) => ({
+            thoughts: [newThought, ...state.thoughts].sort((a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             ),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to add thought:', error);
           set({ error: 'Failed to add thought', isSaving: false });
         }
       },
@@ -333,14 +436,20 @@ export const useTimelineStore = create<TimelineStore>()(
       deleteThought: async (id: string) => {
         set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteThought(id);
+          }
+
           await db.table('thoughts').delete(id);
 
-          const currentThoughts = get().thoughts;
-          set({
-            thoughts: currentThoughts.filter(t => t.id !== id),
+          set((state: TimelineStore) => ({
+            thoughts: state.thoughts.filter(t => t.id !== id),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to delete thought:', error);
           set({ error: 'Failed to delete thought', isSaving: false });
         }
       },
@@ -349,17 +458,30 @@ export const useTimelineStore = create<TimelineStore>()(
       loadTodos: async () => {
         set({ isLoading: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudTodos = await supabaseService.getTodos(user.id);
+            if (cloudTodos && cloudTodos.length > 0) {
+              await db.table('todos').clear();
+              await db.table('todos').bulkPut(cloudTodos);
+              set({ todos: cloudTodos, isLoading: false });
+              return;
+            }
+          }
+
           const todos = await db.table('todos').toArray();
-          // Convert strings back to Date objects
           const hydratedTodos = todos.map(t => ({
             ...t,
             createdAt: new Date(t.createdAt),
             completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
             archivedAt: t.archivedAt ? new Date(t.archivedAt) : undefined,
             dueDate: t.dueDate ? new Date(t.dueDate) : undefined
-          }));
+          })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
           set({ todos: hydratedTodos, isLoading: false });
         } catch (error) {
+          console.error('Failed to load todos:', error);
           set({ error: 'Failed to load todos', isLoading: false });
         }
       },
@@ -367,25 +489,37 @@ export const useTimelineStore = create<TimelineStore>()(
       addTodo: async (todoData: Omit<TodoItem, 'id'>) => {
         set({ isSaving: true, error: null });
         try {
-          const newTodo: TodoItem = {
-            ...todoData,
-            id: crypto.randomUUID(),
-          };
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newTodo: TodoItem;
 
-          await db.table('todos').add(newTodo);
+          if (user && navigator.onLine) {
+            const cloudTodo = await supabaseService.addTodo(user.id, todoData);
+            if (cloudTodo) {
+              newTodo = cloudTodo;
+            } else {
+              throw new Error('Failed to add todo to cloud');
+            }
+          } else {
+            newTodo = {
+              ...todoData,
+              id: crypto.randomUUID(),
+              createdAt: new Date(),
+            };
+          }
 
-          const currentTodos = get().todos;
-          set({
-            todos: [newTodo, ...currentTodos].sort((a, b) => {
-              // Sort by priority first, then by creation date
+          await db.table('todos').put(newTodo);
+
+          set((state: TimelineStore) => ({
+            todos: [newTodo, ...state.todos].sort((a, b) => {
               const priorityOrder = { high: 3, medium: 2, low: 1 };
               const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
               if (priorityDiff !== 0) return priorityDiff;
               return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             }),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to add todo:', error);
           set({ error: 'Failed to add todo', isSaving: false });
         }
       },
@@ -393,16 +527,20 @@ export const useTimelineStore = create<TimelineStore>()(
       updateTodo: async (id: string, updates: Partial<TodoItem>) => {
         set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.updateTodo(id, updates);
+          }
+
           await db.table('todos').update(id, updates);
 
-          const currentTodos = get().todos;
-          set({
-            todos: currentTodos.map(t =>
-              t.id === id ? { ...t, ...updates } : t
-            ),
+          set((state: TimelineStore) => ({
+            todos: state.todos.map(t => t.id === id ? { ...t, ...updates } : t),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to update todo:', error);
           set({ error: 'Failed to update todo', isSaving: false });
         }
       },
@@ -410,14 +548,20 @@ export const useTimelineStore = create<TimelineStore>()(
       deleteTodo: async (id: string) => {
         set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteTodo(id);
+          }
+
           await db.table('todos').delete(id);
 
-          const currentTodos = get().todos;
-          set({
-            todos: currentTodos.filter(t => t.id !== id),
+          set((state: TimelineStore) => ({
+            todos: state.todos.filter(t => t.id !== id),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to delete todo:', error);
           set({ error: 'Failed to delete todo', isSaving: false });
         }
       },
@@ -462,35 +606,132 @@ export const useTimelineStore = create<TimelineStore>()(
         }
       },
 
-      seedData: async () => {
+
+
+      clearAllData: async () => {
         set({ isLoading: true, error: null });
         try {
-          // Clear existing stories
-          await db.table('stories').clear();
-          await db.table('relationships').clear();
+          // Clear indexedDB tables
+          await Promise.all(db.tables.map(table => table.clear()));
 
-          // Add seed profile to localStorage via persist (convert Date to string)
-          const serializableProfile = {
-            ...seedProfile,
-            birthDate: seedProfile.birthDate.toISOString(),
-          };
-          set({ userProfile: serializableProfile as unknown as UserProfile });
-
-          // Generate extended sample data
-          const generatedStories = generateExtendedSampleData();
-          const generatedRelationships = generateSampleRelationships();
-
-          await db.table('stories').bulkAdd(generatedStories);
-          await db.table('relationships').bulkAdd(generatedRelationships);
-
-          // Update store state
+          // Reset store state
           set({
-            stories: generatedStories,
-            relationships: generatedRelationships,
+            stories: [],
+            thoughts: [],
+            todos: [],
+            userProfile: null,
+            preferences: [],
+            relationships: [],
+            managedTags: [],
+            wealthItems: [],
+            advice: [],
             isLoading: false
           });
+
+          // Redirect to timeline
+          get().setCurrentView({ type: 'timeline' });
         } catch (error) {
-          set({ error: 'Failed to seed data', isLoading: false });
+          console.error('Failed to clear data:', error);
+          set({ error: 'Failed to clear data', isLoading: false });
+        }
+      },
+
+      // Advice CRUD methods
+      loadAdvice: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudAdvice = await supabaseService.getAdvice(user.id);
+            if (cloudAdvice && cloudAdvice.length > 0) {
+              await db.table('advice').clear();
+              await db.table('advice').bulkPut(cloudAdvice);
+              set({ advice: cloudAdvice, isLoading: false });
+              return;
+            }
+          }
+
+          const adviceItems = await db.table('advice').toArray();
+          set({ advice: adviceItems, isLoading: false });
+        } catch (error) {
+          console.error('Failed to load advice:', error);
+          set({ error: 'Failed to load advice', isLoading: false });
+        }
+      },
+
+      addAdvice: async (adviceData: Omit<Advice, 'id'>) => {
+        set({ isSaving: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newAdvice: Advice;
+
+          if (user && navigator.onLine) {
+            const cloudAdvice = await supabaseService.addAdvice(user.id, adviceData);
+            if (cloudAdvice) {
+              newAdvice = cloudAdvice;
+            } else {
+              throw new Error('Failed to add advice to cloud');
+            }
+          } else {
+            newAdvice = {
+              ...adviceData,
+              id: crypto.randomUUID(),
+              createdAt: new Date(),
+            };
+          }
+
+          await db.table('advice').put(newAdvice);
+
+          set((state: TimelineStore) => ({
+            advice: [...state.advice, newAdvice],
+            isSaving: false
+          }));
+        } catch (error) {
+          console.error('Failed to add advice:', error);
+          set({ error: 'Failed to add advice', isSaving: false });
+        }
+      },
+
+      deleteAdvice: async (id: string) => {
+        set({ isSaving: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteAdvice(id);
+          }
+
+          await db.table('advice').delete(id);
+
+          set((state: TimelineStore) => ({
+            advice: state.advice.filter((a) => a.id !== id),
+            isSaving: false
+          }));
+        } catch (error) {
+          console.error('Failed to delete advice:', error);
+          set({ error: 'Failed to delete advice', isSaving: false });
+        }
+      },
+
+      updateAdvice: async (id: string, updates: Partial<Advice>) => {
+        set({ isSaving: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.updateAdvice(id, updates);
+          }
+
+          await db.table('advice').update(id, updates);
+
+          set((state: TimelineStore) => ({
+            advice: state.advice.map((a) => a.id === id ? { ...a, ...updates } : a),
+            isSaving: false
+          }));
+        } catch (error) {
+          console.error('Failed to update advice:', error);
+          set({ error: 'Failed to update advice', isSaving: false });
         }
       },
 
@@ -566,9 +807,22 @@ export const useTimelineStore = create<TimelineStore>()(
       loadRelationships: async () => {
         set({ isLoading: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudRelationships = await supabaseService.getRelationships(user.id);
+            if (cloudRelationships && cloudRelationships.length > 0) {
+              await db.table('relationships').clear();
+              await db.table('relationships').bulkPut(cloudRelationships);
+              set({ relationships: cloudRelationships, isLoading: false });
+              return;
+            }
+          }
+
           const relationships = await db.table('relationships').toArray();
           set({ relationships, isLoading: false });
         } catch (error) {
+          console.error('Failed to load relationships:', error);
           set({ error: 'Failed to load relationships', isLoading: false });
         }
       },
@@ -576,29 +830,47 @@ export const useTimelineStore = create<TimelineStore>()(
       addRelationship: async (relationshipData: Omit<Relationship, 'id' | 'createdAt' | 'updatedAt' | 'interactionCount'>) => {
         set({ isSaving: true, error: null });
         try {
-          const newRelationship: Relationship = {
-            ...relationshipData,
-            id: crypto.randomUUID(),
-            interactionCount: 0,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newRelationship: Relationship;
 
-          await db.table('relationships').add(newRelationship);
+          if (user && navigator.onLine) {
+            const cloudRelationship = await supabaseService.addRelationship(user.id, relationshipData);
+            if (cloudRelationship) {
+              newRelationship = cloudRelationship;
+            } else {
+              throw new Error('Failed to add relationship to cloud');
+            }
+          } else {
+            newRelationship = {
+              ...relationshipData,
+              id: crypto.randomUUID(),
+              interactionCount: 0,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+          }
 
-          const currentRelationships = get().relationships;
-          set({
-            relationships: [...currentRelationships, newRelationship],
+          await db.table('relationships').put(newRelationship);
+
+          set((state: TimelineStore) => ({
+            relationships: [...state.relationships, newRelationship],
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to add relationship:', error);
           set({ error: 'Failed to add relationship', isSaving: false });
         }
       },
 
       updateRelationship: async (id: string, updates: Partial<Relationship>) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.updateRelationship(id, updates);
+          }
+
           const updatedRelationship = {
             ...updates,
             updatedAt: new Date(),
@@ -610,49 +882,67 @@ export const useTimelineStore = create<TimelineStore>()(
             relationships: state.relationships.map((relationship: Relationship) =>
               relationship.id === id ? { ...relationship, ...updatedRelationship } : relationship
             ),
-            isLoading: false,
+            isSaving: false,
           }));
         } catch (error) {
-          set({ error: 'Failed to update relationship', isLoading: false });
+          console.error('Failed to update relationship:', error);
+          set({ error: 'Failed to update relationship', isSaving: false });
         }
       },
 
       deleteRelationship: async (id: string) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteRelationship(id);
+          }
+
           await db.table('relationships').delete(id);
 
           set((state: TimelineStore) => ({
             relationships: state.relationships.filter((relationship: Relationship) => relationship.id !== id),
-            isLoading: false,
+            isSaving: false,
           }));
         } catch (error) {
-          set({ error: 'Failed to delete relationship', isLoading: false });
+          console.error('Failed to delete relationship:', error);
+          set({ error: 'Failed to delete relationship', isSaving: false });
         }
       },
 
       incrementRelationshipInteraction: async (id: string) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
           const relationship = await db.table('relationships').get(id);
           if (relationship) {
+            const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
             const updatedRelationship = {
               ...relationship,
-              interactionCount: relationship.interactionCount + 1,
+              interactionCount: (relationship.interactionCount || 0) + 1,
               updatedAt: new Date(),
             };
+
+            if (user && navigator.onLine) {
+              await supabaseService.updateRelationship(id, {
+                interactionCount: updatedRelationship.interactionCount,
+                updatedAt: updatedRelationship.updatedAt
+              });
+            }
 
             await db.table('relationships').update(id, updatedRelationship);
 
             set((state: TimelineStore) => ({
               relationships: state.relationships.map((r: Relationship) =>
-                r.id === id ? updatedRelationship : r
+                r.id === id ? { ...r, ...updatedRelationship } : r
               ),
-              isLoading: false,
+              isSaving: false,
             }));
           }
         } catch (error) {
-          set({ error: 'Failed to increment interaction', isLoading: false });
+          console.error('Failed to increment interaction:', error);
+          set({ error: 'Failed to increment interaction', isSaving: false });
         }
       },
 
@@ -660,9 +950,22 @@ export const useTimelineStore = create<TimelineStore>()(
       loadManagedTags: async () => {
         set({ isLoading: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudTags = await supabaseService.getManagedTags(user.id);
+            if (cloudTags && cloudTags.length > 0) {
+              await db.table('managedTags').clear();
+              await db.table('managedTags').bulkPut(cloudTags);
+              set({ managedTags: cloudTags, isLoading: false });
+              return;
+            }
+          }
+
           const managedTags = await db.table('managedTags').toArray();
           set({ managedTags, isLoading: false });
         } catch (error) {
+          console.error('Failed to load managed tags:', error);
           set({ error: 'Failed to load managed tags', isLoading: false });
         }
       },
@@ -670,51 +973,77 @@ export const useTimelineStore = create<TimelineStore>()(
       addManagedTag: async (tagData: Omit<ManagedTag, 'id' | 'createdAt'>) => {
         set({ isSaving: true, error: null });
         try {
-          const newTag: ManagedTag = {
-            ...tagData,
-            id: crypto.randomUUID(),
-            createdAt: new Date(),
-          };
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newTag: ManagedTag;
 
-          await db.table('managedTags').add(newTag);
+          if (user && navigator.onLine) {
+            const cloudTag = await supabaseService.addManagedTag(user.id, tagData);
+            if (cloudTag) {
+              newTag = cloudTag;
+            } else {
+              throw new Error('Failed to add managed tag to cloud');
+            }
+          } else {
+            newTag = {
+              ...tagData,
+              id: crypto.randomUUID(),
+              createdAt: new Date(),
+            };
+          }
 
-          const currentTags = get().managedTags;
-          set({
-            managedTags: [...currentTags, newTag],
+          await db.table('managedTags').put(newTag);
+
+          set((state: TimelineStore) => ({
+            managedTags: [...state.managedTags, newTag],
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to add managed tag:', error);
           set({ error: 'Failed to add managed tag', isSaving: false });
         }
       },
 
       updateManagedTag: async (id: string, updates: Partial<ManagedTag>) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.updateManagedTag(id, updates);
+          }
+
           await db.table('managedTags').update(id, updates);
 
           set((state: TimelineStore) => ({
             managedTags: state.managedTags.map((tag: ManagedTag) =>
               tag.id === id ? { ...tag, ...updates } : tag
             ),
-            isLoading: false,
+            isSaving: false,
           }));
         } catch (error) {
-          set({ error: 'Failed to update managed tag', isLoading: false });
+          console.error('Failed to update managed tag:', error);
+          set({ error: 'Failed to update managed tag', isSaving: false });
         }
       },
 
       deleteManagedTag: async (id: string) => {
-        set({ isLoading: true, error: null });
+        set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteManagedTag(id);
+          }
+
           await db.table('managedTags').delete(id);
 
           set((state: TimelineStore) => ({
             managedTags: state.managedTags.filter((tag: ManagedTag) => tag.id !== id),
-            isLoading: false,
+            isSaving: false,
           }));
         } catch (error) {
-          set({ error: 'Failed to delete managed tag', isLoading: false });
+          console.error('Failed to delete managed tag:', error);
+          set({ error: 'Failed to delete managed tag', isSaving: false });
         }
       },
 
@@ -722,14 +1051,26 @@ export const useTimelineStore = create<TimelineStore>()(
       loadWealthItems: async () => {
         set({ isLoading: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudItems = await supabaseService.getWealthItems(user.id);
+            if (cloudItems && cloudItems.length > 0) {
+              await db.table('wealthItems').clear();
+              await db.table('wealthItems').bulkPut(cloudItems);
+              set({ wealthItems: cloudItems, isLoading: false });
+              return;
+            }
+          }
+
           const wealthItems = await db.table('wealthItems').toArray();
-          // Convert strings back to Date objects
           const hydratedWealthItems = wealthItems.map(w => ({
             ...w,
             lastUpdated: new Date(w.lastUpdated)
           }));
           set({ wealthItems: hydratedWealthItems, isLoading: false });
         } catch (error) {
+          console.error('Failed to load wealth items:', error);
           set({ error: 'Failed to load wealth items', isLoading: false });
         }
       },
@@ -737,27 +1078,48 @@ export const useTimelineStore = create<TimelineStore>()(
       addWealthItem: async (itemData: Omit<WealthItem, 'id' | 'lastUpdated'>) => {
         set({ isSaving: true, error: null });
         try {
-          const newItem: WealthItem = {
-            ...itemData,
-            id: crypto.randomUUID(),
-            lastUpdated: new Date(),
-          };
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newItem: WealthItem;
 
-          await db.table('wealthItems').add(newItem);
+          if (user && navigator.onLine) {
+            const cloudItem = await supabaseService.addWealthItem(user.id, itemData);
+            if (cloudItem) {
+              newItem = cloudItem;
+            } else {
+              throw new Error('Failed to add wealth item to cloud');
+            }
+          } else {
+            newItem = {
+              ...itemData,
+              id: crypto.randomUUID(),
+              lastUpdated: new Date(),
+            };
+          }
 
-          const currentItems = get().wealthItems;
-          set({
-            wealthItems: [...currentItems, newItem],
+          await db.table('wealthItems').put(newItem);
+
+          set((state: TimelineStore) => ({
+            wealthItems: [...state.wealthItems, newItem],
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to add wealth item:', error);
           set({ error: 'Failed to add wealth item', isSaving: false });
         }
       },
 
-      updateWealthItem: async (id: string, updates: Partial<WealthItem>) => {
+      updateWealthItem: async (id: string, updates: Partial<WealthItem>, note?: string) => {
         set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.updateWealthItem(id, updates);
+          }
+
+          // Get the current item to compare values for history
+          const currentItem = get().wealthItems.find(item => item.id === id);
+
           const updatedItem = {
             ...updates,
             lastUpdated: new Date(),
@@ -765,14 +1127,41 @@ export const useTimelineStore = create<TimelineStore>()(
 
           await db.table('wealthItems').update(id, updatedItem);
 
-          const currentItems = get().wealthItems;
-          set({
-            wealthItems: currentItems.map(item =>
+          // Log history if value changed
+          if (currentItem && updates.value !== undefined && updates.value !== currentItem.value) {
+            const historyEntry: WealthHistoryEntry = {
+              id: crypto.randomUUID(),
+              wealthItemId: id,
+              wealthItemName: currentItem.name,
+              previousValue: currentItem.value,
+              newValue: updates.value,
+              changeAmount: updates.value - currentItem.value,
+              timestamp: new Date(),
+              note,
+            };
+
+            if (user && navigator.onLine) {
+              await supabaseService.addWealthHistory(user.id, historyEntry);
+            }
+
+            await db.table('wealthHistory').add(historyEntry);
+
+            const currentHistory = get().wealthHistory;
+            set({
+              wealthHistory: [historyEntry, ...currentHistory].sort((a, b) =>
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              ),
+            });
+          }
+
+          set((state: TimelineStore) => ({
+            wealthItems: state.wealthItems.map(item =>
               item.id === id ? { ...item, ...updatedItem } : item
             ),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to update wealth item:', error);
           set({ error: 'Failed to update wealth item', isSaving: false });
         }
       },
@@ -780,16 +1169,52 @@ export const useTimelineStore = create<TimelineStore>()(
       removeWealthItem: async (id: string) => {
         set({ isSaving: true, error: null });
         try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteWealthItem(id);
+          }
+
           await db.table('wealthItems').delete(id);
 
-          const currentItems = get().wealthItems;
-          set({
-            wealthItems: currentItems.filter(item => item.id !== id),
+          set((state: TimelineStore) => ({
+            wealthItems: state.wealthItems.filter(item => item.id !== id),
             isSaving: false
-          });
+          }));
         } catch (error) {
+          console.error('Failed to remove wealth item:', error);
           set({ error: 'Failed to remove wealth item', isSaving: false });
         }
+      },
+
+      // Wealth history methods
+      loadWealthHistory: async () => {
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudHistory = await supabaseService.getWealthHistory(user.id);
+            if (cloudHistory && cloudHistory.length > 0) {
+              await db.table('wealthHistory').clear();
+              await db.table('wealthHistory').bulkPut(cloudHistory);
+              set({ wealthHistory: cloudHistory });
+              return;
+            }
+          }
+
+          const history = await db.table('wealthHistory').toArray();
+          const hydratedHistory = history.map(h => ({
+            ...h,
+            timestamp: new Date(h.timestamp)
+          })).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          set({ wealthHistory: hydratedHistory });
+        } catch (error) {
+          console.error('Failed to load wealth history:', error);
+        }
+      },
+
+      getWealthItemHistory: (wealthItemId: string) => {
+        return get().wealthHistory.filter(h => h.wealthItemId === wealthItemId);
       },
 
       // Computed wealth getters

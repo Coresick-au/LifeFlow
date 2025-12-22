@@ -7,6 +7,8 @@ import {
     getLocationDisplayName,
     calculatePercentileRank,
     ageBenchmarks,
+    getAgeBenchmarks,
+    hasCustomBenchmarks,
     getUserAgeBracket,
     BENCHMARK_METADATA,
     type LocationKey,
@@ -273,22 +275,47 @@ export function ExperimentalComparison() {
                 <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
                     {BENCHMARK_METADATA.note}
                 </p>
+                <details className="mt-3">
+                    <summary className="text-xs font-semibold text-blue-800 dark:text-blue-300 cursor-pointer hover:underline">
+                        ℹ️ How is this data updated?
+                    </summary>
+                    <div className="mt-2 p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-xs text-blue-800 dark:text-blue-300 space-y-2">
+                        <p>
+                            <strong>Benchmark data is bundled with the application.</strong> The values come from official ABS (Australian Bureau of Statistics) data and are updated periodically by the developer.
+                        </p>
+                        <p>
+                            To update the data, a developer would modify the <code className="bg-blue-200 dark:bg-blue-800 px-1 rounded">benchmarkData.ts</code> file in the source code. This ensures data integrity and prevents accidental changes.
+                        </p>
+                        <p className="text-blue-600 dark:text-blue-400">
+                            <strong>Future feature:</strong> User-defined custom benchmarks are planned for a future release.
+                        </p>
+                    </div>
+                </details>
             </div>
 
             {/* Wealth by Age Graph */}
             {userAgeBracket && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 mb-8">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                            Wealth Accumulation by Age
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            How your net worth compares across life stages (You are in: {userAgeBracket.ageGroup})
-                        </p>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                                    Wealth Accumulation by Age
+                                </h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    How your net worth compares across life stages (You are in: {userAgeBracket.ageGroup})
+                                </p>
+                            </div>
+                            {hasCustomBenchmarks() && (
+                                <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-full">
+                                    Custom Data
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="p-6">
                         <div className="space-y-4">
-                            {ageBenchmarks.map((bracket) => {
+                            {getAgeBenchmarks().map((bracket) => {
                                 const isUserBracket = bracket.ageGroup === userAgeBracket.ageGroup;
                                 const barPercentage = Math.min((bracket.medianNetWorth / 1000000) * 100, 100);
                                 const userPercentage = Math.min((netWorth / 1000000) * 100, 100);
@@ -310,14 +337,18 @@ export function ExperimentalComparison() {
                                                     Median: {formatCurrency(bracket.medianNetWorth)} | Income: {formatCurrency(bracket.medianIncome)}
                                                 </p>
                                             </div>
-                                            {isUserBracket && (
-                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${netWorth > bracket.medianNetWorth
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                    }`}>
-                                                    {netWorth > bracket.medianNetWorth ? 'Above' : 'Below'} Median
-                                                </span>
-                                            )}
+                                            {isUserBracket && (() => {
+                                                const percentDiff = ((netWorth - bracket.medianNetWorth) / bracket.medianNetWorth) * 100;
+                                                const isAbove = netWorth > bracket.medianNetWorth;
+                                                return (
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isAbove
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                        }`}>
+                                                        {isAbove ? '+' : ''}{percentDiff.toFixed(1)}% {isAbove ? 'Above' : 'Below'} Median
+                                                    </span>
+                                                );
+                                            })()}
                                         </div>
                                         {/* Bar Graph */}
                                         <div className="relative h-8 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">

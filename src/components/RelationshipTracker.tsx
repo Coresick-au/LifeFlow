@@ -29,8 +29,8 @@ export const RelationshipTracker: React.FC = () => {
 
   // Filter relationship-related stories
   const relationshipStories = useMemo(() => {
-    return stories.filter(story => 
-      story.tags.some(tag => 
+    return stories.filter(story =>
+      story.tags.some(tag =>
         ['relationship', 'friend', 'family', 'partner', 'love'].includes(tag.toLowerCase())
       ) || story.people.length > 0
     );
@@ -39,11 +39,11 @@ export const RelationshipTracker: React.FC = () => {
   // Process relationship events
   const relationshipEvents = useMemo(() => {
     const events: RelationshipEvent[] = [];
-    
+
     relationshipStories.forEach(story => {
       // Determine event type
       let type: RelationshipEvent['type'] = 'memory';
-      
+
       if (story.tags.some(t => ['milestone', 'anniversary'].includes(t.toLowerCase()))) {
         type = 'milestone';
       } else if (story.tags.some(t => ['gift', 'present'].includes(t.toLowerCase()))) {
@@ -84,7 +84,7 @@ export const RelationshipTracker: React.FC = () => {
   // Calculate relationship stats
   const relationships = useMemo(() => {
     const relationshipsMap = new Map<string, Relationship>();
-    
+
     relationshipEvents.forEach(event => {
       if (!relationshipsMap.has(event.person)) {
         relationshipsMap.set(event.person, {
@@ -95,7 +95,7 @@ export const RelationshipTracker: React.FC = () => {
           totalMemories: 0,
         });
       }
-      
+
       const rel = relationshipsMap.get(event.person)!;
       rel.totalMemories++;
       if (event.date > rel.lastContact) {
@@ -185,11 +185,10 @@ export const RelationshipTracker: React.FC = () => {
           <button
             key={type}
             onClick={() => setSelectedType(type)}
-            className={`px-4 py-2 rounded-md transition-colors capitalize ${
-              selectedType === type
+            className={`px-4 py-2 rounded-md transition-colors capitalize ${selectedType === type
                 ? 'bg-primary-600 text-white'
                 : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary'
-            }`}
+              }`}
           >
             {type === 'all' ? 'All' : type}s ({type === 'all' ? relationships.length : relationships.filter(r => r.type === type).length})
           </button>
@@ -198,12 +197,12 @@ export const RelationshipTracker: React.FC = () => {
 
       {/* Nurture Reminders */}
       {relationships.some(r => r.nextReminder) && (
-        <div className="mb-6 p-4 bg-amber-900/20 border border-amber-800/30 rounded-lg">
+        <div className="mb-6 p-4 bg-amber-100 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-800/30 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-5 h-5 text-yellow-600" />
-            <h3 className="font-semibold text-amber-300">Nurture Reminders</h3>
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <h3 className="font-semibold text-amber-800 dark:text-amber-300">Nurture Reminders</h3>
           </div>
-          <p className="text-sm text-amber-400">
+          <p className="text-sm text-amber-700 dark:text-amber-400">
             {relationships.filter(r => r.nextReminder).length} relationship(s) need attention
           </p>
         </div>
@@ -224,7 +223,7 @@ export const RelationshipTracker: React.FC = () => {
                 <AlertCircle className="w-4 h-4 text-yellow-500" />
               )}
             </div>
-            
+
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-theme-tertiary">Memories:</span>
@@ -248,14 +247,14 @@ export const RelationshipTracker: React.FC = () => {
       {/* Recent Relationship Events */}
       <div>
         <h3 className="text-lg font-semibold text-theme-primary mb-4">Recent Memories</h3>
-        
+
         <div className="space-y-4">
           {relationshipEvents.slice(0, 10).map(event => (
             <div key={event.id} className="flex items-start gap-4 p-4 bg-theme-tertiary rounded-lg hover:bg-theme-secondary transition-colors">
               <div className="flex-shrink-0 w-10 h-10 bg-theme-primary rounded-full flex items-center justify-center shadow-sm">
                 {getEventIcon(event.type)}
               </div>
-              
+
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <h4 className="font-medium text-theme-primary">{event.title}</h4>
@@ -263,7 +262,7 @@ export const RelationshipTracker: React.FC = () => {
                     {format(event.date, 'MMM d, yyyy')}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 text-sm text-theme-tertiary mb-2">
                   <span className="flex items-center gap-1">
                     <Users className="w-3 h-3" />
@@ -273,7 +272,7 @@ export const RelationshipTracker: React.FC = () => {
                     {event.relationshipType}
                   </span>
                 </div>
-                
+
                 <p className="text-theme-secondary text-sm">{event.description}</p>
               </div>
             </div>

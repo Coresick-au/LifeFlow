@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Navigation } from './components/Navigation';
+import { Sidebar } from './components/Sidebar';
 import { Timeline } from './components/Timeline';
 import { CalendarView } from './components/CalendarView';
 import { EventHeatmap } from './components/EventHeatmap';
@@ -25,9 +26,11 @@ import { BubbleTimeline } from './components/BubbleTimeline';
 import { AIInsights } from './components/AIInsights';
 import { WealthTracker } from './components/WealthTracker';
 import { ExperimentalComparison } from './components/ExperimentalComparison';
+import { AdvicePanel } from './components/Advice';
+import { AuthPage } from './components/AuthPage';
+import { useAuth } from './contexts/AuthContext';
 import { useTimelineStore } from './store/timelineStore';
 import { useThemeStore } from './store/themeStore';
-import { generateExtendedSampleData } from './store/timelineStore';
 import { Story } from './types';
 import {
   Calendar as CalendarIcon,
@@ -43,18 +46,28 @@ import {
   CheckSquare,
   PiggyBank,
   AlertTriangle,
-  Home
+  Home,
+  BookOpen,
+  Circle
 } from 'lucide-react';
 import type { TimelineView } from './types';
 
-// Force recompile to fix Home icon import
-
 export const App: React.FC = () => {
-  const { stories, userProfile, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile, addStory } = useTimelineStore();
-  const { theme, setTheme } = useThemeStore();
-  const [currentView, setCurrentViewState] = useState<TimelineView>({ type: 'timeline' });
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { stories, userProfile, currentView, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile, addStory } = useTimelineStore();
+  const { theme } = useThemeStore();
   const [searchResults, setSearchResults] = useState<Story[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [useSidebar, setUseSidebar] = useState(() => {
+    const saved = localStorage.getItem('lifeflow-use-sidebar');
+    return saved === 'true';
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Persist sidebar preference
+  useEffect(() => {
+    localStorage.setItem('lifeflow-use-sidebar', String(useSidebar));
+  }, [useSidebar]);
 
   // Initialize theme on mount
   useEffect(() => {
@@ -64,18 +77,6 @@ export const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
-
-  const handleSampleData = async () => {
-    if (!userProfile) return;
-
-    if (window.confirm('This will add sample stories to your timeline. Continue?')) {
-      const sampleStories = generateExtendedSampleData();
-      for (const story of sampleStories) {
-        await addStory(story);
-      }
-      setCurrentViewState({ type: 'timeline' });
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = useTimelineStore.persist.onFinishHydration(() => {
@@ -99,14 +100,21 @@ export const App: React.FC = () => {
     }
   }, [loadStories, loadUserProfile, loadThoughts, loadTodos, isLoading]);
 
-  useEffect(() => {
-    const handleLoadSampleData = () => {
-      handleSampleData();
-    };
+  // Show auth page if not authenticated
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-400">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
-    window.addEventListener('loadSampleData', handleLoadSampleData);
-    return () => window.removeEventListener('loadSampleData', handleLoadSampleData);
-  }, [handleSampleData]);
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
 
   if (isLoading) {
     return (
@@ -125,15 +133,15 @@ export const App: React.FC = () => {
       story.content.toLowerCase().includes(query.toLowerCase())
     );
     setSearchResults(filtered);
-    setCurrentViewState({ type: 'timeline' });
+    setCurrentView({ type: 'timeline' });
   };
 
   const handleQuickAdd = () => {
-    setCurrentViewState({ type: 'add-story' });
+    setCurrentView({ type: 'add-story' });
   };
 
   const handleAddStory = () => {
-    setCurrentViewState({ type: 'add-story' });
+    setCurrentView({ type: 'add-story' });
   };
 
   const getBreadcrumbs = () => {
@@ -225,6 +233,8 @@ export const App: React.FC = () => {
         return <WealthTracker />;
       case 'experimental':
         return <ExperimentalComparison />;
+      case 'advice':
+        return <AdvicePanel />;
       case 'add-story':
         return <StoryForm />;
       case 'edit-story':
@@ -239,9 +249,11 @@ export const App: React.FC = () => {
     { type: 'calendar', icon: CalendarIcon, label: 'Calendar' },
     { type: 'life-dashboard', icon: BarChart3, label: 'Dashboard' },
     { type: 'thoughts', icon: Lightbulb, label: 'Thoughts' },
+    { type: 'advice', icon: BookOpen, label: 'Advice' },
     { type: 'todos', icon: CheckSquare, label: 'To-Do List' },
     { type: 'event-heatmap', icon: Brain, label: 'Event Heatmap' },
     { type: 'gantt-timeline', icon: BarChart3, label: 'Gantt Timeline' },
+    { type: 'bubble-timeline', icon: Circle, label: 'Bubble' },
     { type: 'on-this-day', icon: CalendarIcon, label: 'On This Day' },
     { type: 'relationships', icon: Users, label: 'Relationships' },
     { type: 'location-map', icon: MapPin, label: 'Location Map' },
@@ -259,32 +271,73 @@ export const App: React.FC = () => {
   const showBackButton = currentView.type === 'edit-story';
 
   const handleBackClick = () => {
-    setCurrentViewState({ type: 'timeline' });
+    setCurrentView({ type: 'timeline' });
   };
 
   return (
-    <div className="min-h-screen bg-theme-secondary">
-      <Navigation
-        items={navigationItems}
-        activeView={currentView.type}
-        onViewChange={(type) => setCurrentViewState({ type: type as any })}
-        userProfile={userProfile}
-        onQuickAdd={() => setCurrentViewState({ type: 'add-story' })}
-        onSearch={handleSearch}
-        onSampleData={handleSampleData}
-        breadcrumbs={getBreadcrumbs()}
-        showBackButton={showBackButton}
-        onBackClick={handleBackClick}
-      />
+    <div className={`min-h-screen bg-theme-secondary ${useSidebar ? 'flex' : ''}`}>
+      {useSidebar ? (
+        <>
+          <Sidebar
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            onViewChange={(type) => setCurrentView({ type: type as any })}
+            activeView={currentView.type}
+          />
+          <div className="flex-1 md:ml-0">
+            {/* Mobile sidebar toggle */}
+            <div className="md:hidden p-4 border-b border-theme bg-theme-primary">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 hover:bg-theme-tertiary rounded-md"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+            <main className="container mx-auto px-4 py-8">
+              <div key={currentView.type} className="animate-fade-in">
+                {renderView()}
+              </div>
+            </main>
+          </div>
+        </>
+      ) : (
+        <>
+          <Navigation
+            items={navigationItems}
+            activeView={currentView.type}
+            onViewChange={(type) => setCurrentView({ type: type as any })}
+            userProfile={userProfile}
+            onQuickAdd={() => setCurrentView({ type: 'add-story' })}
+            onSearch={handleSearch}
+            breadcrumbs={getBreadcrumbs()}
+            showBackButton={showBackButton}
+            onBackClick={handleBackClick}
+          />
+          <main className="container mx-auto px-4 py-8">
+            <div key={currentView.type} className="animate-fade-in">
+              {renderView()}
+            </div>
+          </main>
+        </>
+      )}
 
-      <main className="container mx-auto px-4 py-8">
-        <div
-          key={currentView.type}
-          className="animate-fade-in"
-        >
-          {renderView()}
-        </div>
-      </main>
+      {/* Layout Toggle FAB */}
+      <button
+        onClick={() => setUseSidebar(!useSidebar)}
+        className="fixed top-20 left-4 p-3 bg-theme-accent text-white rounded-full shadow-lg hover:opacity-90 transition-opacity z-50"
+        title={useSidebar ? 'Switch to Top Menu' : 'Switch to Side Panel'}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {useSidebar ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
+          )}
+        </svg>
+      </button>
 
       {/* Toast notifications */}
       <Toaster

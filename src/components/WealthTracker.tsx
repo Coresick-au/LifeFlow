@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
-import { WealthItem } from '../store/timelineStore';
-import { DollarSign, TrendingUp, Lock, AlertCircle, Plus, Edit2, Trash2, PiggyBank, BarChart3 } from 'lucide-react';
+import { WealthItem, WealthHistoryEntry } from '../types';
+import { DollarSign, TrendingUp, TrendingDown, Lock, AlertCircle, Plus, Edit2, Trash2, PiggyBank, BarChart3, History, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tooltip } from './Tooltip';
-import { NetWorthChart } from './NetWorthChart';
 
 export function WealthTracker() {
     const {
         wealthItems,
+        wealthHistory,
         loadWealthItems,
+        loadWealthHistory,
+        getWealthItemHistory,
         addWealthItem,
         updateWealthItem,
         removeWealthItem,
@@ -22,6 +24,7 @@ export function WealthTracker() {
 
     const [showForm, setShowForm] = useState(false);
     const [editingItem, setEditingItem] = useState<WealthItem | null>(null);
+    const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -33,7 +36,8 @@ export function WealthTracker() {
 
     useEffect(() => {
         loadWealthItems();
-    }, [loadWealthItems]);
+        loadWealthHistory();
+    }, [loadWealthItems, loadWealthHistory]);
 
     // Calculate real estate equity from HouseTracker
     const getRealEstateEquity = () => {
@@ -280,9 +284,6 @@ export function WealthTracker() {
                 </div>
             )}
 
-            {/* Net Worth Chart */}
-            <NetWorthChart />
-
             {/* Add Item Button */}
             <div className="mb-6">
                 <button
@@ -454,6 +455,16 @@ export function WealthTracker() {
                                         </span>
                                         <div className="flex gap-2">
                                             <button
+                                                onClick={() => setExpandedHistory(expandedHistory === item.id ? null : item.id)}
+                                                className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${getWealthItemHistory(item.id).length > 0
+                                                    ? 'text-purple-600 dark:text-purple-400'
+                                                    : 'text-gray-400'
+                                                    }`}
+                                                title="View History"
+                                            >
+                                                <History className="w-5 h-5" />
+                                            </button>
+                                            <button
                                                 onClick={() => handleEdit(item)}
                                                 className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                                                 title="Edit"
@@ -470,6 +481,63 @@ export function WealthTracker() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Expandable History Section */}
+                                {expandedHistory === item.id && (
+                                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                        <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                                            <History className="w-4 h-4" />
+                                            Value History
+                                        </h5>
+                                        {getWealthItemHistory(item.id).length === 0 ? (
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                No history yet. History is recorded when you update the value.
+                                            </p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {getWealthItemHistory(item.id).slice(0, 10).map((entry) => (
+                                                    <div
+                                                        key={entry.id}
+                                                        className="flex items-center justify-between text-sm bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg"
+                                                    >
+                                                        <div>
+                                                            <span className="text-gray-500 dark:text-gray-400">
+                                                                {new Date(entry.timestamp).toLocaleDateString('en-AU', {
+                                                                    day: 'numeric',
+                                                                    month: 'short',
+                                                                    year: 'numeric'
+                                                                })}
+                                                            </span>
+                                                            {entry.note && (
+                                                                <span className="ml-2 text-gray-400 dark:text-gray-500 italic">
+                                                                    — {entry.note}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-gray-500 dark:text-gray-400">
+                                                                {formatCurrency(entry.previousValue)}
+                                                            </span>
+                                                            <span className="text-gray-400">→</span>
+                                                            <span className={`font-semibold ${entry.changeAmount >= 0
+                                                                ? 'text-green-600 dark:text-green-400'
+                                                                : 'text-red-600 dark:text-red-400'
+                                                                }`}>
+                                                                {formatCurrency(entry.newValue)}
+                                                            </span>
+                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${entry.changeAmount >= 0
+                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                                }`}>
+                                                                {entry.changeAmount >= 0 ? '+' : ''}{formatCurrency(entry.changeAmount)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

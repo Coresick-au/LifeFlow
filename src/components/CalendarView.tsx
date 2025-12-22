@@ -454,8 +454,8 @@ export const CalendarView: React.FC = () => {
           <button
             onClick={() => setViewMode('month')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'month'
-                ? 'bg-primary-600 text-white'
-                : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+              ? 'bg-primary-600 text-white'
+              : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
               }`}
           >
             Month
@@ -463,8 +463,8 @@ export const CalendarView: React.FC = () => {
           <button
             onClick={() => setViewMode('quarter')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'quarter'
-                ? 'bg-primary-600 text-white'
-                : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+              ? 'bg-primary-600 text-white'
+              : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
               }`}
           >
             Quarter
@@ -472,8 +472,8 @@ export const CalendarView: React.FC = () => {
           <button
             onClick={() => setViewMode('year')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'year'
-                ? 'bg-primary-600 text-white'
-                : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+              ? 'bg-primary-600 text-white'
+              : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
               }`}
           >
             Year
@@ -481,7 +481,7 @@ export const CalendarView: React.FC = () => {
         </div>
 
         {/* Year Selector */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-4">
           <label className="text-sm font-medium text-theme-secondary">Year:</label>
           <select
             value={currentDate.getFullYear()}

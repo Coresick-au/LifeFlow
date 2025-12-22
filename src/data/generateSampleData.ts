@@ -47,79 +47,29 @@ const eventTemplates = {
   ],
 };
 
-const moods = ['happy', 'neutral', 'excited', 'proud', 'grateful'] as const;
+// Australian locations for sample data
 const locations = [
-  'New York, NY', 'San Francisco, CA', 'Los Angeles, CA', 'Chicago, IL',
-  'Boston, MA', 'Seattle, WA', 'Austin, TX', 'Portland, OR',
-  'Denver, CO', 'Miami, FL', 'Paris, France', 'Tokyo, Japan',
-  'London, UK', 'Barcelona, Spain', 'Rome, Italy', 'Amsterdam, Netherlands'
+  'Brisbane CBD', 'South Bank, Brisbane', 'Fortitude Valley', 'West End, Brisbane',
+  'Paddington, Brisbane', 'New Farm, Brisbane', 'Toowong, Brisbane', 'Ashgrove, Brisbane',
+  'Gold Coast, Queensland', 'Sunshine Coast, Queensland', 'Noosa, Queensland',
+  'Cairns, Queensland', 'Sydney, NSW', 'Melbourne, VIC', 'Byron Bay, NSW',
+  'Bali, Indonesia', 'Tokyo, Japan', 'Singapore', 'Auckland, New Zealand'
 ];
+
 const people = [
-  'Sarah', 'Mike', 'Jessica', 'David', 'Emma', 'John', 'Lisa', 'Chris',
+  'Sarah', 'Matt', 'Jessica', 'David', 'Emma', 'John', 'Lisa', 'Chris',
   'Amy', 'Tom', 'Rachel', 'Kevin', 'Emily', 'Mark', 'Laura', 'Steve',
   'Anna', 'Paul', 'Michelle', 'Ryan', 'Sophie', 'Ben', 'Olivia', 'Nathan'
 ];
-
-function randomDate(start: Date, end: Date): Date {
-  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-}
 
 function randomChoice<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)];
 }
 
-function generateStoryForYear(year: number, index: number): Story {
-  const categories: Array<keyof typeof eventTemplates> = ['career', 'personal', 'health', 'travel', 'learning', 'family'];
-  const category = randomChoice(categories);
-  const template = randomChoice(eventTemplates[category]);
-  const date = randomDate(new Date(year, 0, 1), new Date(year, 11, 31));
-  
-  const tags: string[] = [category];
-  if (Math.random() > 0.5) {
-    // Add a second tag sometimes
-    const extraTags: Record<keyof typeof eventTemplates, string[]> = {
-      career: ['work', 'achievement', 'success'],
-      personal: ['growth', 'reflection', 'milestone'],
-      health: ['fitness', 'wellness', 'exercise'],
-      travel: ['adventure', 'exploration', 'vacation'],
-      learning: ['education', 'skill', 'knowledge'],
-      family: ['love', 'tradition', 'celebration'],
-    };
-    tags.push(randomChoice(extraTags[category]));
-  }
-
-  const moodArray: ('happy' | 'neutral' | 'excited' | 'proud' | 'grateful')[] = ['happy', 'neutral', 'excited', 'proud', 'grateful'];
-
-  // Add 1-3 random people to the story
-  const storyPeople: string[] = [];
-  const numPeople = Math.floor(Math.random() * 3) + 1;
-  for (let i = 0; i < numPeople; i++) {
-    const person = randomChoice(people);
-    if (!storyPeople.includes(person)) {
-      storyPeople.push(person);
-    }
-  }
-
-  return {
-    id: `story-${year}-${index}`,
-    title: template.title,
-    content: template.content,
-    type: Math.random() > 0.7 ? 'long' : 'short',
-    date: date,
-    tags: tags,
-    people: storyPeople,
-    mood: randomChoice(moodArray),
-    importance: template.importance,
-    location: randomChoice(locations),
-    createdAt: date,
-    updatedAt: date,
-  };
-}
-
 export function generateExtendedSampleData(): Story[] {
   // Return realistic career test data instead of random data
   const careerStories = generateCareerTestData();
-  
+
   // Add some non-career stories for variety
   const nonCareerStories: Story[] = [
     {
@@ -132,7 +82,7 @@ export function generateExtendedSampleData(): Story[] {
       people: [],
       importance: 'low',
       mood: 'happy',
-      location: 'New York, NY',
+      location: 'Home - Paddington',
       createdAt: new Date(2020, 2, 15),
       updatedAt: new Date(2020, 2, 15),
       images: [],
@@ -141,16 +91,16 @@ export function generateExtendedSampleData(): Story[] {
     },
     {
       id: 'travel-1',
-      title: 'Backpacking Through Europe',
-      content: 'Two-week backpacking trip through Italy, France, and Spain. Visited 8 cities and experienced amazing cultures.',
+      title: 'Bali Holiday',
+      content: 'Two-week holiday in Bali with friends. Visited Ubud, Seminyak, and the Gili Islands. Perfect escape from Brisbane winter!',
       type: 'long',
       date: new Date(2021, 6, 10),
       endDate: new Date(2021, 6, 25),
       tags: ['travel', 'adventure', 'personal'],
-      people: ['Mike', 'Jessica'],
+      people: ['Matt', 'Jessica'],
       importance: 'medium',
       mood: 'excited',
-      location: 'Europe',
+      location: 'Bali, Indonesia',
       createdAt: new Date(2021, 6, 10),
       updatedAt: new Date(2021, 6, 25),
       images: [],
@@ -159,33 +109,33 @@ export function generateExtendedSampleData(): Story[] {
     },
     {
       id: 'health-1',
-      title: 'Ran First 10K Race',
-      content: 'Completed first 10K race with a time of 52 minutes. Training consistently for 3 months paid off!',
+      title: 'Completed Bridge to Brisbane',
+      content: 'Completed the Bridge to Brisbane 10km run with a time of 52 minutes. Training consistently for 3 months paid off!',
       type: 'short',
-      date: new Date(2022, 4, 20),
+      date: new Date(2022, 7, 28),
       tags: ['health', 'fitness', 'achievement'],
       people: [],
       importance: 'medium',
       mood: 'proud',
-      location: 'Central Park, NY',
-      createdAt: new Date(2022, 4, 20),
-      updatedAt: new Date(2022, 4, 20),
+      location: 'Brisbane CBD',
+      createdAt: new Date(2022, 7, 28),
+      updatedAt: new Date(2022, 7, 28),
       images: [],
       metadata: {},
       fuzzyDate: false
     }
   ];
-  
+
   // Combine and sort by date
-  return [...careerStories, ...nonCareerStories].sort((a, b) => 
+  return [...careerStories, ...nonCareerStories].sort((a, b) =>
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 }
 
 export const seedProfile = {
   id: 'seed-profile-1',
-  name: 'Alex Johnson',
-  birthDate: new Date('1990-05-15'),
-  location: 'San Francisco, CA',
-  bio: 'Software developer passionate about learning, growth, and making a difference. Love hiking, reading, and playing guitar.'
+  name: 'James Mitchell',
+  birthDate: new Date('1986-02-01'),
+  location: 'Brisbane, Queensland',
+  bio: 'Brisbane local passionate about learning, property investing, and making a difference in the community. Love hiking, live music, and weekend cricket.'
 };

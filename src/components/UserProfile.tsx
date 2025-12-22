@@ -6,7 +6,7 @@ import { PDFExport } from './PDFExport';
 import { format, differenceInYears, differenceInDays, differenceInMonths } from 'date-fns';
 
 export const UserProfile: React.FC = () => {
-  const { userProfile, setUserProfile, seedData, stories, relationships, setCurrentView, isLoading, exportData, importData } = useTimelineStore();
+  const { userProfile, setUserProfile, stories, relationships, setCurrentView, isLoading, exportData, importData } = useTimelineStore();
   const [formData, setFormData] = useState<Partial<UserProfileType>>({
     name: userProfile?.name || '',
     birthDate: userProfile?.birthDate ? new Date(userProfile.birthDate) : new Date(),
@@ -15,12 +15,10 @@ export const UserProfile: React.FC = () => {
     avatar: userProfile?.avatar || '',
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  const [showSeedConfirm, setShowSeedConfirm] = useState(false);
   const [birthDateError, setBirthDateError] = useState('');
 
   // Update formData when userProfile changes
@@ -41,7 +39,7 @@ export const UserProfile: React.FC = () => {
     if (!userProfile) {
       return null;
     }
-    
+
     if (!stories || stories.length === 0) {
       return null;
     }
@@ -126,12 +124,7 @@ export const UserProfile: React.FC = () => {
     };
   }, [userProfile, stories]);
 
-  const handleSeedData = async () => {
-    setIsSeeding(true);
-    await seedData();
-    setIsSeeding(false);
-    setShowSeedConfirm(false);
-  };
+
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -155,7 +148,7 @@ export const UserProfile: React.FC = () => {
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setIsImporting(true);
     try {
       const text = await file.text();
@@ -236,7 +229,7 @@ export const UserProfile: React.FC = () => {
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setFormData({ ...formData, avatar: reader.result as string });
@@ -381,7 +374,7 @@ export const UserProfile: React.FC = () => {
                 <span className="capitalize text-theme-secondary">{type}</span>
                 <div className="flex items-center gap-2">
                   <div className="w-24 bg-theme-tertiary rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-blue-500/200 h-2 rounded-full"
                       style={{ width: `${(count / dashboardStats.totalStories) * 100}%` }}
                     />
@@ -622,9 +615,8 @@ export const UserProfile: React.FC = () => {
               id="birthDate"
               value={formData.birthDate && !isNaN(formData.birthDate.getTime()) ? formData.birthDate.toISOString().split('T')[0] : ''}
               onChange={(e) => handleBirthDateChange(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                birthDateError ? 'border-red-300' : 'border-theme-border'
-              }`}
+              className={`w-full px-3 py-2 border rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${birthDateError ? 'border-red-300' : 'border-theme-border'
+                }`}
               required
             />
             {formData.birthDate && !isNaN(formData.birthDate.getTime()) && (
@@ -687,7 +679,7 @@ export const UserProfile: React.FC = () => {
             <Database className="w-5 h-5 text-theme-tertiary" />
             Data Management
           </h3>
-          
+
           <div className="space-y-3">
             {/* Backup and Restore */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -699,7 +691,7 @@ export const UserProfile: React.FC = () => {
                 <Download className="w-4 h-4" />
                 <span>{isExporting ? 'Exporting...' : 'Export JSON'}</span>
               </button>
-              
+
               <div className="relative">
                 <input
                   type="file"
@@ -711,9 +703,8 @@ export const UserProfile: React.FC = () => {
                 />
                 <label
                   htmlFor="import-json"
-                  className={`flex items-center justify-center space-x-2 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 cursor-pointer transition-colors ${
-                    isImporting ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  className={`flex items-center justify-center space-x-2 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 cursor-pointer transition-colors ${isImporting ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                 >
                   <Upload className="w-4 h-4" />
                   <span>{isImporting ? 'Importing...' : 'Import JSON'}</span>
@@ -733,59 +724,7 @@ export const UserProfile: React.FC = () => {
           </div>
         </div>
 
-        {/* Danger Zone */}
-        <div className="mt-8 pt-8 border-t border-theme-border">
-          <div className="bg-red-900/20 border border-red-800 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-red-300 mb-2 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              Danger Zone
-            </h3>
-            <p className="text-sm text-red-400 mb-4">
-              These actions cannot be undone. Please be careful.
-            </p>
-            
-            <button
-              type="button"
-              onClick={() => setShowSeedConfirm(true)}
-              disabled={isSeeding}
-              className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Database className="w-4 h-4" />
-              <span>{isSeeding ? 'Loading...' : 'Load Sample Data'}</span>
-            </button>
-            
-            <p className="text-xs text-red-400 mt-2">
-              This will permanently delete all your stories and profile data.
-            </p>
-          </div>
-        </div>
 
-        {/* Confirmation Modal */}
-        {showSeedConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-theme-primary rounded-lg p-6 max-w-md mx-4">
-              <h3 className="text-lg font-semibold text-theme-primary mb-4">Confirm Data Reset</h3>
-              <p className="text-theme-tertiary mb-6">
-                Are you sure you want to load sample data? This will <strong>permanently delete</strong> all your existing stories, profile, relationships, and tags. This action cannot be undone.
-              </p>
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowSeedConfirm(false)}
-                  className="flex-1 px-4 py-2 border border-theme-border text-theme-secondary rounded-md hover:bg-theme-tertiary focus:outline-none focus:ring-2 focus:ring-theme-border"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSeedData}
-                  disabled={isSeeding}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
-                >
-                  {isSeeding ? 'Loading...' : 'Delete & Load Sample'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {showExport && (
           <div className="mt-6">

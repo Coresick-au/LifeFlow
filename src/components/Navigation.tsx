@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Settings, Calendar, MapPin, Users, Heart, BarChart3, Brain, ChevronDown, ArrowLeft, Cloud, Clock, Plus, Wifi, WifiOff, Database } from 'lucide-react';
+import { Search, Settings, ChevronDown, ArrowLeft, Plus, Wifi, WifiOff, Database } from 'lucide-react';
 import { UserProfile } from '../types';
 import { Logo } from './Logo';
 import { ThemeSwitcher } from './ThemeSwitcher';
@@ -19,7 +19,6 @@ interface NavigationProps {
   userProfile: UserProfile | null;
   onQuickAdd?: () => void;
   onSearch?: (query: string) => void;
-  onSampleData?: () => void;
   breadcrumbs?: { label: string; onClick?: () => void }[];
   showBackButton?: boolean;
   onBackClick?: () => void;
@@ -32,7 +31,6 @@ export const Navigation: React.FC<NavigationProps> = ({
   userProfile,
   onQuickAdd,
   onSearch,
-  onSampleData,
   breadcrumbs,
   showBackButton,
   onBackClick,
@@ -58,50 +56,33 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const isDataLocal = true; // Since we're using IndexedDB
   const lastBackupDate = localStorage.getItem('lifeflow-last-backup');
-  const needsBackup = !lastBackupDate || 
+  const needsBackup = !lastBackupDate ||
     (Date.now() - new Date(lastBackupDate).getTime()) > 7 * 24 * 60 * 60 * 1000; // 7 days
   return (
     <nav className="shadow-sm border-b sticky top-0 z-50 bg-theme-primary border-theme">
       <div className="container mx-auto px-4">
-        {/* Breadcrumbs */}
-        {breadcrumbs && breadcrumbs.length > 0 && (
-          <div className="flex items-center space-x-2 py-2 border-b border-theme">
-            {showBackButton && (
-              <button
-                onClick={onBackClick}
-                className="p-1 hover:bg-theme-tertiary rounded-md transition-colors rounded-theme"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            {breadcrumbs.map((crumb, index) => (
-              <React.Fragment key={index}>
-                {index > 0 && <span className="text-theme-tertiary">/</span>}
-                <button
-                  onClick={crumb.onClick || (() => onViewChange('timeline'))}
-                  className="text-sm text-theme-secondary hover:text-theme-primary transition-colors"
-                >
-                  {crumb.label}
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
-        )}
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-3">
-              <Logo className="w-9 h-9" />
+              {/* Green + button for adding stories */}
+              <button
+                onClick={onQuickAdd}
+                className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-md transition-all hover:scale-105 flex items-center justify-center"
+                title="Add new story"
+              >
+                <Plus className="w-6 h-6" />
+              </button>
               <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--theme-accent)' }}>
                 LifeFlow
               </h1>
             </div>
-            
+
             {/* Navigation Items */}
             <div className="hidden md:flex space-x-1">
               {primaryItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeView === item.type;
-                
+
                 return (
                   <button
                     key={item.type}
@@ -120,7 +101,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   </button>
                 );
               })}
-              
+
               {/* More dropdown for secondary items */}
               {secondaryItems.length > 0 && (
                 <div className="relative">
@@ -131,13 +112,13 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <span>More</span>
                     <ChevronDown className="w-4 h-4" />
                   </button>
-                  
+
                   {showMoreMenu && (
                     <div className="absolute top-full left-0 mt-1 border rounded-md shadow-lg py-1 z-50 bg-theme-primary border-theme shadow-theme">
                       {secondaryItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = activeView === item.type;
-                        
+
                         return (
                           <button
                             key={item.type}
@@ -165,12 +146,12 @@ export const Navigation: React.FC<NavigationProps> = ({
               )}
             </div>
           </div>
-          
+
           {/* Right Side Actions */}
           <div className="flex items-center space-x-3">
             {/* Theme Switcher */}
             <ThemeSwitcher />
-            
+
             {/* Search Bar */}
             {showSearch ? (
               <form onSubmit={handleSearch} className="flex items-center">
@@ -199,7 +180,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <Search className="w-5 h-5" />
               </button>
             )}
-            
+
             {/* Quick Add Button */}
             {onQuickAdd && (
               <button
@@ -210,41 +191,29 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <Plus className="w-5 h-5" />
               </button>
             )}
-            
+
             {/* Settings Button */}
             <button
               onClick={() => onViewChange('settings')}
-              className={`p-2 rounded-md transition-colors rounded-theme ${
-                activeView === 'settings'
-                  ? 'text-theme-accent bg-theme-tertiary'
-                  : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
-              }`}
+              className={`p-2 rounded-md transition-colors rounded-theme ${activeView === 'settings'
+                ? 'text-theme-accent bg-theme-tertiary'
+                : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
+                }`}
               title="Settings"
             >
               <Settings className="w-5 h-5" />
             </button>
-            
-            {/* Sample Data Button - only show on profile view */}
-            {activeView === 'profile' && onSampleData && (
-              <button
-                onClick={onSampleData}
-                className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                title="Load sample data"
-              >
-                <Database className="w-4 h-4" />
-                <span className="hidden sm:inline">Sample Data</span>
-              </button>
-            )}
-            
+
+
+
             {/* Data Sync Status */}
             <div className="flex items-center space-x-2">
               <div className="relative group">
                 <button
-                  className={`p-2 rounded-md transition-colors ${
-                    needsBackup 
-                      ? 'text-orange-600 hover:bg-orange-50' 
-                      : 'text-gray-400 hover:text-theme-tertiary hover:bg-theme-tertiary'
-                  }`}
+                  className={`p-2 rounded-md transition-colors ${needsBackup
+                    ? 'text-orange-600 hover:bg-orange-50'
+                    : 'text-gray-400 hover:text-theme-tertiary hover:bg-theme-tertiary'
+                    }`}
                   title={isDataLocal ? 'Data saved locally' : 'Data synced'}
                 >
                   {isDataLocal ? <WifiOff className="w-5 h-5" /> : <Wifi className="w-5 h-5" />}
@@ -266,10 +235,14 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {/* User Profile */}
             {userProfile && (
-              <div className="flex items-center space-x-3">
+              <button
+                onClick={() => onViewChange('profile')}
+                className="flex items-center space-x-3 hover:bg-theme-tertiary rounded-lg px-2 py-1 transition-colors"
+                title="View Profile"
+              >
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-theme-primary">{userProfile.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -287,18 +260,18 @@ export const Navigation: React.FC<NavigationProps> = ({
                     userProfile.name.charAt(0).toUpperCase()
                   )}
                 </div>
-              </div>
+              </button>
             )}
           </div>
         </div>
-        
+
         {/* Mobile navigation */}
         <div className="md:hidden flex items-center justify-between">
           <div className="flex overflow-x-auto space-x-1">
             {items.map((item) => {
               const Icon = item.icon;
               const isActive = activeView === item.type;
-              
+
               return (
                 <button
                   key={item.type}
@@ -318,7 +291,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               );
             })}
           </div>
-          
+
           {/* Mobile Quick Add */}
           {onQuickAdd && (
             <button

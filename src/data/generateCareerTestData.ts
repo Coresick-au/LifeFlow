@@ -1,171 +1,199 @@
 import { Story } from '../types';
 
-// Generate realistic career test data for the Career Leverage features
+// Generate realistic career test data for a Brisbane-based professional
+// Born 1/2/1986, started career around 2008 (age 22)
 export function generateCareerTestData(): Story[] {
   const stories: Story[] = [];
-  const currentDate = new Date();
-  
-  // Career timeline from 2015 to present
+
+  // Career timeline from 2008 to present - typical Brisbane career progression
   const careerEvents = [
-    // First job - 4 years without promotion (loyalty penalty)
+    // First job - Retail/hospitality while studying or early career
     {
-      title: "Started as Junior Developer",
-      content: "Joined TechStart Inc. as a junior software developer working on frontend applications. Learned React and modern JavaScript frameworks.",
+      title: "Started at Woolworths",
+      content: "Started working part-time at Woolworths in Toowong while finishing TAFE. Great first job learning customer service and teamwork.",
       type: "short" as const,
-      date: new Date(2015, 5, 15), // June 2015
-      endDate: new Date(2019, 6, 31), // July 2019
+      date: new Date(2008, 1, 15), // February 2008
+      endDate: new Date(2010, 5, 30), // June 2010
       tags: ["career", "work", "position"],
       people: ["Sarah Chen", "Mike Johnson"],
-      importance: "high" as const,
-      location: "San Francisco, CA",
+      importance: "medium" as const,
+      location: "Toowong, Brisbane",
       mood: "excited" as const
     },
-    
-    // Achievement during first job
+
+    // Moved to admin role
     {
-      title: "Led Major Feature Release",
-      content: "Successfully led the development and launch of the customer dashboard feature, resulting in 30% increase in user engagement.",
+      title: "Admin Officer at QUT",
+      content: "Joined Queensland University of Technology as an Administration Officer. Great benefits and opportunity to study part-time.",
       type: "short" as const,
-      date: new Date(2017, 8, 10), // September 2017
-      tags: ["career", "work", "project", "achievement", "leadership"],
-      people: ["Sarah Chen", "David Park"],
-      importance: "high" as const,
-      location: "San Francisco, CA",
-      mood: "proud" as const
-    },
-    
-    // Skill development
-    {
-      title: "Completed AWS Certification",
-      content: "Earned AWS Solutions Architect Associate certification to expand cloud infrastructure knowledge.",
-      type: "short" as const,
-      date: new Date(2018, 2, 20), // March 2018
-      tags: ["career", "work", "skill", "learning", "certification"],
-      people: [],
-      importance: "medium" as const,
-      location: "San Francisco, CA",
-      mood: "proud" as const
-    },
-    
-    // Job change after loyalty penalty
-    {
-      title: "Senior Developer at DataCorp",
-      content: "Joined DataCorp as Senior Software Developer with 25% salary increase. Focus on big data processing and analytics platform.",
-      type: "short" as const,
-      date: new Date(2019, 8, 1), // August 2019
-      endDate: new Date(2021, 11, 15), // December 2021
+      date: new Date(2010, 6, 1), // July 2010
+      endDate: new Date(2013, 11, 31), // December 2013
       tags: ["career", "work", "position"],
       people: ["Lisa Wang", "Tom Martinez"],
       importance: "high" as const,
-      location: "New York, NY",
+      location: "Kelvin Grove, Brisbane",
       mood: "excited" as const
     },
-    
-    // Promotion at DataCorp
+
+    // Completed qualification
     {
-      title: "Promoted to Tech Lead",
-      content: "Promoted to Technical Lead role managing a team of 5 developers. Responsible for architectural decisions and mentorship.",
+      title: "Completed Business Diploma",
+      content: "Earned Diploma of Business Administration through part-time study at TAFE Queensland while working full-time.",
       type: "short" as const,
-      date: new Date(2021, 0, 15), // January 2021
-      tags: ["career", "work", "promotion", "leadership"],
-      people: ["Lisa Wang", "Rachel Green"],
+      date: new Date(2012, 10, 20), // November 2012
+      tags: ["career", "work", "skill", "learning", "certification"],
+      people: [],
       importance: "high" as const,
-      location: "New York, NY",
+      location: "South Bank, Brisbane",
       mood: "proud" as const
     },
-    
-    // Major project
+
+    // Moved to corporate
     {
-      title: "Launched Microservices Architecture",
-      content: "Architected and led the migration from monolithic to microservices architecture, reducing deployment time by 60%.",
+      title: "Business Analyst at Suncorp",
+      content: "Joined Suncorp as a Business Analyst. Big step up in responsibility and salary. Working on insurance systems modernization.",
       type: "short" as const,
-      date: new Date(2021, 5, 30), // June 2021
-      tags: ["career", "work", "project", "achievement", "technical"],
-      people: ["Tom Martinez", "Kevin Lee"],
+      date: new Date(2014, 0, 13), // January 2014
+      endDate: new Date(2017, 5, 30), // June 2017
+      tags: ["career", "work", "position"],
+      people: ["Rachel Green", "David Park"],
       importance: "high" as const,
-      location: "New York, NY",
+      location: "Brisbane CBD",
+      mood: "excited" as const
+    },
+
+    // Achievement during Suncorp
+    {
+      title: "Led Claims System Upgrade",
+      content: "Successfully led the business requirements for the claims system upgrade, resulting in 25% faster processing times. Received recognition award.",
+      type: "short" as const,
+      date: new Date(2016, 2, 10), // March 2016
+      tags: ["career", "work", "project", "achievement", "leadership"],
+      people: ["Rachel Green", "Kevin Lee"],
+      importance: "high" as const,
+      location: "Brisbane CBD",
       mood: "proud" as const
     },
-    
-    // Current position - 3+ years (potential loyalty penalty)
+
+    // Skill development
     {
-      title: "Principal Engineer at InnovateLabs",
-      content: "Joined InnovateLabs as Principal Engineer focusing on AI/ML integration and product innovation. Leading the technical strategy for new product lines.",
+      title: "Completed Project Management Certificate",
+      content: "Earned Certificate IV in Project Management Practice through Australian Institute of Project Management.",
       type: "short" as const,
-      date: new Date(2022, 0, 10), // January 2022
+      date: new Date(2016, 7, 20), // August 2016
+      tags: ["career", "work", "skill", "learning", "certification"],
+      people: [],
+      importance: "medium" as const,
+      location: "Brisbane CBD",
+      mood: "proud" as const
+    },
+
+    // Job change with pay bump
+    {
+      title: "Senior Analyst at Queensland Health",
+      content: "Joined Queensland Health as Senior Business Analyst with 20% salary increase. Working on digital health initiatives across the state.",
+      type: "short" as const,
+      date: new Date(2017, 7, 1), // August 2017
+      endDate: new Date(2020, 11, 18), // December 2020
       tags: ["career", "work", "position"],
       people: ["Amy Foster", "Ben Carter"],
       importance: "high" as const,
-      location: "Austin, TX",
+      location: "Herston, Brisbane",
       mood: "excited" as const
     },
-    
-    // Recent skill
+
+    // Major project
     {
-      title: "Completed Machine Learning Course",
-      content: "Completed advanced machine learning course covering deep learning, NLP, and computer vision applications.",
+      title: "Delivered COVID Response System",
+      content: "Led business analysis for the COVID-19 contact tracing system during the pandemic. Intense but rewarding work supporting public health response.",
       type: "short" as const,
-      date: new Date(2023, 3, 25), // April 2023
-      tags: ["career", "work", "skill", "learning", "ai"],
-      people: [],
-      importance: "medium" as const,
-      location: "Austin, TX",
-      mood: "grateful" as const
-    },
-    
-    // Recent achievement
-    {
-      title: "Patent Filed for AI Algorithm",
-      content: "Filed patent for novel algorithm optimizing neural network training efficiency, potentially saving 40% in computational costs.",
-      type: "short" as const,
-      date: new Date(2023, 9, 5), // October 2023
-      tags: ["career", "work", "achievement", "innovation"],
-      people: ["Amy Foster", "Sophie Turner"],
+      date: new Date(2020, 3, 30), // April 2020
+      tags: ["career", "work", "project", "achievement", "leadership"],
+      people: ["Ben Carter", "Sophie Turner"],
       importance: "high" as const,
-      location: "Austin, TX",
+      location: "Herston, Brisbane",
       mood: "proud" as const
     },
-    
-    // Non-career life skills that translate to professional competencies
+
+    // Current position
     {
-      title: "Organized Community Tech Workshop",
-      content: "Organized and taught a free coding workshop for 50+ local high school students, developing curriculum and mentoring skills.",
+      title: "Principal Analyst at Brisbane City Council",
+      content: "Joined Brisbane City Council as Principal Business Analyst. Leading digital transformation initiatives for city services. Great work-life balance and meaningful community impact.",
       type: "short" as const,
-      date: new Date(2023, 6, 15), // July 2023
-      tags: ["achievement", "skill", "learning", "mentoring"],
-      people: ["Community Volunteers"],
+      date: new Date(2021, 0, 11), // January 2021
+      tags: ["career", "work", "position"],
+      people: ["Olivia Davis", "Nathan White"],
+      importance: "high" as const,
+      location: "Brisbane CBD",
+      mood: "excited" as const
+    },
+
+    // Recent skill
+    {
+      title: "Completed Agile Certification",
+      content: "Earned SAFe Agilist certification to support council's agile transformation. Useful for leading cross-functional teams.",
+      type: "short" as const,
+      date: new Date(2023, 2, 25), // March 2023
+      tags: ["career", "work", "skill", "learning", "agile"],
+      people: [],
       importance: "medium" as const,
-      location: "Austin, TX",
+      location: "Brisbane CBD",
       mood: "grateful" as const
     },
-    
-    // Another non-career achievement
+
+    // Recent achievement
     {
-      title: "Completed Marathon",
-      content: "Ran first marathon after 6 months of disciplined training, demonstrating perseverance and goal-setting abilities.",
+      title: "Smart City Initiative Launch",
+      content: "Successfully launched the Smart City Sensors initiative, improving traffic flow and reducing council maintenance costs by 15%.",
       type: "short" as const,
-      date: new Date(2023, 11, 10), // December 2023
+      date: new Date(2023, 8, 5), // September 2023
+      tags: ["career", "work", "achievement", "innovation"],
+      people: ["Olivia Davis", "Sophie Turner"],
+      importance: "high" as const,
+      location: "Brisbane CBD",
+      mood: "proud" as const
+    },
+
+    // Non-career achievement that shows transferable skills
+    {
+      title: "Organized Charity Cricket Match",
+      content: "Organized a charity cricket match for 100+ participants, raising $5,000 for Foodbank Queensland. Great for networking and project management practice!",
+      type: "short" as const,
+      date: new Date(2023, 5, 15), // June 2023
+      tags: ["achievement", "skill", "community", "leadership"],
+      people: ["Community Volunteers"],
+      importance: "medium" as const,
+      location: "Norman Park, Brisbane",
+      mood: "grateful" as const
+    },
+
+    // Fitness achievement
+    {
+      title: "Completed Bridge to Brisbane",
+      content: "Ran the Bridge to Brisbane 10km after 4 months of training. Great atmosphere running across the Story Bridge!",
+      type: "short" as const,
+      date: new Date(2023, 7, 27), // August 2023
       tags: ["achievement", "personal", "fitness"],
       people: [],
       importance: "medium" as const,
-      location: "Houston, TX",
+      location: "Brisbane CBD",
       mood: "proud" as const
     },
-    
-    // Recent project with leadership
+
+    // Recent project
     {
-      title: "Cross-Team AI Initiative",
-      content: "Led cross-functional initiative integrating AI across three product teams, improving feature delivery speed by 35%.",
+      title: "Digital Services Transformation",
+      content: "Leading the council's digital services transformation, bringing 40+ services online for residents. Major multi-year initiative.",
       type: "short" as const,
       date: new Date(2024, 1, 20), // February 2024
       tags: ["career", "work", "project", "leadership", "innovation"],
-      people: ["Ben Carter", "Olivia Davis", "Nathan White"],
+      people: ["Nathan White", "Amy Foster", "Ben Carter"],
       importance: "high" as const,
-      location: "Austin, TX",
+      location: "Brisbane CBD",
       mood: "excited" as const
     }
   ];
-  
+
   // Convert to Story format
   careerEvents.forEach((event, index) => {
     stories.push({
@@ -179,6 +207,6 @@ export function generateCareerTestData(): Story[] {
       fuzzyDate: false
     });
   });
-  
+
   return stories;
 }

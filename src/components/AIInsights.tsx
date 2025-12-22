@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Brain, TrendingUp, Calendar, Heart, Lightbulb, Users, MapPin, Tag, BarChart3, AlertCircle } from 'lucide-react';
+import { Brain, TrendingUp, Calendar, Users, MapPin, Tag, BarChart3, AlertCircle } from 'lucide-react';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 
