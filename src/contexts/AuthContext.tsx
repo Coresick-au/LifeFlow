@@ -23,10 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isOfflineMode, setIsOfflineMode] = useState(false);
 
     useEffect(() => {
-        // If Supabase isn't configured, default to offline mode
+        // If Supabase isn't configured, stay in online attempt mode (which will show AuthPage)
         if (!isSupabaseConfigured() || !supabase) {
             setIsLoading(false);
-            setIsOfflineMode(true);
             return;
         }
 
