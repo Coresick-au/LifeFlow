@@ -8,7 +8,6 @@ import {
 import { Dexie } from 'dexie';
 import * as supabaseService from '../services/supabaseService';
 import { supabase } from '../lib/supabaseClient';
-import type { StateCreator } from 'zustand';
 
 // Initialize IndexedDB
 const db = new Dexie('LifeFlowDB');

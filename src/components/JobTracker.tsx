@@ -6,7 +6,6 @@ import { Briefcase, Calendar, MapPin, TrendingUp, Plus, Award, Target, Info } fr
 import { JobTrackerForm } from './JobTrackerForm';
 import { CareerInsights } from './CareerInsights';
 import { CareerExport } from './CareerExport';
-import { reseedWithCareerData } from '../utils/reseedData';
 
 export interface CareerEvent {
   id: string;
@@ -159,17 +158,6 @@ export const JobTracker: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-theme-primary">Career Tracker</h2>
         <div className="flex gap-2">
-          <button
-            onClick={async () => {
-              const success = await reseedWithCareerData();
-              if (success) {
-                window.location.reload();
-              }
-            }}
-            className="px-3 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-          >
-            Load Test Data
-          </button>
           <button
             onClick={() => setShowForm(true)}
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
