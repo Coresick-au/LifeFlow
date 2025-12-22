@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { format, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
+import { LifeDistributionChart } from './LifeDistributionChart';
 import {
   Briefcase,
   Baby,
@@ -187,6 +188,14 @@ export const LifeDashboard: React.FC = () => {
     };
   }, [stories]);
 
+  // Prepare data for the pie chart - explicitly map category colors to match card icons
+  const distributionData = useMemo(() => [
+    { name: 'Career', value: careerData.totalEvents, color: '#2563eb' }, // blue-600
+    { name: 'Family', value: childData.totalMilestones, color: '#db2777' }, // pink-600
+    { name: 'Home', value: homeData.totalEvents, color: '#16a34a' }, // green-600
+    { name: 'Relationships', value: relationshipData.totalConnections, color: '#dc2626' }, // red-600
+  ], [careerData, childData, homeData, relationshipData]);
+
   const dashboardCards: DashboardCard[] = [
     {
       title: 'Career',
@@ -250,38 +259,46 @@ export const LifeDashboard: React.FC = () => {
           <p className="text-theme-tertiary">A complete overview of your life's journey across all areas</p>
         </div>
 
-        {/* Overall Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-theme-primary rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-2">
-              <Calendar className="w-8 h-8 text-blue-500" />
-              <span className="text-2xl font-bold text-theme-primary">{overallStats.totalStories}</span>
+        {/* Split Top Section: Stats Grid + Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Left Column: Overall Stats (Takes up 2/3 width on large screens) */}
+          <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+            <div className="bg-theme-primary rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-2">
+                <Calendar className="w-8 h-8 text-blue-500" />
+                <span className="text-2xl font-bold text-theme-primary">{overallStats.totalStories}</span>
+              </div>
+              <p className="text-sm text-theme-tertiary">Total Stories</p>
             </div>
-            <p className="text-sm text-theme-tertiary">Total Stories</p>
+
+            <div className="bg-theme-primary rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-2">
+                <TrendingUp className="w-8 h-8 text-green-500" />
+                <span className="text-2xl font-bold text-theme-primary">{overallStats.thisYear}</span>
+              </div>
+              <p className="text-sm text-theme-tertiary">This Year</p>
+            </div>
+
+            <div className="bg-theme-primary rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-2">
+                <MapPin className="w-8 h-8 text-purple-500" />
+                <span className="text-2xl font-bold text-theme-primary">{overallStats.locations}</span>
+              </div>
+              <p className="text-sm text-theme-tertiary">Places</p>
+            </div>
+
+            <div className="bg-theme-primary rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-2">
+                <Target className="w-8 h-8 text-orange-500" />
+                <span className="text-2xl font-bold text-theme-primary">{overallStats.tags}</span>
+              </div>
+              <p className="text-sm text-theme-tertiary">Tags</p>
+            </div>
           </div>
 
-          <div className="bg-theme-primary rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-2">
-              <TrendingUp className="w-8 h-8 text-green-500" />
-              <span className="text-2xl font-bold text-theme-primary">{overallStats.thisYear}</span>
-            </div>
-            <p className="text-sm text-theme-tertiary">This Year</p>
-          </div>
-
-          <div className="bg-theme-primary rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-2">
-              <MapPin className="w-8 h-8 text-purple-500" />
-              <span className="text-2xl font-bold text-theme-primary">{overallStats.locations}</span>
-            </div>
-            <p className="text-sm text-theme-tertiary">Places</p>
-          </div>
-
-          <div className="bg-theme-primary rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-2">
-              <Target className="w-8 h-8 text-orange-500" />
-              <span className="text-2xl font-bold text-theme-primary">{overallStats.tags}</span>
-            </div>
-            <p className="text-sm text-theme-tertiary">Tags</p>
+          {/* Right Column: The New Chart (Takes up 1/3 width) */}
+          <div className="lg:col-span-1 h-full">
+            <LifeDistributionChart data={distributionData} />
           </div>
         </div>
 
