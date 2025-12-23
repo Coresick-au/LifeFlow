@@ -233,28 +233,50 @@ export const App: React.FC = () => {
     }
   };
 
+  // Pillar navigation configuration
+  const PILLAR_MAP: Record<string, 'flow' | 'visualize' | 'me'> = {
+    timeline: 'flow', calendar: 'flow', thoughts: 'flow', todos: 'flow', advice: 'flow',
+    'add-story': 'flow', 'edit-story': 'flow', 'on-this-day': 'flow',
+    'life-dashboard': 'visualize', bubble: 'visualize', 'event-heatmap': 'visualize',
+    'gantt-timeline': 'visualize', 'location-map': 'visualize', 'wealth-tracker': 'visualize',
+    profile: 'me', settings: 'me', relationships: 'me', experimental: 'me',
+    'job-tracker': 'me', 'child-tracker': 'me', 'home-tracker': 'me',
+    'likes-dislikes': 'me', 'relationship-tracker': 'me',
+  };
+
+  const PILLAR_DEFAULTS: Record<string, string> = {
+    flow: 'timeline',
+    visualize: 'life-dashboard',
+    me: 'profile',
+  };
+
+  const activePillar = PILLAR_MAP[currentView.type] || 'flow';
+
   const navigationItems = [
-    { type: 'timeline', icon: CalendarIcon, label: 'Timeline' },
-    { type: 'calendar', icon: CalendarIcon, label: 'Calendar' },
-    { type: 'life-dashboard', icon: BarChart3, label: 'Dashboard' },
-    { type: 'thoughts', icon: Lightbulb, label: 'Thoughts' },
-    { type: 'advice', icon: BookOpen, label: 'Advice' },
-    { type: 'todos', icon: CheckSquare, label: 'To-Do List' },
-    { type: 'event-heatmap', icon: Brain, label: 'Event Heatmap' },
-    { type: 'gantt-timeline', icon: BarChart3, label: 'Gantt Timeline' },
-    { type: 'bubble', icon: Circle, label: 'Bubble' },
-    { type: 'on-this-day', icon: CalendarIcon, label: 'On This Day' },
-    { type: 'relationships', icon: Users, label: 'Relationships' },
-    { type: 'location-map', icon: MapPin, label: 'Location Map' },
-    { type: 'likes-dislikes', icon: Smile, label: 'Likes & Dislikes' },
-    { type: 'job-tracker', icon: TrendingUp, label: 'Career Tracker' },
-    { type: 'child-tracker', icon: Heart, label: 'Child Tracker' },
-    { type: 'home-tracker', icon: Home, label: 'Home Tracker' },
-    { type: 'relationship-tracker', icon: Users, label: 'Relationship Tracker' },
-    { type: 'wealth-tracker', icon: PiggyBank, label: 'Wealth' },
-    { type: 'experimental', icon: AlertTriangle, label: 'Experimental' },
-    { type: 'profile', icon: Smile, label: 'Profile' },
-    { type: 'settings', icon: SettingsIcon, label: 'Settings' },
+    // FLOW Pillar
+    { type: 'timeline', pillar: 'flow', icon: CalendarIcon, label: 'Timeline' },
+    { type: 'calendar', pillar: 'flow', icon: CalendarIcon, label: 'Calendar' },
+    { type: 'thoughts', pillar: 'flow', icon: Lightbulb, label: 'Thoughts' },
+    { type: 'advice', pillar: 'flow', icon: BookOpen, label: 'Advice' },
+    { type: 'todos', pillar: 'flow', icon: CheckSquare, label: 'To-Do List' },
+    { type: 'on-this-day', pillar: 'flow', icon: CalendarIcon, label: 'On This Day' },
+    // VISUALIZE Pillar
+    { type: 'life-dashboard', pillar: 'visualize', icon: BarChart3, label: 'Dashboard' },
+    { type: 'bubble', pillar: 'visualize', icon: Circle, label: 'Bubble' },
+    { type: 'event-heatmap', pillar: 'visualize', icon: Brain, label: 'Heatmap' },
+    { type: 'gantt-timeline', pillar: 'visualize', icon: BarChart3, label: 'Gantt' },
+    { type: 'location-map', pillar: 'visualize', icon: MapPin, label: 'Map' },
+    { type: 'wealth-tracker', pillar: 'visualize', icon: PiggyBank, label: 'Wealth' },
+    // ME Pillar (reordered: trackers first, then prefs, profile/settings last)
+    { type: 'job-tracker', pillar: 'me', icon: TrendingUp, label: 'Career' },
+    { type: 'child-tracker', pillar: 'me', icon: Users, label: 'Children' },
+    { type: 'home-tracker', pillar: 'me', icon: Home, label: 'Home' },
+    { type: 'relationship-tracker', pillar: 'me', icon: Heart, label: 'Heart' },
+    { type: 'relationships', pillar: 'me', icon: Users, label: 'Connections' },
+    { type: 'likes-dislikes', pillar: 'me', icon: Smile, label: 'Preferences' },
+    { type: 'experimental', pillar: 'me', icon: AlertTriangle, label: 'Experimental' },
+    { type: 'profile', pillar: 'me', icon: Smile, label: 'Profile' },
+    { type: 'settings', pillar: 'me', icon: SettingsIcon, label: 'Settings' },
   ];
 
   const showBackButton = currentView.type === 'edit-story';
@@ -268,6 +290,8 @@ export const App: React.FC = () => {
       <Navigation
         items={navigationItems}
         activeView={currentView.type}
+        activePillar={activePillar}
+        pillarDefaults={PILLAR_DEFAULTS}
         onViewChange={(type) => setCurrentView({ type: type as any })}
         userProfile={userProfile}
         onQuickAdd={() => setCurrentView({ type: 'add-story' })}

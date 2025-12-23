@@ -3,6 +3,7 @@ import { format, differenceInDays, addDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { Heart, Calendar, MessageCircle, Gift, Users, AlertCircle } from 'lucide-react';
+import { HeartTrackerForm } from './HeartTrackerForm';
 
 interface RelationshipEvent {
   id: string;
@@ -24,8 +25,9 @@ interface Relationship {
 }
 
 export const RelationshipTracker: React.FC = () => {
-  const { stories, setCurrentView } = useTimelineStore();
+  const { stories } = useTimelineStore();
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [showForm, setShowForm] = useState(false);
 
   // Filter relationship-related stories
   const relationshipStories = useMemo(() => {
@@ -147,22 +149,25 @@ export const RelationshipTracker: React.FC = () => {
     }
   };
 
-  if (relationshipStories.length === 0) {
+  if (relationshipStories.length === 0 && !showForm) {
     return (
       <div className="bg-theme-primary rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-theme-primary mb-2">No relationships tracked yet</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-4">Add stories with people or #relationship tags to nurture your connections</p>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">Track memories with the people who matter most</p>
             <button
-              onClick={() => setCurrentView({ type: 'add-story' })}
+              onClick={() => setShowForm(true)}
               className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
             >
               Add Relationship Memory
             </button>
           </div>
         </div>
+        {showForm && (
+          <HeartTrackerForm onClose={() => setShowForm(false)} />
+        )}
       </div>
     );
   }
@@ -172,7 +177,7 @@ export const RelationshipTracker: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-theme-primary">Relationship Tracker</h2>
         <button
-          onClick={() => setCurrentView({ type: 'add-story' })}
+          onClick={() => setShowForm(true)}
           className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
         >
           Add Memory
@@ -186,8 +191,8 @@ export const RelationshipTracker: React.FC = () => {
             key={type}
             onClick={() => setSelectedType(type)}
             className={`px-4 py-2 rounded-md transition-colors capitalize ${selectedType === type
-                ? 'bg-primary-600 text-white'
-                : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary'
+              ? 'bg-primary-600 text-white'
+              : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary'
               }`}
           >
             {type === 'all' ? 'All' : type}s ({type === 'all' ? relationships.length : relationships.filter(r => r.type === type).length})
@@ -279,6 +284,11 @@ export const RelationshipTracker: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Relationship Form Modal */}
+      {showForm && (
+        <HeartTrackerForm onClose={() => setShowForm(false)} />
+      )}
     </div>
   );
 };

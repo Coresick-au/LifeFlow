@@ -3,11 +3,13 @@ import { Search, Settings, ChevronDown, ArrowLeft, Plus, Wifi, WifiOff, Database
 import { UserProfile } from '../types';
 import { Logo } from './Logo';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { isOnline } from '../services/supabaseService';
 
 type LucideIcon = React.ComponentType<{ className?: string; style?: React.CSSProperties; }>;
 
 interface NavigationItem {
   type: string;
+  pillar: string;
   icon: LucideIcon;
   label: string;
 }
@@ -15,6 +17,8 @@ interface NavigationItem {
 interface NavigationProps {
   items: NavigationItem[];
   activeView: string;
+  activePillar: string;
+  pillarDefaults: Record<string, string>;
   onViewChange: (type: string) => void;
   userProfile: UserProfile | null;
   onQuickAdd?: () => void;
@@ -27,6 +31,8 @@ interface NavigationProps {
 export const Navigation: React.FC<NavigationProps> = ({
   items,
   activeView,
+  activePillar,
+  pillarDefaults,
   onViewChange,
   userProfile,
   onQuickAdd,
@@ -38,7 +44,27 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isDataSynced, setIsDataSynced] = useState(isOnline());
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Track online/offline status changes
+  useEffect(() => {
+    const updateOnlineStatus = () => {
+      setIsDataSynced(isOnline());
+    };
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // Check periodically (every 5 seconds)
+    const interval = setInterval(updateOnlineStatus, 5000);
+
+    return () => {
+      window.removeEventListener('online', updateOnlineStatus);
+      window.removeEventListener('offline', updateOnlineStatus);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Close More menu when clicking outside
   useEffect(() => {
@@ -72,7 +98,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     setSearchQuery('');
   };
 
-  const isDataLocal = true; // Since we're using IndexedDB
+  const isDataLocal = !isDataSynced; // Local if NOT synced
   const lastBackupDate = localStorage.getItem('lifeflow-last-backup');
   const needsBackup = !lastBackupDate ||
     (Date.now() - new Date(lastBackupDate).getTime()) > 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -100,9 +126,25 @@ export const Navigation: React.FC<NavigationProps> = ({
               </button>
             </div>
 
-            {/* Navigation Items */}
-            <div className="hidden md:flex space-x-1">
-              {primaryItems.map((item) => {
+            {/* Pillar Tabs */}
+            <div className="hidden md:flex items-center border-l border-theme pl-4 ml-4">
+              {(['flow', 'visualize', 'me'] as const).map((pillar) => (
+                <button
+                  key={pillar}
+                  onClick={() => onViewChange(pillarDefaults[pillar])}
+                  className={`px-4 py-1 text-sm font-bold capitalize transition-all border-b-2 ${activePillar === pillar
+                    ? 'border-theme-accent text-theme-accent'
+                    : 'border-transparent text-theme-secondary hover:text-theme-primary'
+                    }`}
+                >
+                  {pillar}
+                </button>
+              ))}
+            </div>
+
+            {/* Sub-Navigation Pills (filtered by active pillar) */}
+            <div className="hidden md:flex items-center flex-wrap gap-1 ml-4">
+              {items.filter(item => item.pillar === activePillar).map((item) => {
                 const Icon = item.icon;
                 const isActive = activeView === item.type;
 
@@ -111,62 +153,19 @@ export const Navigation: React.FC<NavigationProps> = ({
                     key={item.type}
                     onClick={() => onViewChange(item.type)}
                     className={`
-                      flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium
-                      transition-colors duration-200 rounded-theme
+                      flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium
+                      transition-colors duration-200 whitespace-nowrap
                       ${isActive
                         ? 'bg-theme-accent text-white'
                         : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
                       }
                     `}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3 h-3" />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
-
-              {/* More dropdown for secondary items */}
-              {secondaryItems.length > 0 && (
-                <div className="relative" ref={moreMenuRef}>
-                  <button
-                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary transition-colors rounded-theme"
-                  >
-                    <span>More</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-
-                  {showMoreMenu && (
-                    <div className="absolute top-full left-0 mt-1 border rounded-md shadow-lg py-1 z-50 bg-theme-primary border-theme shadow-theme">
-                      {secondaryItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = activeView === item.type;
-
-                        return (
-                          <button
-                            key={item.type}
-                            onClick={() => {
-                              onViewChange(item.type);
-                              setShowMoreMenu(false);
-                            }}
-                            className={`
-                              flex items-center space-x-2 px-4 py-2 text-sm font-medium w-full text-left
-                              transition-colors duration-200
-                              ${isActive
-                                ? 'bg-theme-secondary'
-                                : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
-                              }
-                            `}
-                          >
-                            <Icon className="w-4 h-4" />
-                            <span>{item.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 

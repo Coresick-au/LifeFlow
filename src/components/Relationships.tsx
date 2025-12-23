@@ -1,20 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, isValid, subYears } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Relationship } from '../types';
-import { Users, Calendar, MapPin, Plus, X, Edit, Trash2, ChevronDown, User } from 'lucide-react';
+import { Users, Calendar, MapPin, Plus, X, Edit, Trash2, ChevronDown, User, HelpCircle } from 'lucide-react';
 
 type SortOption = 'name' | 'interactions' | 'recent' | 'relationshipType';
 
 export const Relationships: React.FC = () => {
-  const { 
-    relationships, 
-    addRelationship, 
-    updateRelationship, 
+  const {
+    relationships,
+    addRelationship,
+    updateRelationship,
     deleteRelationship,
-    incrementRelationshipInteraction 
+    incrementRelationshipInteraction
   } = useTimelineStore();
-  
+
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Relationship | null>(null);
@@ -23,13 +23,16 @@ export const Relationships: React.FC = () => {
     firstName: '',
     lastName: '',
     relationshipType: '',
-    notes: ''
+    notes: '',
+    metDate: undefined as Date | undefined,
+    metDateFuzzy: false,
+    yearsKnown: undefined as number | undefined,
   });
 
   // Sort relationships
   const sortedRelationships = useMemo(() => {
     const sorted = [...relationships];
-    
+
     switch (sortBy) {
       case 'name':
         return sorted.sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -51,10 +54,13 @@ export const Relationships: React.FC = () => {
         lastName: formData.lastName.trim(),
         fullName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
         relationshipType: formData.relationshipType.trim() || 'Friend',
-        notes: formData.notes.trim()
+        notes: formData.notes.trim(),
+        metDate: formData.metDate,
+        metDateFuzzy: formData.metDateFuzzy,
+        yearsKnown: formData.yearsKnown,
       });
-      
-      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '' });
+
+      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined });
       setShowAddPerson(false);
     }
   };
@@ -66,10 +72,13 @@ export const Relationships: React.FC = () => {
         lastName: formData.lastName.trim(),
         fullName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
         relationshipType: formData.relationshipType.trim() || 'Friend',
-        notes: formData.notes.trim()
+        notes: formData.notes.trim(),
+        metDate: formData.metDate,
+        metDateFuzzy: formData.metDateFuzzy,
+        yearsKnown: formData.yearsKnown,
       });
-      
-      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '' });
+
+      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined });
       setEditingPerson(null);
     }
   };
@@ -89,16 +98,19 @@ export const Relationships: React.FC = () => {
       firstName: relationship.firstName,
       lastName: relationship.lastName,
       relationshipType: relationship.relationshipType,
-      notes: relationship.notes || ''
+      notes: relationship.notes || '',
+      metDate: relationship.metDate,
+      metDateFuzzy: relationship.metDateFuzzy || false,
+      yearsKnown: relationship.yearsKnown,
     });
   };
 
   const cancelEdit = () => {
     setEditingPerson(null);
-    setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '' });
+    setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined });
   };
 
-  const selectedPersonData = selectedPerson 
+  const selectedPersonData = selectedPerson
     ? relationships.find(r => r.id === selectedPerson)
     : null;
 
@@ -106,7 +118,7 @@ export const Relationships: React.FC = () => {
     <div className="bg-theme-primary rounded-lg shadow-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-theme-primary">Relationships</h2>
-        
+
         <button
           onClick={() => setShowAddPerson(true)}
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
@@ -164,7 +176,7 @@ export const Relationships: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">
               {editingPerson ? 'Edit Person' : 'Add Person'}
             </h3>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -189,7 +201,7 @@ export const Relationships: React.FC = () => {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-theme-secondary mb-1">Relationship Type</label>
                 <input
@@ -200,7 +212,53 @@ export const Relationships: React.FC = () => {
                   className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              
+
+              {/* When did you meet? */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-theme-secondary">
+                    When did you meet?
+                  </label>
+                  <label className="flex items-center text-xs text-theme-tertiary">
+                    <input
+                      type="checkbox"
+                      checked={formData.metDateFuzzy}
+                      onChange={(e) => setFormData({ ...formData, metDateFuzzy: e.target.checked })}
+                      className="mr-1"
+                    />
+                    Approximate
+                  </label>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="date"
+                      value={formData.metDate && isValid(formData.metDate) ? format(formData.metDate, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => setFormData({ ...formData, metDate: e.target.value ? new Date(e.target.value) : undefined, yearsKnown: undefined })}
+                      className="w-full pl-10 pr-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div className="text-theme-tertiary self-center text-sm">or</div>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={formData.yearsKnown ?? ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        yearsKnown: e.target.value ? parseInt(e.target.value) : undefined,
+                        metDate: undefined,
+                        metDateFuzzy: true
+                      })}
+                      placeholder="Years known"
+                      className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-theme-secondary mb-1">Notes (optional)</label>
                 <textarea
@@ -212,7 +270,7 @@ export const Relationships: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
               <button
                 onClick={editingPerson ? handleUpdatePerson : handleAddPerson}
@@ -239,14 +297,13 @@ export const Relationships: React.FC = () => {
             {sortedRelationships.map(relationship => (
               <div
                 key={relationship.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-all group ${
-                  selectedPerson === relationship.id
-                    ? 'border-primary-500 bg-primary-500/20'
-                    : 'border-theme hover:border-theme hover:bg-theme-tertiary'
-                }`}
+                className={`p-3 rounded-lg border cursor-pointer transition-all group ${selectedPerson === relationship.id
+                  ? 'border-primary-500 bg-primary-500/20'
+                  : 'border-theme hover:border-theme hover:bg-theme-tertiary'
+                  }`}
               >
                 <div className="flex items-center justify-between">
-                  <div 
+                  <div
                     className="flex items-center gap-3 flex-1"
                     onClick={() => setSelectedPerson(relationship.id)}
                   >
@@ -260,7 +317,7 @@ export const Relationships: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => {
@@ -284,7 +341,7 @@ export const Relationships: React.FC = () => {
                 </div>
               </div>
             ))}
-            
+
             {relationships.length === 0 && (
               <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                 <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />

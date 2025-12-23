@@ -133,22 +133,25 @@ export const JobTracker: React.FC = () => {
     }
   };
 
-  if (careerStories.length === 0) {
+  if (careerStories.length === 0 && !showForm) {
     return (
       <div className="bg-theme-primary rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-theme-primary mb-2">No career events yet</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-4">Add stories with #career or #work tags to track your professional journey</p>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">Track your professional journey - jobs, promotions, skills, and achievements</p>
             <button
-              onClick={() => setCurrentView({ type: 'add-story' })}
+              onClick={() => setShowForm(true)}
               className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
             >
               Add Career Event
             </button>
           </div>
         </div>
+        {showForm && (
+          <JobTrackerForm onClose={() => setShowForm(false)} />
+        )}
       </div>
     );
   }

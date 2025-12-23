@@ -123,6 +123,9 @@ export interface Relationship {
   relationshipType: string;
   interactionCount: number;
   notes?: string;
+  metDate?: Date;         // When you first met
+  metDateFuzzy?: boolean; // Is the met date approximate?
+  yearsKnown?: number;    // Alternative: estimate how long you've known them
   createdAt: Date;
   updatedAt: Date;
 }
