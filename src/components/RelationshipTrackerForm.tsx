@@ -1,17 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { format, intervalToDuration } from 'date-fns';
-import { Calendar, Clock, HeartCrack, Heart, X, Save, Share2, Sparkles, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { format, intervalToDuration, addYears, addMonths } from 'date-fns';
+import { Calendar, Clock, HeartCrack, Heart, X, Save, Share2, Sparkles, Trash2, UserCheck, UserX } from 'lucide-react';
 import { Relationship } from '../types';
 import { useTimelineStore } from '../store/timelineStore';
 
 // --- Integrated Milestone Constants ---
 const MILESTONE_TYPES = [
-    { value: 'started-dating', label: 'Started Dating', emoji: '💕' },
-    { value: 'met', label: 'Met / Friends', emoji: '🤝' },
+    { value: 'started-dating', label: 'Relationship', emoji: '💑' },
+    { value: 'met', label: 'Met / Friends', emoji: '👋' },
     { value: 'engaged', label: 'Engaged', emoji: '💍' },
     { value: 'married', label: 'Married', emoji: '💒' },
     { value: 'colleague', label: 'Work / Colleague', emoji: '💼' },
-    { value: 'other', label: 'Other', emoji: '📍' },
+    { value: 'other', label: 'Other', emoji: '🍑' },
 ] as const;
 
 interface RelationshipFormData {
@@ -40,7 +40,6 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
     isSubmitting = false,
     onDelete
 }) => {
-    // 1. Access store for Timeline generation
     const { userProfile, addStory } = useTimelineStore();
 
     const [formData, setFormData] = useState<RelationshipFormData>({
@@ -54,13 +53,48 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         metDateFuzzy: false,
     });
 
-    // 2. New State: Timeline Synchronization
-    // Default to true for new entries, false for edits (to avoid duplicating stories)
     const [addToTimeline, setAddToTimeline] = useState(!initialData);
     const [selectedMilestone, setSelectedMilestone] = useState<string>('started-dating');
 
+    // New State: Decouple the "Phase/Event" end from the "Person" end
+    // If true, we show the end date inputs for the TIMELINE EVENT, regardless of if the person is active
+    const [eventHasEnded, setEventHasEnded] = useState(!!initialData?.endDate);
+
     const [startDateMode, setStartDateMode] = useState<'date' | 'age'>('date');
-    const [endDateMode, setEndDateMode] = useState<'date' | 'age'>('date');
+    const [endDateMode, setEndDateMode] = useState<'date' | 'age' | 'duration'>('date');
+
+    const [durationYears, setDurationYears] = useState<number>(0);
+    const [durationMonths, setDurationMonths] = useState<number>(0);
+
+    // Sync eventHasEnded with initial data if editing
+    useEffect(() => {
+        if (initialData?.endDate) {
+            setEventHasEnded(true);
+        }
+    }, [initialData]);
+
+    // Update duration inputs when dates change externally
+    useEffect(() => {
+        if (formData.startDate && formData.endDate && eventHasEnded) {
+            const duration = intervalToDuration({
+                start: formData.startDate,
+                end: formData.endDate
+            });
+            setDurationYears(duration.years || 0);
+            setDurationMonths(duration.months || 0);
+        }
+    }, [formData.startDate, formData.endDate, eventHasEnded]);
+
+    const handleDurationChange = (years: number, months: number) => {
+        setDurationYears(years);
+        setDurationMonths(months);
+
+        if (formData.startDate) {
+            let newEndDate = addYears(formData.startDate, years);
+            newEndDate = addMonths(newEndDate, months);
+            setFormData(prev => ({ ...prev, endDate: newEndDate }));
+        }
+    };
 
     const calculateDateFromAge = (age: number): Date => {
         if (!userProfile?.birthDate) {
@@ -74,11 +108,11 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         return new Date(birthDate.getTime() + age * msInYear);
     };
 
-    // Calculate duration string dynamically
     const durationText = useMemo(() => {
         if (!formData.startDate) return null;
         const start = new Date(formData.startDate);
-        const end = formData.isCurrent ? new Date() : (formData.endDate ? new Date(formData.endDate) : new Date());
+        // Use endDate if event has ended, otherwise use now for "ongoing" duration calc
+        const end = eventHasEnded ? (formData.endDate ? new Date(formData.endDate) : new Date()) : new Date();
 
         if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
 
@@ -89,50 +123,83 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         if (parts.length === 0) parts.push('Less than a month');
 
         return parts.join(' ');
-    }, [formData.startDate, formData.endDate, formData.isCurrent]);
+    }, [formData.startDate, formData.endDate, eventHasEnded]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Step A: Save the Person (Connection)
-        await onSubmit(formData);
+        // LOGIC FIX:
+        // Save the endDate if the phase/event ended (eventHasEnded), regardless of connection status
+        // The endDate represents "when the phase ended" not "when the connection ended"
+        const personDataToSave = {
+            ...formData,
+            endDate: eventHasEnded ? formData.endDate : undefined
+        };
 
-        // Step B: Generate the Timeline Story (Heart/Event)
+        // Step A: Save the Person (Connection)
+        await onSubmit(personDataToSave);
+
+        // Step B: Generate Timeline Stories
         if (addToTimeline) {
             const fullName = `${formData.firstName} ${formData.lastName}`.trim();
             const milestone = MILESTONE_TYPES.find(m => m.value === selectedMilestone);
 
-            // Construct a smart title based on selection
-            let title = `Relationship with ${fullName}`;
-            if (selectedMilestone === 'met') title = `Met ${fullName}`;
-            if (selectedMilestone === 'married') title = `Married ${fullName}`;
-            if (selectedMilestone === 'colleague') title = `Worked with ${fullName}`;
+            // Create START event title based on milestone type
+            let startTitle = `Started relationship with ${fullName}`;
+            if (selectedMilestone === 'met') startTitle = `Met ${fullName}`;
+            if (selectedMilestone === 'engaged') startTitle = `Got engaged to ${fullName}`;
+            if (selectedMilestone === 'married') startTitle = `Married ${fullName}`;
+            if (selectedMilestone === 'colleague') startTitle = `Started working with ${fullName}`;
 
+            // Create the START event
             await addStory({
-                title: title,
-                content: formData.notes || `Timeline entry for ${fullName} (${milestone?.label})`,
-                type: 'long', // 'long' type ensures the End Date renders as a visual range on the timeline
+                title: startTitle,
+                content: formData.notes || `Started ${milestone?.label.toLowerCase()} with ${fullName}`,
+                type: 'short',
                 date: formData.startDate,
-                endDate: formData.isCurrent ? undefined : formData.endDate,
-                tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase()],
+                tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase(), 'start'],
                 people: [fullName],
                 importance: 'high',
                 metadata: {
                     generatedFromRelationship: true,
                     milestoneType: selectedMilestone,
-                    personName: fullName
+                    personName: fullName,
+                    eventType: 'start'
                 }
             });
+
+            // If the phase ended, create the END event
+            if (eventHasEnded && formData.endDate) {
+                let endTitle = `Ended relationship with ${fullName}`;
+                if (selectedMilestone === 'colleague') endTitle = `Stopped working with ${fullName}`;
+                if (selectedMilestone === 'married') endTitle = `Divorced from ${fullName}`;
+
+                await addStory({
+                    title: endTitle,
+                    content: `Ended ${milestone?.label.toLowerCase()} with ${fullName}`,
+                    type: 'short',
+                    date: formData.endDate,
+                    tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase(), 'end'],
+                    people: [fullName],
+                    importance: 'medium',
+                    metadata: {
+                        generatedFromRelationship: true,
+                        milestoneType: selectedMilestone,
+                        personName: fullName,
+                        eventType: 'end'
+                    }
+                });
+            }
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-theme-primary rounded-lg shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-theme-primary rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] border border-theme">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-theme bg-theme-primary sticky top-0 z-10">
-                    <h3 className="text-xl font-bold text-theme-primary">
-                        {initialData ? 'Edit Person' : 'Add Person'}
+                    <h3 className="text-xl font-bold text-theme-primary flex items-center gap-2">
+                        {initialData ? 'Edit Relationship' : 'Add Relationship'}
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-theme-tertiary transition-colors">
                         <X className="w-6 h-6" />
@@ -140,69 +207,89 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
 
-                    {/* Status Toggle */}
-                    <div className="flex items-center justify-between bg-theme-tertiary p-3 rounded-lg">
-                        <span className="text-sm font-medium text-theme-primary">Status</span>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, isCurrent: !formData.isCurrent })}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${formData.isCurrent
-                                ? 'bg-green-500/20 text-green-600 border border-green-200 dark:border-green-800'
-                                : 'bg-red-500/20 text-red-600 border border-red-200 dark:border-red-800'
-                                }`}
-                        >
-                            {formData.isCurrent ? <Heart className="w-4 h-4 fill-current" /> : <HeartCrack className="w-4 h-4" />}
-                            {formData.isCurrent ? 'Active' : 'Ended'}
-                        </button>
+                    {/* Connection Status Toggle */}
+                    <div className="flex items-center justify-between bg-theme-tertiary p-4 rounded-lg border border-theme">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold text-theme-primary">Current Connection</span>
+                            <span className="text-xs text-theme-secondary">Are you still in contact?</span>
+                        </div>
+                        <div className="flex bg-theme-primary rounded-full p-1 border border-theme">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, isCurrent: true })}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${formData.isCurrent
+                                    ? 'bg-green-500/10 text-green-600 shadow-sm'
+                                    : 'text-theme-secondary hover:text-theme-primary'
+                                    }`}
+                            >
+                                <UserCheck className="w-4 h-4" />
+                                Active
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFormData({ ...formData, isCurrent: false });
+                                    // Logic convenience: If connection ended, usually the phase ended too
+                                    setEventHasEnded(true);
+                                }}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${!formData.isCurrent
+                                    ? 'bg-red-500/10 text-red-600 shadow-sm'
+                                    : 'text-theme-secondary hover:text-theme-primary'
+                                    }`}
+                            >
+                                <UserX className="w-4 h-4" />
+                                No Contact
+                            </button>
+                        </div>
                     </div>
 
                     {/* Name Inputs */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-theme-secondary mb-1">First Name</label>
+                            <label className="block text-xs uppercase font-bold text-theme-secondary mb-1.5">First Name</label>
                             <input
                                 type="text"
                                 value={formData.firstName}
                                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                placeholder="First Name"
+                                className="w-full px-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
+                                placeholder=""
                                 required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-theme-secondary mb-1">Last Name</label>
+                            <label className="block text-xs uppercase font-bold text-theme-secondary mb-1.5">Last Name</label>
                             <input
                                 type="text"
                                 value={formData.lastName}
                                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                placeholder="Last Name"
+                                className="w-full px-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
+                                placeholder=""
                             />
                         </div>
                     </div>
 
-                    {/* Timeline Sync Section (The "Multiple Selections" Unification) */}
+                    {/* Timeline Event Section */}
                     <div className="bg-primary-500/5 border border-primary-500/20 rounded-lg p-4 space-y-4">
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex items-center gap-3 cursor-pointer group">
                             <input
                                 type="checkbox"
                                 checked={addToTimeline}
                                 onChange={(e) => setAddToTimeline(e.target.checked)}
-                                className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                                className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer"
                             />
-                            <div className="flex items-center gap-2 font-medium text-theme-primary">
+                            <div className="flex items-center gap-2 font-medium text-theme-primary group-hover:text-primary-600 transition-colors">
                                 <Share2 className="w-4 h-4" />
-                                Add this to Timeline
+                                Create Timeline Event
                             </div>
                         </label>
 
-                        {/* Only show selections if Sync is on */}
+                        {/* Event Type Selection */}
                         {addToTimeline && (
                             <div className="animate-fade-in pl-7">
                                 <label className="block text-xs font-medium text-theme-secondary mb-2">
-                                    What kind of story is this?
+                                    What kind of phase/event was this?
                                 </label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {MILESTONE_TYPES.map((type) => (
@@ -211,15 +298,14 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                             type="button"
                                             onClick={() => {
                                                 setSelectedMilestone(type.value);
-                                                // Auto-set relationship type text based on selection for convenience
                                                 setFormData(prev => ({ ...prev, relationshipType: type.label }));
                                             }}
-                                            className={`px-2 py-2 rounded-md text-xs flex items-center gap-2 border transition-all ${selectedMilestone === type.value
-                                                ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                                                : 'bg-theme-primary text-theme-secondary border-theme hover:border-primary-400'
+                                            className={`px-3 py-2.5 rounded-lg text-xs flex items-center gap-2 border transition-all ${selectedMilestone === type.value
+                                                ? 'bg-primary-600 text-white border-primary-600 shadow-md transform scale-[1.02]'
+                                                : 'bg-theme-primary text-theme-secondary border-theme hover:border-primary-400 hover:bg-theme-tertiary'
                                                 }`}
                                         >
-                                            <span>{type.emoji}</span>
+                                            <span className="text-base">{type.emoji}</span>
                                             <span>{type.label}</span>
                                         </button>
                                     ))}
@@ -229,11 +315,11 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                     </div>
 
                     {/* Dates & Duration */}
-                    <div className="space-y-4 pt-2 border-t border-theme">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-6 pt-2 border-t border-theme">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                             {/* Start Date */}
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-theme-secondary">Start Date</label>
+                                <label className="block text-xs uppercase font-bold mb-1.5 text-theme-secondary">Start Date</label>
                                 <div className="flex gap-2 mb-2">
                                     <button
                                         type="button"
@@ -243,7 +329,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                             : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                                             }`}
                                     >
-                                        Exact Date
+                                        Date
                                     </button>
                                     <button
                                         type="button"
@@ -258,13 +344,13 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                 </div>
 
                                 {startDateMode === 'date' ? (
-                                    <div className="relative">
-                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <div className="relative group">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-primary-500 transition-colors" />
                                         <input
                                             type="date"
                                             value={formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : ''}
                                             onChange={(e) => setFormData({ ...formData, startDate: new Date(e.target.value) })}
-                                            className="w-full pl-10 pr-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
                                         />
                                     </div>
                                 ) : (
@@ -275,7 +361,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                             max="120"
                                             step="0.1"
                                             placeholder="Age (e.g. 14)"
-                                            className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            className="w-full px-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             onChange={(e) => {
                                                 if (e.target.value) {
                                                     const date = calculateDateFromAge(parseFloat(e.target.value));
@@ -285,94 +371,115 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                         />
                                         {formData.startDate && (
                                             <div className="text-xs text-theme-tertiary">
-                                                Calculated: {format(formData.startDate, 'MMM yyyy')}
+                                                {format(formData.startDate, 'MMM yyyy')}
                                             </div>
                                         )}
                                     </div>
                                 )}
                             </div>
 
-                            {/* End Date (Condition: Not Current) */}
-                            {!formData.isCurrent && (
-                                <div className="animate-fade-in">
-                                    <label className="block text-sm font-medium mb-1 text-theme-secondary">End Date</label>
-                                    <div className="flex gap-2 mb-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEndDateMode('date')}
-                                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${endDateMode === 'date'
-                                                ? 'bg-primary-600 text-white'
-                                                : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-                                                }`}
-                                        >
-                                            Exact Date
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setEndDateMode('age')}
-                                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${endDateMode === 'age'
-                                                ? 'bg-primary-600 text-white'
-                                                : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-                                                }`}
-                                        >
-                                            Age
-                                        </button>
-                                    </div>
+                            {/* End Date (Conditional) */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-xs uppercase font-bold text-theme-secondary">Ended?</label>
+                                    {/* Phase Ended Toggle */}
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-theme-primary">
+                                        <input
+                                            type="checkbox"
+                                            checked={eventHasEnded}
+                                            onChange={(e) => setEventHasEnded(e.target.checked)}
+                                            className="rounded border-theme text-primary-600 focus:ring-primary-500"
+                                        />
+                                        This phase finished
+                                    </label>
+                                </div>
 
-                                    {endDateMode === 'date' ? (
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                {eventHasEnded && (
+                                    <div className="animate-fade-in p-3 bg-theme-tertiary/30 rounded-lg border border-theme/50">
+                                        <div className="flex gap-1 mb-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEndDateMode('duration')}
+                                                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${endDateMode === 'duration'
+                                                    ? 'bg-primary-600 text-white'
+                                                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                                                    }`}
+                                            >
+                                                Duration
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEndDateMode('date')}
+                                                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${endDateMode === 'date'
+                                                    ? 'bg-primary-600 text-white'
+                                                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                                                    }`}
+                                            >
+                                                Date
+                                            </button>
+                                        </div>
+
+                                        {endDateMode === 'duration' ? (
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        placeholder="10"
+                                                        value={durationYears || ''}
+                                                        onChange={(e) => handleDurationChange(parseInt(e.target.value) || 0, durationMonths)}
+                                                        className="w-full px-2 py-1.5 text-sm border border-theme rounded-md bg-theme-primary text-theme-primary"
+                                                    />
+                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-theme-secondary pointer-events-none">Yrs</span>
+                                                </div>
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="11"
+                                                        placeholder="0"
+                                                        value={durationMonths || ''}
+                                                        onChange={(e) => handleDurationChange(durationYears, parseInt(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 text-sm border border-theme rounded-md bg-theme-primary text-theme-primary"
+                                                    />
+                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-theme-secondary pointer-events-none">Mos</span>
+                                                </div>
+                                            </div>
+                                        ) : (
                                             <input
                                                 type="date"
                                                 value={formData.endDate ? format(formData.endDate, 'yyyy-MM-dd') : ''}
                                                 onChange={(e) => setFormData({ ...formData, endDate: new Date(e.target.value) })}
-                                                className="w-full pl-10 pr-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                className="w-full px-2 py-1.5 text-sm border border-theme rounded-md bg-theme-primary text-theme-primary"
                                             />
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-1">
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                max="120"
-                                                step="0.1"
-                                                placeholder="Age (e.g. 17)"
-                                                className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                                onChange={(e) => {
-                                                    if (e.target.value) {
-                                                        const date = calculateDateFromAge(parseFloat(e.target.value));
-                                                        setFormData({ ...formData, endDate: date });
-                                                    }
-                                                }}
-                                            />
-                                            {formData.endDate && (
-                                                <div className="text-xs text-theme-tertiary">
-                                                    Calculated: {format(formData.endDate, 'MMM yyyy')}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                        )}
+                                        {formData.endDate && endDateMode !== 'date' && (
+                                            <div className="text-[10px] text-theme-tertiary mt-1 text-right">
+                                                {format(formData.endDate, 'MMM yyyy')}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Live Duration Readout */}
+                        {/* Live Duration Readout (Confirmation) */}
                         {durationText && (
-                            <div className="flex items-center gap-2 text-sm text-theme-tertiary bg-theme-tertiary p-3 rounded-md border border-theme">
+                            <div className="flex items-center gap-2 text-sm text-theme-tertiary bg-theme-tertiary/50 p-3 rounded-lg border border-theme/50">
                                 <Clock className="w-4 h-4 text-primary-500" />
-                                <span>Duration: <strong className="text-theme-primary">{durationText}</strong></span>
-                                {!formData.isCurrent && <span className="ml-auto text-xs italic text-theme-secondary">(Ended)</span>}
+                                <span>Time: <strong className="text-theme-primary">{durationText}</strong></span>
+                                {eventHasEnded && <span className="ml-auto text-xs font-medium text-theme-secondary uppercase tracking-wider">Completed</span>}
                             </div>
                         )}
                     </div>
 
                     {/* Notes */}
                     <div>
-                        <label className="block text-sm font-medium text-theme-secondary mb-1">Notes / Story</label>
+                        <label className="block text-xs uppercase font-bold text-theme-secondary mb-1.5">Notes / Memories</label>
                         <textarea
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                            className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            className="w-full px-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
                             rows={3}
                             placeholder="How did you meet? What made this time special?"
                         />
@@ -380,14 +487,14 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-6 border-t border-theme bg-theme-primary sticky bottom-0">
+                <div className="p-6 border-t border-theme bg-theme-primary sticky bottom-0 z-10">
                     <div className="flex gap-3 justify-between">
-                        {/* Delete Button (Conditional) */}
+                        {/* Delete Button */}
                         {initialData && onDelete && (
                             <button
                                 type="button"
                                 onClick={onDelete}
-                                className="px-4 py-2 border border-red-200 text-red-600 dark:border-red-900 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                                className="px-4 py-2 border border-red-200 text-red-600 dark:border-red-900/50 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
                             >
                                 <Trash2 className="w-4 h-4" />
                                 <span className="hidden sm:inline">Delete</span>
@@ -397,17 +504,17 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                         <div className="flex gap-3 flex-1 justify-end">
                             <button
                                 onClick={onClose}
-                                className="px-4 py-2 border border-theme text-theme-secondary rounded-lg hover:bg-theme-tertiary transition-colors"
+                                className="px-5 py-2 border border-theme text-theme-secondary rounded-lg hover:bg-theme-tertiary transition-colors font-medium"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting || !formData.firstName}
-                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg transform active:scale-[0.98]"
                             >
                                 <Save className="w-4 h-4" />
-                                {isSubmitting ? 'Saving...' : 'Save Person & Story'}
+                                {isSubmitting ? 'Saving...' : 'Save Relationship'}
                             </button>
                         </div>
                     </div>

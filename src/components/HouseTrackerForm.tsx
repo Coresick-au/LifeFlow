@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { format } from 'date-fns';
-import { Home, Calendar, DollarSign, MapPin, Bed, Bath, Square, Camera, X, Save } from 'lucide-react';
+import { Home, Calendar, DollarSign, MapPin, Bed, Bath, Square, Camera, X, Save, ChevronDown } from 'lucide-react';
 
 interface HouseTrackerFormProps {
   onClose: () => void;
@@ -21,7 +21,7 @@ interface HouseTrackerFormProps {
 }
 
 export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, editData }) => {
-  const { addStory, updateStory } = useTimelineStore();
+  const { addStory, updateStory, stories } = useTimelineStore();
   const [formData, setFormData] = useState({
     address: editData?.address || '',
     purchasePrice: editData?.purchasePrice || undefined,
@@ -35,6 +35,50 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
     type: editData?.type || 'purchase' as 'purchase' | 'sale' | 'renovation' | 'memory'
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [showExistingDropdown, setShowExistingDropdown] = useState(false);
+
+  // Extract unique addresses from existing home stories
+  const existingHouses = useMemo(() => {
+    const homeStories = stories.filter(story =>
+      story.tags.some(tag => ['home', 'house'].includes(tag.toLowerCase()))
+    );
+
+    // Get unique addresses from metadata.address or location
+    const addresses = new Set<string>();
+    homeStories.forEach(story => {
+      const address = (story.metadata?.address as string) || story.location;
+      if (address && address.trim()) {
+        addresses.add(address.trim());
+      }
+    });
+
+    return Array.from(addresses).sort();
+  }, [stories]);
+
+  // Check if we should show the existing houses dropdown (for sale/renovation/memory events)
+  const shouldShowExistingHouses = formData.type !== 'purchase' && existingHouses.length > 0;
+
+  const handleSelectExistingHouse = (address: string) => {
+    setFormData({ ...formData, address });
+    setShowExistingDropdown(false);
+
+    // Optionally pre-fill other details from the original purchase
+    const originalPurchase = stories.find(story =>
+      story.tags.includes('purchase') &&
+      ((story.metadata?.address as string) === address || story.location === address)
+    );
+
+    if (originalPurchase?.metadata) {
+      setFormData(prev => ({
+        ...prev,
+        address,
+        bedrooms: (originalPurchase.metadata?.bedrooms as number) || prev.bedrooms,
+        bathrooms: (originalPurchase.metadata?.bathrooms as number) || prev.bathrooms,
+        squareFootage: (originalPurchase.metadata?.squareFootage as number) || prev.squareFootage,
+        purchasePrice: (originalPurchase.metadata?.purchasePrice as number) || prev.purchasePrice,
+      }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +163,7 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setFormData({ ...formData, type })}
+                  onClick={() => setFormData({ ...formData, type, address: type === 'purchase' ? '' : formData.address })}
                   className={`px-4 py-2 rounded-lg capitalize transition-colors ${formData.type === type
                     ? 'bg-primary-600 text-white'
                     : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
@@ -136,6 +180,40 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
             <label className="block text-sm font-medium text-theme-secondary mb-2">
               Address *
             </label>
+
+            {/* Show dropdown for existing houses if not a purchase */}
+            {shouldShowExistingHouses && (
+              <div className="mb-2">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowExistingDropdown(!showExistingDropdown)}
+                    className="w-full px-3 py-2 border border-theme rounded-lg bg-theme-tertiary text-theme-primary text-left flex items-center justify-between hover:bg-theme-secondary/50 transition-colors"
+                  >
+                    <span className="text-sm">Select from your properties...</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showExistingDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showExistingDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-theme-primary border border-theme rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {existingHouses.map((address) => (
+                        <button
+                          key={address}
+                          type="button"
+                          onClick={() => handleSelectExistingHouse(address)}
+                          className="w-full px-4 py-2 text-left text-sm text-theme-primary hover:bg-theme-tertiary transition-colors flex items-center gap-2"
+                        >
+                          <Home className="w-4 h-4 text-gray-400" />
+                          {address}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-theme-secondary mt-1">Or enter a new address below</div>
+              </div>
+            )}
+
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input

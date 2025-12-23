@@ -29,13 +29,14 @@ interface Lane {
   bars: TimelineBar[];
 }
 
-const categoryColors = {
-  career: 'bg-blue-500/200',
-  health: 'bg-green-500/200',
-  travel: 'bg-purple-500/200',
-  family: 'bg-pink-500/200',
+const categoryColors: Record<string, string> = {
+  career: 'bg-blue-500',
+  health: 'bg-green-500',
+  travel: 'bg-purple-500',
+  family: 'bg-pink-500',
   education: 'bg-yellow-500',
-  personal: 'bg-theme-tertiary0',
+  personal: 'bg-teal-500',
+  relationship: 'bg-rose-500', // Added specific color for relationships
   other: 'bg-orange-500',
   job: 'bg-blue-600',
   home: 'bg-green-600',
@@ -44,8 +45,9 @@ const categoryColors = {
 export const GanttTimeline: React.FC = () => {
   const { stories } = useTimelineStore();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Added 'relationship' to default visible categories
   const [visibleCategories, setVisibleCategories] = useState<Set<string>>(
-    new Set(['career', 'travel', 'family', 'home', 'job'])
+    new Set(['career', 'travel', 'family', 'home', 'job', 'relationship'])
   );
 
   const toggleCategory = (category: string) => {
@@ -66,29 +68,34 @@ export const GanttTimeline: React.FC = () => {
     // Filter stories for the selected year
     const yearStories = stories.filter(story => {
       const storyDate = new Date(story.date);
+      // For active stories or those missing end dates, assume they end at the story date or today if implied active
+      // But for the year overlap check, we just need to see if the range touches the year
       const storyEnd = story.endDate ? new Date(story.endDate) : storyDate;
-      // Include if story overlaps with the selected year
       return storyDate <= yearEnd && storyEnd >= yearStart;
     });
 
     // Group by category
     const categories: Record<string, Lane> = {};
 
-    // Process stories with date ranges (jobs, homes)
+    // 1. Process Duration Stories (Ranges)
+    // CRITICAL FIX: Added 'relationship', 'partner', 'dating' to the filter
     const durationStories = yearStories.filter(story =>
-      story.tags.some(t => ['career', 'work', 'job', 'home', 'house'].includes(t.toLowerCase())) &&
+      story.tags.some(t => ['career', 'work', 'job', 'home', 'house', 'relationship', 'partner', 'dating'].includes(t.toLowerCase())) &&
       story.endDate
     );
 
     durationStories.forEach(story => {
-      const category = story.tags.find(t => ['career', 'work', 'job'].includes(t.toLowerCase())) ? 'job' :
-        story.tags.find(t => ['home', 'house'].includes(t.toLowerCase())) ? 'home' : 'other';
+      // Determine category based on tags
+      let category = 'other';
+      if (story.tags.some(t => ['career', 'work', 'job'].includes(t.toLowerCase()))) category = 'job';
+      else if (story.tags.some(t => ['home', 'house'].includes(t.toLowerCase()))) category = 'home';
+      else if (story.tags.some(t => ['relationship', 'partner', 'dating'].includes(t.toLowerCase()))) category = 'relationship';
 
       if (!categories[category]) {
         categories[category] = {
           id: category,
-          name: category === 'job' ? 'Career' : category === 'home' ? 'Homes' : 'Other',
-          color: categoryColors[category as keyof typeof categoryColors],
+          name: category.charAt(0).toUpperCase() + category.slice(1),
+          color: categoryColors[category] || categoryColors.other,
           bars: []
         };
       }
@@ -102,34 +109,43 @@ export const GanttTimeline: React.FC = () => {
         startDate,
         endDate,
         category,
-        color: categoryColors[category as keyof typeof categoryColors],
+        color: categoryColors[category] || categoryColors.other,
       });
     });
 
-    // Process regular stories (without end dates)
-    const regularStories = yearStories.filter(story => !story.endDate);
+    // 2. Process Regular Stories (Points / Events without End Date)
+    // We exclude stories we already processed as duration stories
+    const durationIds = new Set(durationStories.map(s => s.id));
+    const regularStories = yearStories.filter(story => !durationIds.has(story.id));
 
     regularStories.forEach(story => {
+      // Default categorization for points
       const category = story.tags[0] || 'other';
+      // Map common tags to our keys
+      let mappedCategory = category.toLowerCase();
+      if (['partner', 'dating', 'love'].includes(mappedCategory)) mappedCategory = 'relationship';
+
       const startDate = new Date(story.date);
       const endDate = story.endDate ? new Date(story.endDate) : startDate;
 
-      if (!categories[category]) {
-        categories[category] = {
-          id: category,
-          name: category.charAt(0).toUpperCase() + category.slice(1),
-          color: categoryColors[category as keyof typeof categoryColors] || categoryColors.other,
+      const color = categoryColors[mappedCategory] || categoryColors.other;
+
+      if (!categories[mappedCategory]) {
+        categories[mappedCategory] = {
+          id: mappedCategory,
+          name: mappedCategory.charAt(0).toUpperCase() + mappedCategory.slice(1),
+          color: color,
           bars: [],
         };
       }
 
-      categories[category].bars.push({
+      categories[mappedCategory].bars.push({
         id: story.id,
         title: story.title,
         startDate,
         endDate,
-        category,
-        color: categoryColors[category as keyof typeof categoryColors] || categoryColors.other,
+        category: mappedCategory,
+        color: color,
       });
     });
 
@@ -147,11 +163,9 @@ export const GanttTimeline: React.FC = () => {
   const months = useMemo(() => {
     const yearStart = startOfYear(new Date(selectedYear, 0, 1));
     const months = [];
-
     for (let i = 0; i < 12; i++) {
       months.push(addMonths(yearStart, i));
     }
-
     return months;
   }, [selectedYear]);
 
@@ -166,15 +180,16 @@ export const GanttTimeline: React.FC = () => {
     const clampedEnd = bar.endDate > yearEnd ? yearEnd : bar.endDate;
 
     const startOffset = differenceInDays(clampedStart, yearStart);
-    const duration = differenceInDays(clampedEnd, clampedStart) || 1;
+    // Ensure at least 1 day width for visibility
+    const duration = Math.max(1, differenceInDays(clampedEnd, clampedStart));
 
     const left = (startOffset / yearDays) * 100;
     const width = (duration / yearDays) * 100;
 
     return {
-      left: `${left}% `,
-      width: `${width}% `,
-      minWidth: '2px',
+      left: `${left}%`,
+      width: `${width}%`,
+      minWidth: '4px', // Increased minimum width for visibility
     };
   };
 
@@ -186,12 +201,10 @@ export const GanttTimeline: React.FC = () => {
         <h2 className="text-2xl font-bold text-theme-primary">Gantt Timeline</h2>
 
         <div className="flex items-center gap-4">
-          {/* Navigation Arrows */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelectedYear(selectedYear - 1)}
               className="p-2 bg-theme-tertiary hover:bg-theme-secondary text-theme-primary rounded-md transition-colors"
-              title="Previous year"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -201,13 +214,11 @@ export const GanttTimeline: React.FC = () => {
             <button
               onClick={() => setSelectedYear(selectedYear + 1)}
               className="p-2 bg-theme-tertiary hover:bg-theme-secondary text-theme-primary rounded-md transition-colors"
-              title="Next year"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Year Selector */}
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
@@ -220,7 +231,6 @@ export const GanttTimeline: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Filters */}
       <div className="mb-6 p-4 bg-theme-tertiary rounded-lg">
         <div className="text-sm font-medium text-theme-secondary mb-3">Filter Categories:</div>
         <div className="flex flex-wrap gap-3">
@@ -235,17 +245,15 @@ export const GanttTimeline: React.FC = () => {
                 onChange={() => toggleCategory(category)}
                 className="w-4 h-4 text-primary-600 border-theme rounded focus:ring-2 focus:ring-primary-500"
               />
-              <div className={`w - 3 h - 3 rounded ${color} `}></div>
+              <div className={`w-3 h-3 rounded ${color}`}></div>
               <span className="text-sm text-theme-primary capitalize">{category}</span>
             </label>
           ))}
         </div>
       </div>
 
-      {/* Timeline Header */}
       <div className="overflow-x-auto">
         <div className="min-w-[800px]">
-          {/* Month Headers */}
           <div className="flex border-b-2 border-theme pb-2 mb-4">
             <div className="w-32 flex-shrink-0"></div>
             <div className="flex-1 flex">
@@ -260,31 +268,27 @@ export const GanttTimeline: React.FC = () => {
             </div>
           </div>
 
-          {/* Timeline Lanes */}
-          <div className="space-y-2">
+          <div className="space-y-4">
             {lanes.map(lane => (
-              <div key={lane.id} className="flex items-center">
-                {/* Lane Label */}
+              <div key={lane.id} className="flex items-center group">
                 <div className="w-32 flex-shrink-0 pr-4">
                   <div className="flex items-center gap-2">
-                    <div className={`w - 3 h - 3 rounded - full ${lane.color} `}></div>
+                    <div className={`w-3 h-3 rounded-full ${lane.color}`}></div>
                     <span className="text-sm font-medium text-theme-secondary">{lane.name}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">({lane.bars.length})</span>
                   </div>
                 </div>
 
-                {/* Timeline Bars */}
-                <div className="flex-1 relative h-8 bg-theme-tertiary rounded">
+                <div className="flex-1 relative h-8 bg-theme-tertiary/50 rounded hover:bg-theme-tertiary transition-colors">
                   {lane.bars.map(bar => {
                     const style = getBarStyle(bar);
                     return (
                       <div
                         key={bar.id}
-                        className={`absolute top - 1 h - 6 ${bar.color} rounded cursor - pointer hover: opacity - 80 transition - opacity flex items - center px - 2`}
+                        className={`absolute top-1 h-6 ${bar.color} rounded shadow-sm cursor-pointer hover:opacity-90 hover:scale-[1.01] transition-all flex items-center px-2 z-10`}
                         style={style}
-                        title={`${bar.title} \n${format(bar.startDate, 'MMM d')} - ${format(bar.endDate, 'MMM d')} `}
+                        title={`${bar.title}\n${format(bar.startDate, 'MMM d, yyyy')} - ${format(bar.endDate, 'MMM d, yyyy')}`}
                       >
-                        <span className="text-white text-xs truncate">
+                        <span className="text-white text-xs font-medium truncate drop-shadow-md">
                           {bar.title}
                         </span>
                       </div>
@@ -295,44 +299,11 @@ export const GanttTimeline: React.FC = () => {
             ))}
           </div>
 
-          {/* Empty State */}
           {lanes.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-slate-500 dark:text-slate-400">No stories found for {selectedYear}</p>
-              <p className="text-sm text-gray-400 mt-2">Try selecting a different year or add some stories</p>
+              <p className="text-slate-500 dark:text-slate-400">No events found for {selectedYear}</p>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="mt-6 pt-6 border-t border-theme">
-        <div className="text-sm text-theme-tertiary mb-2">Categories:</div>
-        <div className="flex flex-wrap gap-4">
-          {Object.entries(categoryColors).map(([category, color]) => (
-            <div key={category} className="flex items-center gap-2">
-              <div className={`w - 3 h - 3 rounded ${color} `}></div>
-              <span className="text-sm text-theme-tertiary capitalize">{category}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-        <div>
-          <div className="text-xl font-bold text-theme-primary">{lanes.reduce((sum, lane) => sum + lane.bars.length, 0)}</div>
-          <div className="text-sm text-theme-tertiary">Total Events</div>
-        </div>
-        <div>
-          <div className="text-xl font-bold text-theme-primary">{lanes.length}</div>
-          <div className="text-sm text-theme-tertiary">Active Categories</div>
-        </div>
-        <div>
-          <div className="text-xl font-bold text-theme-primary">
-            {Math.round(lanes.reduce((sum, lane) => sum + lane.bars.reduce((s, b) => s + (differenceInDays(b.endDate, b.startDate) || 1), 0), 0) / 365 * 100)}%
-          </div>
-          <div className="text-sm text-theme-tertiary">Year Coverage</div>
         </div>
       </div>
     </div>
