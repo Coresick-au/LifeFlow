@@ -3,6 +3,8 @@ import { format, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { LifeDistributionChart } from './LifeDistributionChart';
+import { ActivityTrendChart } from './ActivityTrendChart';
+import { LIFE_CATEGORIES, FAMILY_PEOPLE_TAGS } from '../constants/categories';
 import {
   Briefcase,
   Baby,
@@ -32,144 +34,165 @@ interface DashboardCard {
   viewName: string;
 }
 
+/**
+ * Buckets a story into categories based on its tags
+ * Uses centralized category definitions from constants/categories.ts
+ */
+function categorizeStory(story: Story): Set<string> {
+  const categories = new Set<string>();
+  const lowerTags = story.tags.map(t => t.toLowerCase());
+
+  for (const [categoryId, category] of Object.entries(LIFE_CATEGORIES)) {
+    if (lowerTags.some(tag => category.tags.includes(tag))) {
+      categories.add(categoryId);
+    }
+  }
+
+  // Special case: relationships also includes stories with people
+  if (story.people.length > 0) {
+    categories.add('relationships');
+  }
+
+  // Special case: home location check
+  if (story.location?.toLowerCase().includes('home')) {
+    categories.add('home');
+  }
+
+  return categories;
+}
+
 export const LifeDashboard: React.FC = () => {
   const { stories, setCurrentView } = useTimelineStore();
 
-  // Career data
-  const careerData = useMemo(() => {
-    const careerStories = stories.filter(story =>
-      story.tags.some(tag =>
-        ['career', 'work', 'job', 'professional', 'business'].includes(tag.toLowerCase())
-      )
-    );
-
-    const promotions = careerStories.filter(s =>
-      s.tags.some(t => ['promotion', 'promoted'].includes(t.toLowerCase()))
-    ).length;
-
-    const achievements = careerStories.filter(s =>
-      s.tags.some(t => ['achievement', 'award', 'certified'].includes(t.toLowerCase()))
-    ).length;
-
-    const totalYears = careerStories.length > 0
-      ? Math.round(differenceInDays(new Date(), new Date(Math.min(...careerStories.map(s => new Date(s.date).getTime())))) / 365)
-      : 0;
-
-    return {
-      totalEvents: careerStories.length,
-      promotions,
-      achievements,
-      yearsExperience: totalYears,
-      recentEvents: careerStories.slice(0, 3).map(s => ({
-        title: s.title,
-        date: new Date(s.date),
-        subtitle: s.location || 'Current Position',
-      })),
+  /**
+   * PERFORMANCE OPTIMIZATION: Single-pass story bucketing
+   * Instead of calling stories.filter() 4+ times, we iterate once
+   * and bucket stories into all applicable categories simultaneously.
+   */
+  const categoryData = useMemo(() => {
+    // Initialize category buckets
+    const buckets: Record<string, Story[]> = {
+      career: [],
+      family: [],
+      home: [],
+      relationships: [],
     };
-  }, [stories]);
 
-  // Child data
-  const childData = useMemo(() => {
-    const childStories = stories.filter(story =>
-      story.tags.some(tag =>
-        ['child', 'kid', 'son', 'daughter', 'baby'].includes(tag.toLowerCase())
-      )
-    );
-
-    const milestones = childStories.filter(s =>
-      s.tags.some(t => ['first', 'milestone', 'development'].includes(t.toLowerCase()))
-    ).length;
-
-    const achievements = childStories.filter(s =>
-      s.tags.some(t => ['achievement', 'proud'].includes(t.toLowerCase()))
-    ).length;
-
-    return {
-      totalMilestones: childStories.length,
-      firstMilestones: milestones,
-      achievements,
-      recentEvents: childStories.slice(0, 3).map(s => ({
-        title: s.title,
-        date: new Date(s.date),
-        subtitle: `${Math.round(differenceInDays(new Date(), new Date(s.date)) / 30)} months ago`,
-      })),
-    };
-  }, [stories]);
-
-  // Home data
-  const homeData = useMemo(() => {
-    const homeStories = stories.filter(story =>
-      story.tags.some(tag =>
-        ['home', 'house', 'renovation', 'maintenance', 'property'].includes(tag.toLowerCase())
-      ) || story.location?.toLowerCase().includes('home')
-    );
-
-    const renovations = homeStories.filter(s =>
-      s.tags.some(t => ['renovation', 'remodel'].includes(t.toLowerCase()))
-    ).length;
-
-    const maintenance = homeStories.filter(s =>
-      s.tags.some(t => ['maintenance', 'repair'].includes(t.toLowerCase()))
-    ).length;
-
-    const yearsInHome = homeStories.length > 0
-      ? Math.round(differenceInDays(new Date(), new Date(Math.min(...homeStories.map(s => new Date(s.date).getTime())))) / 365)
-      : 0;
-
-    return {
-      totalEvents: homeStories.length,
-      renovations,
-      maintenance,
-      yearsInHome,
-      recentEvents: homeStories.slice(0, 3).map(s => ({
-        title: s.title,
-        date: new Date(s.date),
-        subtitle: s.tags.find(t => ['renovation', 'maintenance'].includes(t.toLowerCase())) || 'Home Event',
-      })),
-    };
-  }, [stories]);
-
-  // Relationship data
-  const relationshipData = useMemo(() => {
-    const relationshipStories = stories.filter(story =>
-      story.tags.some(tag =>
-        ['relationship', 'friend', 'family', 'partner', 'love'].includes(tag.toLowerCase())
-      ) || story.people.length > 0
-    );
-
-    const family = relationshipStories.filter(s =>
-      s.tags.some(t => ['family', 'parent', 'sibling'].includes(t.toLowerCase())) ||
-      s.people.some(p => ['mom', 'dad', 'mother', 'father', 'brother', 'sister'].includes(p.toLowerCase()))
-    ).length;
-
-    const friends = relationshipStories.filter(s =>
-      s.tags.some(t => ['friend'].includes(t.toLowerCase()))
-    ).length;
-
-    // Find relationships that need attention (no contact in 30+ days)
+    // People tracking for relationships
     const peopleMap = new Map<string, Date>();
-    relationshipStories.forEach(s => {
-      s.people.forEach(person => {
-        if (!peopleMap.has(person) || new Date(s.date) > peopleMap.get(person)!) {
-          peopleMap.set(person, new Date(s.date));
+
+    // Single pass through all stories
+    stories.forEach(story => {
+      const storyCategories = categorizeStory(story);
+
+      storyCategories.forEach(category => {
+        if (buckets[category]) {
+          buckets[category].push(story);
+        }
+      });
+
+      // Track people for relationship attention
+      story.people.forEach(person => {
+        const storyDate = new Date(story.date);
+        if (!peopleMap.has(person) || storyDate > peopleMap.get(person)!) {
+          peopleMap.set(person, storyDate);
         }
       });
     });
 
+    // Calculate derived metrics from buckets
+    const now = new Date();
+
+    // Career metrics
+    const careerStories = buckets.career;
+    const promotions = careerStories.filter(s =>
+      s.tags.some(t => ['promotion', 'promoted'].includes(t.toLowerCase()))
+    ).length;
+    const careerAchievements = careerStories.filter(s =>
+      s.tags.some(t => ['achievement', 'award', 'certified'].includes(t.toLowerCase()))
+    ).length;
+    const yearsExperience = careerStories.length > 0
+      ? Math.round(differenceInDays(now, new Date(Math.min(...careerStories.map(s => new Date(s.date).getTime())))) / 365)
+      : 0;
+
+    // Family metrics
+    const familyStories = buckets.family;
+    const firstMilestones = familyStories.filter(s =>
+      s.tags.some(t => ['first', 'milestone', 'development'].includes(t.toLowerCase()))
+    ).length;
+    const familyAchievements = familyStories.filter(s =>
+      s.tags.some(t => ['achievement', 'proud'].includes(t.toLowerCase()))
+    ).length;
+
+    // Home metrics
+    const homeStories = buckets.home;
+    const renovations = homeStories.filter(s =>
+      s.tags.some(t => ['renovation', 'remodel'].includes(t.toLowerCase()))
+    ).length;
+    const maintenance = homeStories.filter(s =>
+      s.tags.some(t => ['maintenance', 'repair'].includes(t.toLowerCase()))
+    ).length;
+    const yearsInHome = homeStories.length > 0
+      ? Math.round(differenceInDays(now, new Date(Math.min(...homeStories.map(s => new Date(s.date).getTime())))) / 365)
+      : 0;
+
+    // Relationship metrics
+    const relationshipStories = buckets.relationships;
+    const familyConnections = relationshipStories.filter(s =>
+      s.tags.some(t => ['family', 'parent', 'sibling'].includes(t.toLowerCase())) ||
+      s.people.some(p => FAMILY_PEOPLE_TAGS.includes(p.toLowerCase()))
+    ).length;
+    const friendConnections = relationshipStories.filter(s =>
+      s.tags.some(t => t.toLowerCase() === 'friend')
+    ).length;
     const needAttention = Array.from(peopleMap.entries()).filter(([_, lastContact]) =>
-      differenceInDays(new Date(), lastContact) > 30
+      differenceInDays(now, lastContact) > 30
     ).length;
 
     return {
-      totalConnections: peopleMap.size,
-      familyConnections: family,
-      friendConnections: friends,
-      needAttention,
-      recentEvents: relationshipStories.slice(0, 3).map(s => ({
-        title: s.title,
-        date: new Date(s.date),
-        subtitle: s.people[0] || 'Someone Special',
-      })),
+      career: {
+        totalEvents: careerStories.length,
+        promotions,
+        achievements: careerAchievements,
+        yearsExperience,
+        recentEvents: careerStories.slice(0, 3).map(s => ({
+          title: s.title,
+          date: new Date(s.date),
+          subtitle: s.location || 'Current Position',
+        })),
+      },
+      family: {
+        totalMilestones: familyStories.length,
+        firstMilestones,
+        achievements: familyAchievements,
+        recentEvents: familyStories.slice(0, 3).map(s => ({
+          title: s.title,
+          date: new Date(s.date),
+          subtitle: `${Math.round(differenceInDays(now, new Date(s.date)) / 30)} months ago`,
+        })),
+      },
+      home: {
+        totalEvents: homeStories.length,
+        renovations,
+        maintenance,
+        yearsInHome,
+        recentEvents: homeStories.slice(0, 3).map(s => ({
+          title: s.title,
+          date: new Date(s.date),
+          subtitle: s.tags.find(t => ['renovation', 'maintenance'].includes(t.toLowerCase())) || 'Home Event',
+        })),
+      },
+      relationships: {
+        totalConnections: peopleMap.size,
+        familyConnections,
+        friendConnections,
+        needAttention,
+        recentEvents: relationshipStories.slice(0, 3).map(s => ({
+          title: s.title,
+          date: new Date(s.date),
+          subtitle: s.people[0] || 'Someone Special',
+        })),
+      },
     };
   }, [stories]);
 
@@ -188,60 +211,60 @@ export const LifeDashboard: React.FC = () => {
     };
   }, [stories]);
 
-  // Prepare data for the pie chart - explicitly map category colors to match card icons
+  // Prepare data for the pie chart - uses centralized colors
   const distributionData = useMemo(() => [
-    { name: 'Career', value: careerData.totalEvents, color: '#2563eb' }, // blue-600
-    { name: 'Family', value: childData.totalMilestones, color: '#db2777' }, // pink-600
-    { name: 'Home', value: homeData.totalEvents, color: '#16a34a' }, // green-600
-    { name: 'Relationships', value: relationshipData.totalConnections, color: '#dc2626' }, // red-600
-  ], [careerData, childData, homeData, relationshipData]);
+    { name: 'Career', value: categoryData.career.totalEvents, color: LIFE_CATEGORIES.career.color.hex },
+    { name: 'Family', value: categoryData.family.totalMilestones, color: LIFE_CATEGORIES.family.color.hex },
+    { name: 'Home', value: categoryData.home.totalEvents, color: LIFE_CATEGORIES.home.color.hex },
+    { name: 'Relationships', value: categoryData.relationships.totalConnections, color: LIFE_CATEGORIES.relationships.color.hex },
+  ], [categoryData]);
 
   const dashboardCards: DashboardCard[] = [
     {
       title: 'Career',
-      icon: <Briefcase className="w-6 h-6 text-blue-600" />,
+      icon: <Briefcase className={`w-6 h-6 ${LIFE_CATEGORIES.career.color.tailwind}`} />,
       stats: [
-        { label: 'Years Experience', value: careerData.yearsExperience },
-        { label: 'Total Events', value: careerData.totalEvents },
-        { label: 'Promotions', value: careerData.promotions, color: 'text-green-600' },
-        { label: 'Achievements', value: careerData.achievements, color: 'text-purple-600' },
+        { label: 'Years Experience', value: categoryData.career.yearsExperience },
+        { label: 'Total Events', value: categoryData.career.totalEvents },
+        { label: 'Promotions', value: categoryData.career.promotions, color: 'text-green-600' },
+        { label: 'Achievements', value: categoryData.career.achievements, color: 'text-purple-600' },
       ],
-      recentItems: careerData.recentEvents,
+      recentItems: categoryData.career.recentEvents,
       viewName: 'job-tracker',
     },
     {
       title: 'Family',
-      icon: <Baby className="w-6 h-6 text-pink-600" />,
+      icon: <Baby className={`w-6 h-6 ${LIFE_CATEGORIES.family.color.tailwind}`} />,
       stats: [
-        { label: 'Total Milestones', value: childData.totalMilestones },
-        { label: 'First Moments', value: childData.firstMilestones, color: 'text-yellow-600' },
-        { label: 'Achievements', value: childData.achievements, color: 'text-purple-600' },
+        { label: 'Total Milestones', value: categoryData.family.totalMilestones },
+        { label: 'First Moments', value: categoryData.family.firstMilestones, color: 'text-yellow-600' },
+        { label: 'Achievements', value: categoryData.family.achievements, color: 'text-purple-600' },
       ],
-      recentItems: childData.recentEvents,
+      recentItems: categoryData.family.recentEvents,
       viewName: 'child-tracker',
     },
     {
       title: 'Home',
-      icon: <Home className="w-6 h-6 text-green-600" />,
+      icon: <Home className={`w-6 h-6 ${LIFE_CATEGORIES.home.color.tailwind}`} />,
       stats: [
-        { label: 'Years in Home', value: homeData.yearsInHome },
-        { label: 'Total Events', value: homeData.totalEvents },
-        { label: 'Renovations', value: homeData.renovations, color: 'text-blue-600' },
-        { label: 'Maintenance', value: homeData.maintenance, color: 'text-orange-600' },
+        { label: 'Years in Home', value: categoryData.home.yearsInHome },
+        { label: 'Total Events', value: categoryData.home.totalEvents },
+        { label: 'Renovations', value: categoryData.home.renovations, color: 'text-blue-600' },
+        { label: 'Maintenance', value: categoryData.home.maintenance, color: 'text-orange-600' },
       ],
-      recentItems: homeData.recentEvents,
-      viewName: 'house-tracker',
+      recentItems: categoryData.home.recentEvents,
+      viewName: 'home-tracker',
     },
     {
       title: 'Relationships',
-      icon: <Heart className="w-6 h-6 text-red-600" />,
+      icon: <Heart className={`w-6 h-6 ${LIFE_CATEGORIES.relationships.color.tailwind}`} />,
       stats: [
-        { label: 'Connections', value: relationshipData.totalConnections },
-        { label: 'Family', value: relationshipData.familyConnections, color: 'text-blue-600' },
-        { label: 'Friends', value: relationshipData.friendConnections, color: 'text-green-600' },
-        { label: 'Need Attention', value: relationshipData.needAttention, color: 'text-yellow-600' },
+        { label: 'Connections', value: categoryData.relationships.totalConnections },
+        { label: 'Family', value: categoryData.relationships.familyConnections, color: 'text-blue-600' },
+        { label: 'Friends', value: categoryData.relationships.friendConnections, color: 'text-green-600' },
+        { label: 'Need Attention', value: categoryData.relationships.needAttention, color: 'text-yellow-600' },
       ],
-      recentItems: relationshipData.recentEvents,
+      recentItems: categoryData.relationships.recentEvents,
       viewName: 'relationship-tracker',
     },
   ];
@@ -259,7 +282,7 @@ export const LifeDashboard: React.FC = () => {
           <p className="text-theme-tertiary">A complete overview of your life's journey across all areas</p>
         </div>
 
-        {/* Split Top Section: Stats Grid + Chart */}
+        {/* Split Top Section: Stats Grid + Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Left Column: Overall Stats (Takes up 2/3 width on large screens) */}
           <div className="lg:col-span-2 grid grid-cols-2 gap-4">
@@ -296,10 +319,15 @@ export const LifeDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: The New Chart (Takes up 1/3 width) */}
+          {/* Right Column: The Pie Chart (Takes up 1/3 width) */}
           <div className="lg:col-span-1 h-full">
             <LifeDistributionChart data={distributionData} />
           </div>
+        </div>
+
+        {/* Activity Trend Chart - Full Width */}
+        <div className="mb-8">
+          <ActivityTrendChart stories={stories} months={6} />
         </div>
 
         {/* Tracker Cards */}
@@ -316,7 +344,7 @@ export const LifeDashboard: React.FC = () => {
                     {card.icon}
                     <h2 className="text-xl font-bold text-theme-primary">{card.title}</h2>
                   </div>
-                  {card.title === 'Relationships' && relationshipData.needAttention > 0 && (
+                  {card.title === 'Relationships' && categoryData.relationships.needAttention > 0 && (
                     <AlertCircle className="w-5 h-5 text-yellow-500" />
                   )}
                 </div>
