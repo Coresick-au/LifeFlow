@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { format, addDays } from 'date-fns';
-import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save } from 'lucide-react';
+import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save, Trash2 } from 'lucide-react';
 
 
 const importanceOptions = [
@@ -12,7 +12,7 @@ const importanceOptions = [
 ];
 
 export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
-  const { addStory, updateStory, setCurrentView, stories, relationships, managedTags, loadRelationships, loadManagedTags, userProfile } = useTimelineStore();
+  const { addStory, updateStory, deleteStory, setCurrentView, stories, relationships, managedTags, loadRelationships, loadManagedTags, userProfile } = useTimelineStore();
   const [personInput, setPersonInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showPersonSuggestions, setShowPersonSuggestions] = useState(false);
@@ -98,34 +98,57 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
 
     const existingStory = storyId ? stories.find(s => s.id === storyId) : null;
 
-    const storyData: Story = {
-      id: storyId || generateId(),
+    const storyData = {
+      id: storyId || generateId(), // Ensure ID is generated for new stories
       title: formData.title,
       content: formData.content,
-      type: formData.type as 'short' | 'long',
-      date: formData.date!,
+      type: formData.type || 'short',
+      date: formData.date!, // Date is required
       endDate: formData.endDate,
       fuzzyDate: formData.fuzzyDate || false,
       tags: formData.tags || [],
       people: formData.people || [],
-      importance: formData.importance as 'low' | 'medium' | 'high',
+      importance: formData.importance || 'medium',
       location: formData.location,
       images: formData.images || [],
       lockedUntil: isTimeCapsule ? formData.lockedUntil : undefined,
-      createdAt: existingStory?.createdAt || new Date(),
-      updatedAt: new Date(),
+      createdAt: existingStory?.createdAt || new Date(), // Preserve createdAt for existing stories
+      updatedAt: new Date(), // Always update updatedAt
     };
 
-    if (isEditing && storyId) {
-      await updateStory(storyId, storyData);
-    } else {
-      await addStory(storyData);
-      // Clear draft after successful submission
+    try {
+      if (storyId) {
+        await updateStory(storyId, storyData as Story); // Cast to Story for update
+      } else {
+        await addStory(storyData as Story); // Cast to Story for add
+      }
+
+      // Clear draft
       localStorage.removeItem('storyFormDraft');
+
+      setCurrentView({ type: 'timeline' });
+    } catch (error) {
+      console.error('Failed to save story:', error);
+      alert('Failed to save story. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!storyId || !window.confirm('Are you sure you want to delete this story? This action cannot be undone.')) {
+      return;
     }
 
-    setIsSubmitting(false);
-    setCurrentView({ type: 'timeline' });
+    setIsSubmitting(true);
+    try {
+      await deleteStory(storyId);
+      setCurrentView({ type: 'timeline' });
+    } catch (error) {
+      console.error('Failed to delete story:', error);
+      alert('Failed to delete story. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   const generateId = () => {
@@ -805,14 +828,29 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
           </div>
 
           {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting || !formData.title || (!formData.content && !isEditing) || !(formData.date instanceof Date && !isNaN(formData.date.getTime()))}
-            className="w-full flex items-center justify-center space-x-2 text-white py-3 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors btn-primary rounded-theme"
-          >
-            <Save className="w-4 h-4" />
-            <span>{isSubmitting ? 'Saving...' : 'Save Story'}</span>
-          </button>
+          {/* Actions */}
+          <div className="flex gap-4">
+            {isEditing && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className="px-4 py-3 border border-red-200 text-red-600 dark:border-red-900 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2 rounded-theme"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete</span>
+              </button>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting || !formData.title || (!formData.content && !isEditing) || !(formData.date instanceof Date && !isNaN(formData.date.getTime()))}
+              className="flex-1 w-full flex items-center justify-center space-x-2 text-white py-3 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors btn-primary rounded-theme"
+            >
+              <Save className="w-4 h-4" />
+              <span>{isSubmitting ? 'Saving...' : 'Save Story'}</span>
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { format, isValid } from 'date-fns';
-import { Heart, Calendar, MapPin, User, X, Save, Sparkles } from 'lucide-react';
+import { Heart, Calendar, MapPin, User, X, Save, Sparkles, Trash2 } from 'lucide-react';
 
 interface HeartTrackerFormProps {
     onClose: () => void;
@@ -34,7 +34,7 @@ const safeFormatDate = (date: Date | undefined): string => {
 };
 
 export const HeartTrackerForm: React.FC<HeartTrackerFormProps> = ({ onClose, editData }) => {
-    const { addStory, updateStory, userProfile } = useTimelineStore();
+    const { addStory, updateStory, deleteStory, userProfile } = useTimelineStore();
     const [formData, setFormData] = useState({
         partnerName: editData?.partnerName || '',
         milestoneType: editData?.milestoneType || 'started-dating' as typeof MILESTONE_TYPES[number]['value'],
@@ -119,6 +119,21 @@ export const HeartTrackerForm: React.FC<HeartTrackerFormProps> = ({ onClose, edi
         } catch (error) {
             console.error('Failed to save heart milestone:', error);
         } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!editData || !window.confirm('Are you sure you want to delete this memory? This action cannot be undone.')) {
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await deleteStory(editData.id);
+            onClose();
+        } catch (error) {
+            console.error('Failed to delete story:', error);
             setIsSaving(false);
         }
     };
@@ -295,8 +310,8 @@ export const HeartTrackerForm: React.FC<HeartTrackerFormProps> = ({ onClose, edi
                                             type="button"
                                             onClick={() => setEndInputMode('date')}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${endInputMode === 'date'
-                                                    ? 'bg-pink-600 text-white'
-                                                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                                                ? 'bg-pink-600 text-white'
+                                                : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                                                 }`}
                                         >
                                             Exact Date
@@ -305,8 +320,8 @@ export const HeartTrackerForm: React.FC<HeartTrackerFormProps> = ({ onClose, edi
                                             type="button"
                                             onClick={() => setEndInputMode('age')}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${endInputMode === 'age'
-                                                    ? 'bg-pink-600 text-white'
-                                                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                                                ? 'bg-pink-600 text-white'
+                                                : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                                                 }`}
                                         >
                                             I Was Age...
@@ -393,22 +408,34 @@ export const HeartTrackerForm: React.FC<HeartTrackerFormProps> = ({ onClose, edi
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3 pt-4 border-t border-theme">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-theme text-theme-secondary rounded-lg hover:bg-theme-tertiary transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSaving || !formData.partnerName.trim()}
-                            className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Save className="w-4 h-4" />
-                            {isSaving ? 'Saving...' : 'Save'}
-                        </button>
+                    <div className="flex gap-3 pt-4 border-t border-theme justify-between">
+                        {editData && (
+                            <button
+                                type="button"
+                                onClick={handleDelete}
+                                className="px-4 py-2 border border-red-200 text-red-600 dark:border-red-900 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Delete</span>
+                            </button>
+                        )}
+                        <div className="flex gap-3 flex-1 justify-end">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 border border-theme text-theme-secondary rounded-lg hover:bg-theme-tertiary transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isSaving || !formData.partnerName.trim()}
+                                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Save className="w-4 h-4" />
+                                {isSaving ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

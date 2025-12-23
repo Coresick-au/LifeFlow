@@ -49,7 +49,6 @@ CREATE TABLE IF NOT EXISTS thoughts (
   content TEXT NOT NULL,
   type TEXT CHECK (type IN ('idea', 'observation', 'pondering', 'note')) DEFAULT 'note',
   tags TEXT[] DEFAULT '{}',
-
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

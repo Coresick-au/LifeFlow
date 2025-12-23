@@ -1,8 +1,18 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { format, intervalToDuration, isValid } from 'date-fns';
-import { Calendar, Clock, HeartCrack, Heart, X, Save, User, MapPin } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { format, intervalToDuration } from 'date-fns';
+import { Calendar, Clock, HeartCrack, Heart, X, Save, Share2, Sparkles, Trash2 } from 'lucide-react';
 import { Relationship } from '../types';
 import { useTimelineStore } from '../store/timelineStore';
+
+// --- Integrated Milestone Constants ---
+const MILESTONE_TYPES = [
+    { value: 'started-dating', label: 'Started Dating', emoji: '💕' },
+    { value: 'met', label: 'Met / Friends', emoji: '🤝' },
+    { value: 'engaged', label: 'Engaged', emoji: '💍' },
+    { value: 'married', label: 'Married', emoji: '💒' },
+    { value: 'colleague', label: 'Work / Colleague', emoji: '💼' },
+    { value: 'other', label: 'Other', emoji: '📍' },
+] as const;
 
 interface RelationshipFormData {
     firstName: string;
@@ -20,14 +30,19 @@ interface RelationshipTrackerFormProps {
     onSubmit: (data: RelationshipFormData) => Promise<void>;
     initialData?: Relationship;
     isSubmitting?: boolean;
+    onDelete?: () => Promise<void> | void;
 }
 
 export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = ({
     onClose,
     onSubmit,
     initialData,
-    isSubmitting = false
+    isSubmitting = false,
+    onDelete
 }) => {
+    // 1. Access store for Timeline generation
+    const { userProfile, addStory } = useTimelineStore();
+
     const [formData, setFormData] = useState<RelationshipFormData>({
         firstName: initialData?.firstName || '',
         lastName: initialData?.lastName || '',
@@ -39,8 +54,11 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         metDateFuzzy: false,
     });
 
-    // Age Calculation Logic
-    const { userProfile } = useTimelineStore();
+    // 2. New State: Timeline Synchronization
+    // Default to true for new entries, false for edits (to avoid duplicating stories)
+    const [addToTimeline, setAddToTimeline] = useState(!initialData);
+    const [selectedMilestone, setSelectedMilestone] = useState<string>('started-dating');
+
     const [startDateMode, setStartDateMode] = useState<'date' | 'age'>('date');
     const [endDateMode, setEndDateMode] = useState<'date' | 'age'>('date');
 
@@ -59,18 +77,12 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
     // Calculate duration string dynamically
     const durationText = useMemo(() => {
         if (!formData.startDate) return null;
-
-        // Ensure we have valid Date objects
         const start = new Date(formData.startDate);
         const end = formData.isCurrent ? new Date() : (formData.endDate ? new Date(formData.endDate) : new Date());
 
         if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
 
-        const duration = intervalToDuration({
-            start,
-            end
-        });
-
+        const duration = intervalToDuration({ start, end });
         const parts = [];
         if (duration.years) parts.push(`${duration.years}y`);
         if (duration.months) parts.push(`${duration.months}m`);
@@ -79,9 +91,39 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         return parts.join(' ');
     }, [formData.startDate, formData.endDate, formData.isCurrent]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(formData);
+
+        // Step A: Save the Person (Connection)
+        await onSubmit(formData);
+
+        // Step B: Generate the Timeline Story (Heart/Event)
+        if (addToTimeline) {
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+            const milestone = MILESTONE_TYPES.find(m => m.value === selectedMilestone);
+
+            // Construct a smart title based on selection
+            let title = `Relationship with ${fullName}`;
+            if (selectedMilestone === 'met') title = `Met ${fullName}`;
+            if (selectedMilestone === 'married') title = `Married ${fullName}`;
+            if (selectedMilestone === 'colleague') title = `Worked with ${fullName}`;
+
+            await addStory({
+                title: title,
+                content: formData.notes || `Timeline entry for ${fullName} (${milestone?.label})`,
+                type: 'long', // 'long' type ensures the End Date renders as a visual range on the timeline
+                date: formData.startDate,
+                endDate: formData.isCurrent ? undefined : formData.endDate,
+                tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase()],
+                people: [fullName],
+                importance: 'high',
+                metadata: {
+                    generatedFromRelationship: true,
+                    milestoneType: selectedMilestone,
+                    personName: fullName
+                }
+            });
+        }
     };
 
     return (
@@ -99,9 +141,10 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
 
                 {/* Scrollable Content */}
                 <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                    {/* Active/History Toggle */}
+
+                    {/* Status Toggle */}
                     <div className="flex items-center justify-between bg-theme-tertiary p-3 rounded-lg">
-                        <span className="text-sm font-medium text-theme-primary">Relationship Status</span>
+                        <span className="text-sm font-medium text-theme-primary">Status</span>
                         <button
                             type="button"
                             onClick={() => setFormData({ ...formData, isCurrent: !formData.isCurrent })}
@@ -115,7 +158,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                         </button>
                     </div>
 
-                    {/* Basic Info */}
+                    {/* Name Inputs */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-theme-secondary mb-1">First Name</label>
@@ -140,24 +183,57 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-theme-secondary mb-1">Relationship Type</label>
-                        <input
-                            type="text"
-                            value={formData.relationshipType}
-                            onChange={(e) => setFormData({ ...formData, relationshipType: e.target.value })}
-                            className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            placeholder="e.g. Partner, Friend, Colleague"
-                        />
+                    {/* Timeline Sync Section (The "Multiple Selections" Unification) */}
+                    <div className="bg-primary-500/5 border border-primary-500/20 rounded-lg p-4 space-y-4">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={addToTimeline}
+                                onChange={(e) => setAddToTimeline(e.target.checked)}
+                                className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                            />
+                            <div className="flex items-center gap-2 font-medium text-theme-primary">
+                                <Share2 className="w-4 h-4" />
+                                Add this to Timeline
+                            </div>
+                        </label>
+
+                        {/* Only show selections if Sync is on */}
+                        {addToTimeline && (
+                            <div className="animate-fade-in pl-7">
+                                <label className="block text-xs font-medium text-theme-secondary mb-2">
+                                    What kind of story is this?
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {MILESTONE_TYPES.map((type) => (
+                                        <button
+                                            key={type.value}
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedMilestone(type.value);
+                                                // Auto-set relationship type text based on selection for convenience
+                                                setFormData(prev => ({ ...prev, relationshipType: type.label }));
+                                            }}
+                                            className={`px-2 py-2 rounded-md text-xs flex items-center gap-2 border transition-all ${selectedMilestone === type.value
+                                                ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                                                : 'bg-theme-primary text-theme-secondary border-theme hover:border-primary-400'
+                                                }`}
+                                        >
+                                            <span>{type.emoji}</span>
+                                            <span>{type.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Dates & Duration */}
                     <div className="space-y-4 pt-2 border-t border-theme">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Start Date */}
                             <div>
                                 <label className="block text-sm font-medium mb-1 text-theme-secondary">Start Date</label>
-
-                                {/* Date/Age Toggle */}
                                 <div className="flex gap-2 mb-2">
                                     <button
                                         type="button"
@@ -177,7 +253,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                             : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                                             }`}
                                     >
-                                        I Was Age...
+                                        Age
                                     </button>
                                 </div>
 
@@ -216,12 +292,10 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                 )}
                             </div>
 
-                            {/* Conditionally show Separation Date */}
+                            {/* End Date (Condition: Not Current) */}
                             {!formData.isCurrent && (
                                 <div className="animate-fade-in">
-                                    <label className="block text-sm font-medium mb-1 text-theme-secondary">Separation Date</label>
-
-                                    {/* End Date/Age Toggle */}
+                                    <label className="block text-sm font-medium mb-1 text-theme-secondary">End Date</label>
                                     <div className="flex gap-2 mb-2">
                                         <button
                                             type="button"
@@ -241,7 +315,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                                 : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
                                                 }`}
                                         >
-                                            I Was Age...
+                                            Age
                                         </button>
                                     </div>
 
@@ -262,7 +336,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                                 min="0"
                                                 max="120"
                                                 step="0.1"
-                                                placeholder="Age (e.g. 25.5)"
+                                                placeholder="Age (e.g. 17)"
                                                 className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                                                 onChange={(e) => {
                                                     if (e.target.value) {
@@ -287,41 +361,55 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                             <div className="flex items-center gap-2 text-sm text-theme-tertiary bg-theme-tertiary p-3 rounded-md border border-theme">
                                 <Clock className="w-4 h-4 text-primary-500" />
                                 <span>Duration: <strong className="text-theme-primary">{durationText}</strong></span>
-                                {!formData.isCurrent && <span className="ml-auto text-xs italic text-theme-secondary">(Historical)</span>}
+                                {!formData.isCurrent && <span className="ml-auto text-xs italic text-theme-secondary">(Ended)</span>}
                             </div>
                         )}
                     </div>
 
                     {/* Notes */}
                     <div>
-                        <label className="block text-sm font-medium text-theme-secondary mb-1">Notes</label>
+                        <label className="block text-sm font-medium text-theme-secondary mb-1">Notes / Story</label>
                         <textarea
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                             className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                             rows={3}
-                            placeholder="Any additional details..."
+                            placeholder="How did you meet? What made this time special?"
                         />
                     </div>
                 </div>
 
                 {/* Footer Actions */}
                 <div className="p-6 border-t border-theme bg-theme-primary sticky bottom-0">
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-theme text-theme-secondary rounded-lg hover:bg-theme-tertiary transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isSubmitting || !formData.firstName}
-                            className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
-                        >
-                            <Save className="w-4 h-4" />
-                            {isSubmitting ? 'Saving...' : 'Save Person'}
-                        </button>
+                    <div className="flex gap-3 justify-between">
+                        {/* Delete Button (Conditional) */}
+                        {initialData && onDelete && (
+                            <button
+                                type="button"
+                                onClick={onDelete}
+                                className="px-4 py-2 border border-red-200 text-red-600 dark:border-red-900 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Delete</span>
+                            </button>
+                        )}
+
+                        <div className="flex gap-3 flex-1 justify-end">
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 border border-theme text-theme-secondary rounded-lg hover:bg-theme-tertiary transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                disabled={isSubmitting || !formData.firstName}
+                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                            >
+                                <Save className="w-4 h-4" />
+                                {isSubmitting ? 'Saving...' : 'Save Person & Story'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

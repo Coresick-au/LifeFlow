@@ -169,6 +169,7 @@ export const Relationships: React.FC = () => {
           }}
           onSubmit={handleFormSubmit}
           initialData={editingPerson || undefined}
+          onDelete={editingPerson ? () => handleDeletePerson(editingPerson.id, editingPerson.fullName).then(() => setEditingPerson(null)) : undefined}
         />
       )}
 
