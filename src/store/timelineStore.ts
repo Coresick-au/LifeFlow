@@ -218,7 +218,11 @@ export const useTimelineStore = create<TimelineStore>()(
           const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
           if (user && navigator.onLine) {
-            await supabaseService.upsertProfile(profile);
+            // CRITICAL: Use the authenticated user's ID for Supabase profile
+            // The profile table uses the auth user ID as the primary key
+            const cloudProfile = { ...profile, id: user.id };
+            await supabaseService.upsertProfile(cloudProfile);
+            console.log('[Sync] Profile saved to cloud with user ID:', user.id);
           }
 
           // Always save to local Dexie for offline support and reliability
@@ -850,10 +854,12 @@ export const useTimelineStore = create<TimelineStore>()(
 
           console.log('Starting Force Sync...');
 
-          // 1. Profile
+          // 1. Profile - CRITICAL: Use user.id for cloud profile
           const localProfiles = await db.table('userProfile').toArray();
           if (localProfiles.length > 0) {
-            await supabaseService.upsertProfile(localProfiles[0]);
+            const cloudProfile = { ...localProfiles[0], id: user.id };
+            await supabaseService.upsertProfile(cloudProfile);
+            console.log('[Force Sync] Profile synced with user ID:', user.id);
           }
 
           // 2. Stories

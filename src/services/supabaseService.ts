@@ -38,7 +38,12 @@ export async function getProfile(userId: string): Promise<UserProfile | null> {
 }
 
 export async function upsertProfile(profile: UserProfile): Promise<boolean> {
-    if (!supabase) return false;
+    if (!supabase) {
+        console.warn('[Supabase] Cannot upsert profile - Supabase not configured');
+        return false;
+    }
+
+    console.log('[Supabase] Upserting profile with ID:', profile.id);
 
     const { error } = await supabase
         .from('profiles')
@@ -57,7 +62,13 @@ export async function upsertProfile(profile: UserProfile): Promise<boolean> {
             blood_type: profile.bloodType,
         });
 
-    return !error;
+    if (error) {
+        console.error('[Supabase] Profile upsert error:', error);
+        return false;
+    }
+
+    console.log('[Supabase] Profile upserted successfully');
+    return true;
 }
 
 // ==========================================

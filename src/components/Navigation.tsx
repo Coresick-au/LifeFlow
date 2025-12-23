@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Settings, ChevronDown, ArrowLeft, Plus, Wifi, WifiOff, Database } from 'lucide-react';
+import { Search, Settings, Plus, WifiOff, Cloud, AlertCircle } from 'lucide-react';
 import { UserProfile } from '../types';
 import { Logo } from './Logo';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { isOnline } from '../services/supabaseService';
+import { useAuth } from '../contexts/AuthContext';
 
 type LucideIcon = React.ComponentType<{ className?: string; style?: React.CSSProperties; }>;
 
@@ -44,13 +45,17 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [isDataSynced, setIsDataSynced] = useState(isOnline());
+  const [isNetworkOnline, setIsNetworkOnline] = useState(isOnline());
+  const { user, isOfflineMode } = useAuth();
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Determine actual sync status
+  const isCloudSynced = isNetworkOnline && !!user && !isOfflineMode;
 
   // Track online/offline status changes
   useEffect(() => {
     const updateOnlineStatus = () => {
-      setIsDataSynced(isOnline());
+      setIsNetworkOnline(isOnline());
     };
 
     window.addEventListener('online', updateOnlineStatus);
@@ -160,10 +165,11 @@ export const Navigation: React.FC<NavigationProps> = ({
     setSearchQuery('');
   };
 
-  const isDataLocal = !isDataSynced; // Local if NOT synced
+  const isDataLocal = !isCloudSynced;
   const lastBackupDate = localStorage.getItem('lifeflow-last-backup');
-  const needsBackup = !lastBackupDate ||
-    (Date.now() - new Date(lastBackupDate).getTime()) > 7 * 24 * 60 * 60 * 1000; // 7 days
+  // Only show backup warning if in local/offline mode and no recent backup
+  const needsBackup = isDataLocal && (!lastBackupDate ||
+    (Date.now() - new Date(lastBackupDate).getTime()) > 7 * 24 * 60 * 60 * 1000); // 7 days
   return (
     <nav className="shadow-sm border-b sticky top-0 z-50 bg-theme-primary border-theme">
       <div className="container mx-auto px-4">
@@ -194,10 +200,10 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   key={pillar}
                   onClick={() => onViewChange(pillarDefaults[pillar])}
-                  className={`px-4 py-1 text-sm font-bold capitalize transition-all border-b-2 ${activePillar === pillar
+                  className={`px - 4 py - 1 text - sm font - bold capitalize transition - all border - b - 2 ${activePillar === pillar
                     ? 'border-theme-accent text-theme-accent'
                     : 'border-transparent text-theme-secondary hover:text-theme-primary'
-                    }`}
+                    } `}
                 >
                   {pillar}
                 </button>
@@ -226,15 +232,15 @@ export const Navigation: React.FC<NavigationProps> = ({
                             key={item.type}
                             onClick={() => onViewChange(item.type)}
                             className={`
-                              flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-sm font-medium
-                              transition-colors duration-200 whitespace-nowrap
+                              flex items - center space - x - 1.5 px - 3 py - 1.5 rounded - full text - sm font - medium
+transition - colors duration - 200 whitespace - nowrap
                               ${isActive
                                 ? `${activeBgColor} text-black`
                                 : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
                               }
-                            `}
+`}
                           >
-                            <Icon className={`w-5 h-5 ${isActive ? 'text-black' : iconColor}`} />
+                            <Icon className={`w - 5 h - 5 ${isActive ? 'text-black' : iconColor} `} />
                             <span>{item.label}</span>
                           </button>
                         );
@@ -253,15 +259,15 @@ export const Navigation: React.FC<NavigationProps> = ({
                               key={item.type}
                               onClick={() => onViewChange(item.type)}
                               className={`
-                                flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-sm font-medium
-                                transition-colors duration-200 whitespace-nowrap
+                                flex items - center space - x - 1.5 px - 3 py - 1.5 rounded - full text - sm font - medium
+transition - colors duration - 200 whitespace - nowrap
                                 ${isActive
                                   ? `${activeBgColor} text-black`
                                   : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
                                 }
-                              `}
+`}
                             >
-                              <Icon className={`w-5 h-5 ${isActive ? 'text-black' : iconColor}`} />
+                              <Icon className={`w - 5 h - 5 ${isActive ? 'text-black' : iconColor} `} />
                               <span>{item.label}</span>
                             </button>
                           );
@@ -308,10 +314,10 @@ export const Navigation: React.FC<NavigationProps> = ({
             {/* Settings Button */}
             <button
               onClick={() => onViewChange('settings')}
-              className={`p-2 rounded-md transition-colors rounded-theme ${activeView === 'settings'
+              className={`p - 2 rounded - md transition - colors rounded - theme ${activeView === 'settings'
                 ? 'text-theme-accent bg-theme-tertiary'
                 : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
-                }`}
+                } `}
               title="Settings"
             >
               <Settings className="w-5 h-5" />
@@ -320,21 +326,45 @@ export const Navigation: React.FC<NavigationProps> = ({
             {/* Data Sync Status */}
             <div className="relative group">
               <button
-                className={`p-2 rounded-md transition-colors ${needsBackup
-                  ? 'text-orange-600 hover:bg-orange-50'
-                  : 'text-gray-400 hover:text-theme-tertiary hover:bg-theme-tertiary'
-                  }`}
-                title={isDataLocal ? 'Data saved locally' : 'Data synced'}
+                className={`p - 2 rounded - md transition - colors ${!isNetworkOnline
+                  ? 'text-red-500 hover:bg-red-50'  // Network offline - red
+                  : isDataLocal
+                    ? 'text-orange-500 hover:bg-orange-50'  // Online but not cloud synced - orange
+                    : 'text-green-500 hover:text-green-600 hover:bg-green-50'  // Cloud synced - green
+                  } `}
+                title={isDataLocal ? 'Data saved locally' : 'Data synced to cloud'}
               >
-                {isDataLocal ? <WifiOff className="w-5 h-5" /> : <Wifi className="w-5 h-5" />}
+                {!isNetworkOnline ? (
+                  <WifiOff className="w-5 h-5" />
+                ) : isDataLocal ? (
+                  <AlertCircle className="w-5 h-5" />
+                ) : (
+                  <Cloud className="w-5 h-5" />
+                )}
               </button>
-              <div className="absolute right-0 top-full mt-2 w-48 p-2 bg-theme-primary border border-theme rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                <p className="text-xs text-theme-tertiary">
-                  {isDataLocal ? 'Data stored locally on this device' : 'Data synced to cloud'}
+              <div className="absolute right-0 top-full mt-2 w-56 p-3 bg-theme-primary border border-theme rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <p className={`text - sm font - medium ${!isNetworkOnline
+                  ? 'text-red-600'
+                  : isDataLocal
+                    ? 'text-orange-600'
+                    : 'text-green-600'
+                  } `}>
+                  {!isNetworkOnline
+                    ? '⚠️ Network Offline'
+                    : isDataLocal
+                      ? '📱 Local Storage Only'
+                      : '☁️ Cloud Sync Active'}
+                </p>
+                <p className="text-xs text-theme-tertiary mt-1">
+                  {!isNetworkOnline
+                    ? 'Changes saved locally. Will sync when back online.'
+                    : isDataLocal
+                      ? 'Sign in to sync data across devices.'
+                      : 'Your data is syncing with the cloud.'}
                 </p>
                 {needsBackup && (
-                  <p className="text-xs text-orange-600 mt-1">
-                    ⚠️ Backup recommended
+                  <p className="text-xs text-orange-600 mt-2 pt-2 border-t border-theme">
+                    💾 Consider exporting a backup
                   </p>
                 )}
                 {lastBackupDate && (
@@ -389,13 +419,13 @@ export const Navigation: React.FC<NavigationProps> = ({
                   key={item.type}
                   onClick={() => onViewChange(item.type)}
                   className={`
-                    flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium
-                    whitespace-nowrap transition-colors duration-200 rounded-theme
+                    flex items - center space - x - 2 px - 3 py - 2 rounded - md text - sm font - medium
+whitespace - nowrap transition - colors duration - 200 rounded - theme
                     ${isActive
                       ? 'bg-theme-accent text-white'
                       : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
                     }
-                  `}
+`}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{item.label}</span>
