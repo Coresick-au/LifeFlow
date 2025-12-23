@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { format } from 'date-fns';
+import { StoryViewer } from './StoryViewer';
 import {
   Edit,
   Trash2,
@@ -88,8 +89,14 @@ const getCategoryIcon = (tags: string[]) => {
 };
 
 export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: () => void }> = ({ searchResults, onAddStory }) => {
-  const { stories, userProfile, deleteStory, setCurrentView } = useTimelineStore();
+  const { stories, userProfile, deleteStory, setCurrentView, activeStoryId, setActiveStory } = useTimelineStore();
   const [filterTags, setFilterTags] = useState<string[]>([]);
+
+  // Get the active story for the viewer
+  const activeStory = useMemo(() => {
+    if (!activeStoryId) return null;
+    return stories.find(s => s.id === activeStoryId) || null;
+  }, [activeStoryId, stories]);
 
   console.log('Timeline render - stories:', stories.length, 'userProfile:', userProfile ? 'exists' : 'null');
 
@@ -138,6 +145,25 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
 
   // Get all unique tags from all stories (not just search results)
   const allTags = Array.from(new Set(stories.flatMap(story => story.tags)));
+
+  // Timeline Snapshot Stats
+  const snapshotStats = useMemo(() => {
+    const milestones = filteredStories.filter(s => s.importance === 'high').length;
+    const moodCounts = filteredStories.reduce((acc, s) => {
+      const mood = s.mood || 'neutral';
+      acc[mood] = (acc[mood] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0];
+    const locationCounts = filteredStories.reduce((acc, s) => {
+      if (s.location) {
+        acc[s.location] = (acc[s.location] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    const topLocation = Object.entries(locationCounts).sort((a, b) => b[1] - a[1])[0];
+    return { milestones, topMood, topLocation };
+  }, [filteredStories]);
 
   // Group stories by month
   const groupedStories = filteredStories.reduce((groups, story) => {
@@ -226,9 +252,42 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
 
   return (
     <div className="w-full">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-theme-primary mb-2">Timeline</h2>
-        <p className="text-theme-secondary">Your life's journey, moment by moment</p>
+      {/* Timeline Snapshot Header */}
+      <div className="mb-6 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-lg p-4 border border-blue-800/30">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-bold text-theme-primary">Timeline</h2>
+          <span className="text-sm text-theme-tertiary">{filteredStories.length} stories</span>
+        </div>
+        <div className="grid grid-cols-3 gap-4 text-center text-sm">
+          <div>
+            <div className="text-lg font-bold text-yellow-500">⭐ {snapshotStats.milestones}</div>
+            <div className="text-theme-tertiary">Milestones</div>
+          </div>
+          <div>
+            {snapshotStats.topMood && (
+              <>
+                <div className="text-lg font-bold text-theme-primary">
+                  {snapshotStats.topMood[0] === 'happy' ? '😊' :
+                    snapshotStats.topMood[0] === 'proud' ? '🏆' :
+                      snapshotStats.topMood[0] === 'excited' ? '🎉' :
+                        snapshotStats.topMood[0] === 'grateful' ? '🙏' :
+                          snapshotStats.topMood[0] === 'sad' ? '😢' : '😐'}
+                </div>
+                <div className="text-theme-tertiary capitalize">Top Mood</div>
+              </>
+            )}
+          </div>
+          <div>
+            {snapshotStats.topLocation && (
+              <>
+                <div className="text-lg font-bold text-theme-primary truncate" title={snapshotStats.topLocation[0]}>
+                  📍 {snapshotStats.topLocation[0].split(',')[0]}
+                </div>
+                <div className="text-theme-tertiary">Main Era</div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Tag Filter */}
@@ -321,8 +380,11 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                       {getCategoryIcon(story.tags)}
                     </div>
 
-                    {/* Story card */}
-                    <div className={`story-card ${isEven ? 'md:story-card-right' : 'md:story-card-left'} ${isLocked ? 'relative' : ''}`}>
+                    {/* Story card - clickable to open viewer */}
+                    <div
+                      className={`story-card cursor-pointer hover:shadow-lg transition-shadow ${isEven ? 'md:story-card-right' : 'md:story-card-left'} ${isLocked ? 'relative' : ''}`}
+                      onClick={() => !isLocked && setActiveStory(story.id)}
+                    >
                       {/* Time capsule overlay */}
                       {isLocked && (
                         <div className="absolute inset-0 backdrop-blur-sm rounded-lg z-10 flex flex-col items-center justify-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
@@ -439,6 +501,18 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
       >
         <span className="text-2xl">+</span>
       </button>
+
+      {/* Story Viewer Modal */}
+      {activeStory && (
+        <StoryViewer
+          story={activeStory}
+          onClose={() => setActiveStory(null)}
+          onEdit={(id) => {
+            setActiveStory(null);
+            setCurrentView({ type: 'edit-story', storyId: id });
+          }}
+        />
+      )}
     </div>
   );
 };

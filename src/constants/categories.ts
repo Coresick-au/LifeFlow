@@ -98,3 +98,19 @@ export function getCategoryColors(): string[] {
  * People tags that indicate family relationships
  */
 export const FAMILY_PEOPLE_TAGS = ['mom', 'dad', 'mother', 'father', 'brother', 'sister'];
+
+/**
+ * Default color for uncategorized stories
+ */
+export const DEFAULT_CATEGORY_COLOR = '#94a3b8'; // Slate 400
+
+/**
+ * Get color hex for a story based on its tags
+ */
+export function getCategoryColorForStory(tags: string[]): string {
+    const categoryId = getCategoryForStory(tags);
+    if (categoryId && LIFE_CATEGORIES[categoryId]) {
+        return LIFE_CATEGORIES[categoryId].color.hex;
+    }
+    return DEFAULT_CATEGORY_COLOR;
+}

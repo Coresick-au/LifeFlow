@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Advice } from '../types';
 import {
@@ -12,8 +12,19 @@ import {
     Edit2,
     Trash2,
     BookOpen,
-    User
+    User,
+    CheckCircle,
+    AlertTriangle,
+    Zap,
+    Target,
+    Flame
 } from 'lucide-react';
+
+const difficultyConfig = {
+    easy: { label: 'Easy', icon: Zap, color: 'bg-green-500/20 text-green-600 dark:text-green-400' },
+    medium: { label: 'Medium', icon: Target, color: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' },
+    hard: { label: 'Hard', icon: Flame, color: 'bg-red-500/20 text-red-600 dark:text-red-400' },
+};
 
 const adviceCategories = [
     { value: 'life', label: 'Life', icon: Lightbulb, color: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' },
@@ -26,6 +37,7 @@ const adviceCategories = [
 export const AdvicePanel: React.FC = () => {
     const { advice, addAdvice, updateAdvice, deleteAdvice, isSaving } = useTimelineStore();
     const [filterCategory, setFilterCategory] = useState<string>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'applied'>('active');
     const [searchTerm, setSearchTerm] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [editingAdvice, setEditingAdvice] = useState<string | null>(null);
@@ -34,11 +46,19 @@ export const AdvicePanel: React.FC = () => {
         category: 'life' as Advice['category'],
         source: '',
         tags: [] as string[],
+        difficulty: 'medium' as Advice['difficulty'],
     });
 
     // Filter advice
     const filteredAdvice = useMemo(() => {
         let filtered = advice || [];
+
+        // Status filter
+        if (filterStatus === 'active') {
+            filtered = filtered.filter(a => !a.isActioned);
+        } else if (filterStatus === 'applied') {
+            filtered = filtered.filter(a => a.isActioned);
+        }
 
         if (filterCategory !== 'all') {
             filtered = filtered.filter(a => a.category === filterCategory);
@@ -53,7 +73,22 @@ export const AdvicePanel: React.FC = () => {
         }
 
         return filtered;
-    }, [advice, filterCategory, searchTerm]);
+    }, [advice, filterCategory, filterStatus, searchTerm]);
+
+    // Check if advice needs review (90+ days old and not actioned)
+    const needsReview = (item: Advice) => {
+        if (item.isActioned) return false;
+        const daysSinceCreated = differenceInDays(new Date(), new Date(item.createdAt));
+        return daysSinceCreated >= 90;
+    };
+
+    // Toggle actioned status
+    const handleToggleActioned = async (item: Advice) => {
+        await updateAdvice(item.id, {
+            isActioned: !item.isActioned,
+            appliedDate: !item.isActioned ? new Date() : undefined,
+        });
+    };
 
     // Group advice by category
     const groupedAdvice = useMemo(() => {
@@ -80,10 +115,11 @@ export const AdvicePanel: React.FC = () => {
             await addAdvice({
                 ...formData,
                 createdAt: new Date(),
+                isActioned: false,
             });
         }
 
-        setFormData({ content: '', category: 'life', source: '', tags: [] });
+        setFormData({ content: '', category: 'life', source: '', tags: [], difficulty: 'medium' });
         setIsAdding(false);
     };
 
@@ -99,13 +135,14 @@ export const AdvicePanel: React.FC = () => {
             category: item.category,
             source: item.source || '',
             tags: item.tags || [],
+            difficulty: item.difficulty || 'medium',
         });
         setEditingAdvice(item.id);
         setIsAdding(true);
     };
 
     const handleCancel = () => {
-        setFormData({ content: '', category: 'life', source: '', tags: [] });
+        setFormData({ content: '', category: 'life', source: '', tags: [], difficulty: 'medium' });
         setIsAdding(false);
         setEditingAdvice(null);
     };
@@ -223,6 +260,37 @@ export const AdvicePanel: React.FC = () => {
                 </select>
             </div>
 
+            {/* Status Filter Tabs */}
+            <div className="mb-6 flex gap-2">
+                <button
+                    onClick={() => setFilterStatus('active')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'active'
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                        }`}
+                >
+                    Active ({(advice || []).filter(a => !a.isActioned).length})
+                </button>
+                <button
+                    onClick={() => setFilterStatus('applied')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'applied'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                        }`}
+                >
+                    Applied ({(advice || []).filter(a => a.isActioned).length})
+                </button>
+                <button
+                    onClick={() => setFilterStatus('all')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'all'
+                            ? 'bg-gray-600 text-white'
+                            : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                        }`}
+                >
+                    All
+                </button>
+            </div>
+
             {/* Advice List */}
             {filteredAdvice.length > 0 ? (
                 <div className="space-y-6">
@@ -243,15 +311,40 @@ export const AdvicePanel: React.FC = () => {
                                             className="p-4 bg-theme-primary rounded-lg shadow-sm border border-theme hover:shadow-md transition-shadow"
                                         >
                                             <div className="flex items-start justify-between mb-2">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${categoryConfig?.color}`}>
                                                         {categoryConfig?.label}
                                                     </span>
+                                                    {item.difficulty && difficultyConfig[item.difficulty] && (
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${difficultyConfig[item.difficulty].color}`}>
+                                                            {React.createElement(difficultyConfig[item.difficulty].icon, { className: "w-3 h-3" })}
+                                                            {difficultyConfig[item.difficulty].label}
+                                                        </span>
+                                                    )}
+                                                    {needsReview(item) && (
+                                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-600 flex items-center gap-1">
+                                                            <AlertTriangle className="w-3 h-3" />
+                                                            Needs Review
+                                                        </span>
+                                                    )}
+                                                    {item.isActioned && (
+                                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-600 flex items-center gap-1">
+                                                            <CheckCircle className="w-3 h-3" />
+                                                            Applied {item.appliedDate && format(new Date(item.appliedDate), 'MMM d')}
+                                                        </span>
+                                                    )}
                                                     <span className="text-sm text-slate-500 dark:text-slate-400">
                                                         {format(new Date(item.createdAt), 'MMM d, yyyy')}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => handleToggleActioned(item)}
+                                                        className={`p-1 transition-colors ${item.isActioned ? 'text-green-600 hover:text-gray-400' : 'text-gray-400 hover:text-green-600'}`}
+                                                        title={item.isActioned ? 'Mark as active' : 'Mark as applied'}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4" />
+                                                    </button>
                                                     <button
                                                         onClick={() => handleEdit(item)}
                                                         className="p-1 text-gray-400 hover:text-blue-600 transition-colors"

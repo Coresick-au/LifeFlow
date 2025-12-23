@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Thought } from '../types';
-import { Lightbulb, Eye, MessageSquare, Plus, Edit2, Trash2, X, Tag, Smile } from 'lucide-react';
+import { Lightbulb, Eye, MessageSquare, Plus, Edit2, Trash2, X, Tag, Smile, Clock } from 'lucide-react';
 
 const thoughtTypes = [
   { value: 'idea', label: 'Idea', icon: Lightbulb, color: 'bg-yellow-500/20 text-yellow-400' },
@@ -20,9 +20,20 @@ const moodEmojis = {
   grateful: '🙏',
 };
 
+// Mood-based gradient backgrounds
+const moodGradients: Record<string, string> = {
+  happy: 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10',
+  sad: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10',
+  neutral: '',
+  excited: 'bg-gradient-to-r from-pink-500/10 to-rose-500/10',
+  proud: 'bg-gradient-to-r from-purple-500/10 to-violet-500/10',
+  grateful: 'bg-gradient-to-r from-amber-500/10 to-yellow-500/10',
+};
+
 export const Thoughts: React.FC = () => {
   const { thoughts, addThought, updateThought, deleteThought, setCurrentView, isSaving } = useTimelineStore();
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterMood, setFilterMood] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddingThought, setIsAddingThought] = useState(false);
   const [editingThought, setEditingThought] = useState<string | null>(null);
@@ -36,25 +47,29 @@ export const Thoughts: React.FC = () => {
   // Filter thoughts
   const filteredThoughts = useMemo(() => {
     let filtered = thoughts;
-    
+
     if (filterType !== 'all') {
       filtered = filtered.filter(t => t.type === filterType);
     }
-    
+
+    if (filterMood !== 'all') {
+      filtered = filtered.filter(t => t.mood === filterMood);
+    }
+
     if (searchTerm) {
-      filtered = filtered.filter(t => 
+      filtered = filtered.filter(t =>
         t.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
-    
+
     return filtered;
-  }, [thoughts, filterType, searchTerm]);
+  }, [thoughts, filterType, filterMood, searchTerm]);
 
   // Group thoughts by date
   const groupedThoughts = useMemo(() => {
     const groups: Record<string, Thought[]> = {};
-    
+
     filteredThoughts.forEach(thought => {
       const dateKey = format(new Date(thought.createdAt), 'yyyy-MM-dd');
       if (!groups[dateKey]) {
@@ -62,7 +77,7 @@ export const Thoughts: React.FC = () => {
       }
       groups[dateKey].push(thought);
     });
-    
+
     return groups;
   }, [filteredThoughts]);
 
@@ -151,11 +166,10 @@ export const Thoughts: React.FC = () => {
                     key={value}
                     type="button"
                     onClick={() => setFormData({ ...formData, type: value as Thought['type'] })}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
-                      formData.type === value
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${formData.type === value
                         ? color
                         : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     {label}
@@ -171,15 +185,14 @@ export const Thoughts: React.FC = () => {
                   <button
                     key={mood}
                     type="button"
-                    onClick={() => setFormData({ 
-                      ...formData, 
-                      mood: mood as Thought['mood'] || undefined 
+                    onClick={() => setFormData({
+                      ...formData,
+                      mood: mood as Thought['mood'] || undefined
                     })}
-                    className={`w-10 h-10 rounded-md text-lg transition-colors ${
-                      formData.mood === mood
+                    className={`w-10 h-10 rounded-md text-lg transition-colors ${formData.mood === mood
                         ? 'bg-primary-500/30 ring-2 ring-primary-500'
                         : 'bg-theme-tertiary hover:opacity-80'
-                    }`}
+                      }`}
                   >
                     {emoji}
                   </button>
@@ -228,6 +241,31 @@ export const Thoughts: React.FC = () => {
         </select>
       </div>
 
+      {/* Mood Filter */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <button
+          onClick={() => setFilterMood('all')}
+          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filterMood === 'all'
+              ? 'bg-primary-600 text-white'
+              : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+            }`}
+        >
+          All Moods
+        </button>
+        {Object.entries(moodEmojis).map(([mood, emoji]) => (
+          <button
+            key={mood}
+            onClick={() => setFilterMood(mood)}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filterMood === mood
+                ? 'bg-primary-600 text-white'
+                : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+              }`}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+
       {/* Thoughts List */}
       {Object.entries(groupedThoughts).length > 0 ? (
         <div className="space-y-6">
@@ -242,14 +280,14 @@ export const Thoughts: React.FC = () => {
                   {dateThoughts.map((thought) => {
                     const typeConfig = thoughtTypes.find(t => t.value === thought.type);
                     const Icon = typeConfig?.icon || MessageSquare;
-                    
+
                     return (
                       <div
                         key={thought.id}
-                        className="p-4 bg-theme-primary rounded-lg shadow-sm border border-theme hover:shadow-md transition-shadow"
+                        className={`p-4 rounded-lg shadow-sm border border-theme hover:shadow-md transition-shadow ${moodGradients[thought.mood || 'neutral'] || 'bg-theme-primary'}`}
                       >
                         <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeConfig?.color}`}>
                               <Icon className="w-3 h-3 inline mr-1" />
                               {typeConfig?.label}
@@ -260,6 +298,13 @@ export const Thoughts: React.FC = () => {
                             <span className="text-sm text-slate-500 dark:text-slate-400">
                               {format(new Date(thought.createdAt), 'h:mm a')}
                             </span>
+                            {/* Pondering Timer */}
+                            {thought.type === 'pondering' && (
+                              <span className="flex items-center gap-1 text-xs text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
+                                <Clock className="w-3 h-3" />
+                                Pondering for {formatDistanceToNow(new Date(thought.createdAt))}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
                             <button
@@ -276,9 +321,9 @@ export const Thoughts: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                        
+
                         <p className="text-theme-primary whitespace-pre-wrap">{thought.content}</p>
-                        
+
                         {thought.tags && thought.tags.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1">
                             {thought.tags.map((tag) => (

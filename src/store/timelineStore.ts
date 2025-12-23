@@ -44,6 +44,7 @@ type TimelineStore = TimelineState & {
   deleteStory: (id: string) => Promise<void>;
   setUserProfile: (profile: UserProfile) => Promise<void>;
   setCurrentView: (view: TimelineView) => void;
+  setActiveStory: (storyId: string | null) => void; // Modal pattern for story viewer
   loadStories: () => Promise<void>;
   loadUserProfile: () => Promise<void>;
   loadPreferences: () => Promise<void>;
@@ -118,6 +119,7 @@ export const useTimelineStore = create<TimelineStore>()(
       wealthHistory: [],
       advice: [],
       currentView: initialView,
+      activeStoryId: null,
       isLoading: false,
       isSaving: false,
       error: null,
@@ -237,6 +239,10 @@ export const useTimelineStore = create<TimelineStore>()(
 
       setCurrentView: (view: TimelineView) => {
         set({ currentView: view });
+      },
+
+      setActiveStory: (storyId: string | null) => {
+        set({ activeStoryId: storyId });
       },
 
       loadStories: async () => {

@@ -5,6 +5,8 @@ export interface Thought {
   createdAt: Date;
   tags?: string[];
   mood?: 'happy' | 'sad' | 'neutral' | 'excited' | 'proud' | 'grateful';
+  relatedStoryId?: string; // Link to a Story for context
+  isPrivate?: boolean; // For PDF export filtering
 }
 
 export interface Advice {
@@ -14,6 +16,9 @@ export interface Advice {
   source?: string;
   createdAt: Date;
   tags?: string[];
+  isActioned?: boolean; // Track if advice has been applied
+  appliedDate?: Date; // When advice was applied
+  difficulty?: 'easy' | 'medium' | 'hard'; // Help prioritize implementation
 }
 
 export interface TodoItem {
@@ -166,6 +171,7 @@ export interface TimelineState {
   relationships: Relationship[];
   managedTags: ManagedTag[];
   currentView: TimelineView;
+  activeStoryId: string | null; // Modal pattern: story being viewed
   isLoading: boolean;
   error: string | null;
 }

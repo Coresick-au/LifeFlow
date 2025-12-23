@@ -1,8 +1,24 @@
 import React, { useState, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, startOfYear, endOfYear, eachMonthOfInterval, startOfQuarter, endOfQuarter } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Briefcase, Plane, Heart, Home, Book, Users, Music, User, Sparkles, Globe, TreePine, Target, Zap } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, startOfYear, endOfYear, eachMonthOfInterval, startOfQuarter, endOfQuarter, differenceInYears, differenceInMonths } from 'date-fns';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Briefcase, Plane, Heart, Home, Book, Users, Music, User, Sparkles, Globe, TreePine, Target, Zap, Star } from 'lucide-react';
+
+// Heatmap intensity: returns a CSS class based on story count
+const getHeatmapIntensity = (count: number): string => {
+  if (count === 0) return '';
+  if (count === 1) return 'bg-green-500/20';
+  if (count === 2) return 'bg-green-500/40';
+  if (count === 3) return 'bg-green-500/60';
+  return 'bg-green-500/80'; // 4+
+};
+
+// Calculate age at a specific date
+const calculateAgeAt = (birthDate: Date, atDate: Date): string => {
+  const years = differenceInYears(atDate, birthDate);
+  const months = differenceInMonths(atDate, birthDate) % 12;
+  return `${years}y ${months}m`;
+};
 
 // Category icon mapping
 const categoryIcons: Record<string, React.ComponentType<any>> = {
@@ -180,6 +196,25 @@ export const CalendarView: React.FC = () => {
           </button>
         </div>
 
+        {/* Age subtitle */}
+        {userProfile?.birthDate && (
+          <p className="text-center text-sm text-theme-tertiary mb-4">
+            Age: {calculateAgeAt(new Date(userProfile.birthDate), currentDate)}
+          </p>
+        )}
+
+        {/* Heatmap Legend */}
+        <div className="flex items-center justify-center gap-2 mb-4 text-xs text-theme-tertiary">
+          <span>Less</span>
+          <div className="w-4 h-4 rounded bg-theme-tertiary border border-theme" />
+          <div className="w-4 h-4 rounded bg-green-500/20" />
+          <div className="w-4 h-4 rounded bg-green-500/40" />
+          <div className="w-4 h-4 rounded bg-green-500/60" />
+          <div className="w-4 h-4 rounded bg-green-500/80" />
+          <span>More</span>
+          <span className="ml-2">⭐ = Milestone</span>
+        </div>
+
         {/* Week Days Header */}
         <div className="grid grid-cols-7 gap-2 mb-2">
           {weekDays.map(day => (
@@ -201,6 +236,8 @@ export const CalendarView: React.FC = () => {
             const dayStories = getStoriesForDay(day);
             const isSelected = selectedDate && isSameDay(day, selectedDate);
             const isToday = isSameDay(day, new Date());
+            const hasMilestone = dayStories.some(s => s.importance === 'high');
+            const heatmapClass = getHeatmapIntensity(dayStories.length);
 
             return (
               <button
@@ -211,12 +248,18 @@ export const CalendarView: React.FC = () => {
                   ${isSelected ? 'border-primary-500 bg-primary-500/20 shadow-md' : 'border-theme'}
                   ${isToday ? 'border-2 border-primary-500 ring-2 ring-primary-200' : ''}
                   ${dayStories.length > 0 ? 'hover:border-primary-400 hover:shadow-lg' : 'hover:bg-theme-tertiary'}
+                  ${heatmapClass}
                 `}
               >
                 <div className="h-full flex flex-col">
-                  <span className="text-sm font-medium text-theme-primary">
-                    {format(day, 'd')}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-theme-primary">
+                      {format(day, 'd')}
+                    </span>
+                    {hasMilestone && (
+                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                    )}
+                  </div>
 
                   {/* Story indicators with icons */}
                   <div className="flex-1 flex items-center justify-center">

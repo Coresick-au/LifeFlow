@@ -242,7 +242,7 @@ export const App: React.FC = () => {
     { type: 'todos', icon: CheckSquare, label: 'To-Do List' },
     { type: 'event-heatmap', icon: Brain, label: 'Event Heatmap' },
     { type: 'gantt-timeline', icon: BarChart3, label: 'Gantt Timeline' },
-    { type: 'bubble-timeline', icon: Circle, label: 'Bubble' },
+    { type: 'bubble', icon: Circle, label: 'Bubble' },
     { type: 'on-this-day', icon: CalendarIcon, label: 'On This Day' },
     { type: 'relationships', icon: Users, label: 'Relationships' },
     { type: 'location-map', icon: MapPin, label: 'Location Map' },
