@@ -103,23 +103,42 @@ export const Settings: React.FC = () => {
                 <p className="font-medium text-theme-primary">
                   {isOfflineMode ? 'Offline Mode' : 'Cloud Sync Active'}
                 </p>
-                <p className="text-sm text-theme-secondary">
-                  {isOfflineMode
-                    ? 'Data stored locally on this device only'
-                    : user?.email || 'Syncing with Supabase'}
-                </p>
+                <div className="flex gap-2 text-sm text-theme-secondary">
+                  <span>{isOfflineMode ? 'Data stored locally on this device only' : user?.email || 'Syncing with Supabase'}</span>
+                </div>
               </div>
             </div>
 
-            {!isOfflineMode && (
-              <button
-                onClick={signOut}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
-            )}
+            <div className="flex gap-2">
+              {!isOfflineMode && (
+                <button
+                  onClick={async () => {
+                    if (window.confirm('This will push all your local data to the cloud. existing cloud data may be duplicated if not empty. Continue?')) {
+                      const { syncLocalToCloud } = useTimelineStore.getState();
+                      const result = await syncLocalToCloud();
+                      alert(result.message);
+                      if (result.success) {
+                        window.location.reload();
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Cloud className="w-4 h-4" />
+                  Force Sync to Cloud
+                </button>
+              )}
+
+              {!isOfflineMode && (
+                <button
+                  onClick={signOut}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
