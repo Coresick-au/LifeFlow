@@ -6,6 +6,40 @@ description: Development rules and patterns to follow when adding new features t
 
 **IMPORTANT: Read this ENTIRE document before implementing ANY new feature.**
 
+## Key Areas Covered:
+- Data persistence (Supabase + Dexie sync pattern)
+- Navigation setup for new views
+- Theming/dark mode consistency
+- Form input styling
+- Click-outside handlers for dropdowns
+- Loading states and error handling
+- State management patterns
+- **Feature Completeness:** Every "Create" feature must include its "Edit" and "Delete" counterparts.
+- **Proactive Consulting:** You are a product partner, not just a coder. If a request is missing logical UX steps (e.g., confirmation dialogs, empty states), you must flag it.
+
+---
+
+## Critical Interaction Rules (Consultation Protocol)
+
+### The "Pause and Propose" Rule
+Before you write code, if you notice a feature is missing a standard UX element (like an edit mode, a back button, or data validation), you **must** state:
+
+> "I've noticed [X] is missing; would you like me to add that now or stick strictly to the request?"
+
+### CRUD Completeness
+Never implement a data-entry feature without providing a way to modify or remove that data later, **unless specifically instructed that the data is immutable**.
+
+### The "Better Way" Check
+If the user's request contradicts industry-standard UI/UX patterns, or if there is a more efficient way to use our Supabase/Dexie stack, **suggest the alternative before implementation**.
+
+### Edge Case Awareness
+Always consider what happens if:
+- The sync fails
+- The list is empty
+- The user enters "junk" data
+
+Ask how these should be handled if the rules in this document don't cover it.
+
 ---
 
 ## 1. Data Persistence (Supabase + Dexie)

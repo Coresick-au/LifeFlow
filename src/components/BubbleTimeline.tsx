@@ -4,7 +4,7 @@ import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { format } from 'date-fns';
 import { getCategoryColorForStory, LIFE_CATEGORIES, getCategoryForStory } from '../constants/categories';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Maximize2, Minimize2, ZoomIn, ZoomOut } from 'lucide-react';
 
 interface BubbleNode extends d3.SimulationNodeDatum {
   id: string;
@@ -44,18 +44,19 @@ export const BubbleTimeline: React.FC = () => {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [groupByMonth, setGroupByMonth] = useState(false);
+  const [scale, setScale] = useState(1); // Zoom scale factor (0.25 to 1)
   const simulationRef = useRef<d3.Simulation<BubbleNode, undefined> | null>(null);
 
-  // Create bubble nodes from stories
+  // Create bubble nodes from stories with scale
   const nodes: BubbleNode[] = useMemo(() => {
     return stories.map(story => ({
       id: story.id,
       story,
-      radius: getRadiusByImportance(story.importance),
+      radius: getRadiusByImportance(story.importance) * scale,
       color: getCategoryColorForStory(story.tags),
       category: getCategoryForStory(story.tags),
     }));
-  }, [stories]);
+  }, [stories, scale]);
 
   // Update dimensions on resize
   useEffect(() => {
@@ -255,6 +256,40 @@ export const BubbleTimeline: React.FC = () => {
           <span className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-full bg-theme-tertiary" /> Low
           </span>
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-4 mt-4 p-3 bg-theme-tertiary rounded-lg">
+          <span className="text-sm font-medium text-theme-secondary">Zoom:</span>
+          <button
+            onClick={() => setScale(prev => Math.max(0.15, prev - 0.15))}
+            className="p-2 bg-theme-primary rounded-lg hover:bg-theme-secondary transition-colors"
+            title="Zoom out"
+          >
+            <ZoomOut className="w-5 h-5 text-theme-secondary" />
+          </button>
+          <input
+            type="range"
+            min="0.15"
+            max="1"
+            step="0.05"
+            value={scale}
+            onChange={(e) => setScale(parseFloat(e.target.value))}
+            className="w-32 h-2 bg-theme-primary rounded-lg appearance-none cursor-pointer accent-primary-500"
+          />
+          <button
+            onClick={() => setScale(prev => Math.min(1, prev + 0.15))}
+            className="p-2 bg-theme-primary rounded-lg hover:bg-theme-secondary transition-colors"
+            title="Zoom in"
+          >
+            <ZoomIn className="w-5 h-5 text-theme-secondary" />
+          </button>
+          <span className="text-sm text-theme-tertiary">{Math.round(scale * 100)}%</span>
+          {stories.length > 100 && scale > 0.5 && (
+            <span className="text-xs text-amber-500 ml-2">
+              💡 Tip: Zoom out for {stories.length} stories
+            </span>
+          )}
         </div>
       </div>
 

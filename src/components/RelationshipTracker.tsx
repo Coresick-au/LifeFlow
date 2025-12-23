@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { format, differenceInDays, addDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { Heart, Calendar, MessageCircle, Gift, Users, AlertCircle } from 'lucide-react';
+import { Heart, Calendar, MessageCircle, Gift, Users, AlertCircle, Edit2 } from 'lucide-react';
 import { HeartTrackerForm } from './HeartTrackerForm';
 
 interface RelationshipEvent {
@@ -28,6 +28,19 @@ export const RelationshipTracker: React.FC = () => {
   const { stories } = useTimelineStore();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<RelationshipEvent | null>(null);
+
+  // Handle edit click
+  const handleEdit = (event: RelationshipEvent) => {
+    setEditingEvent(event);
+    setShowForm(true);
+  };
+
+  // Handle form close
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingEvent(null);
+  };
 
   // Filter relationship-related stories
   const relationshipStories = useMemo(() => {
@@ -166,7 +179,7 @@ export const RelationshipTracker: React.FC = () => {
           </div>
         </div>
         {showForm && (
-          <HeartTrackerForm onClose={() => setShowForm(false)} />
+          <HeartTrackerForm onClose={handleFormClose} />
         )}
       </div>
     );
@@ -255,7 +268,7 @@ export const RelationshipTracker: React.FC = () => {
 
         <div className="space-y-4">
           {relationshipEvents.slice(0, 10).map(event => (
-            <div key={event.id} className="flex items-start gap-4 p-4 bg-theme-tertiary rounded-lg hover:bg-theme-secondary transition-colors">
+            <div key={event.id} className="flex items-start gap-4 p-4 bg-theme-tertiary rounded-lg hover:bg-theme-secondary transition-colors group">
               <div className="flex-shrink-0 w-10 h-10 bg-theme-primary rounded-full flex items-center justify-center shadow-sm">
                 {getEventIcon(event.type)}
               </div>
@@ -263,8 +276,17 @@ export const RelationshipTracker: React.FC = () => {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <h4 className="font-medium text-theme-primary">{event.title}</h4>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">
-                    {format(event.date, 'MMM d, yyyy')}
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                      {format(event.date, 'MMM d, yyyy')}
+                    </div>
+                    <button
+                      onClick={() => handleEdit(event)}
+                      className="p-1.5 hover:bg-theme-tertiary rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-4 h-4 text-theme-secondary" />
+                    </button>
                   </div>
                 </div>
 
@@ -285,9 +307,19 @@ export const RelationshipTracker: React.FC = () => {
         </div>
       </div>
 
-      {/* Relationship Form Modal */}
+      {/* Heart Tracker Form Modal */}
       {showForm && (
-        <HeartTrackerForm onClose={() => setShowForm(false)} />
+        <HeartTrackerForm
+          onClose={handleFormClose}
+          editData={editingEvent ? {
+            id: editingEvent.id,
+            partnerName: editingEvent.person,
+            milestoneType: 'other' as const,
+            title: editingEvent.title,
+            description: editingEvent.description,
+            startDate: editingEvent.date,
+          } : undefined}
+        />
       )}
     </div>
   );

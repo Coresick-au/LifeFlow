@@ -87,6 +87,68 @@ export const Navigation: React.FC<NavigationProps> = ({
   const primaryItems = items.slice(0, 4); // Show first 4 items
   const secondaryItems = items.slice(4); // Rest go in More menu
 
+  // Icon color mapping for colorful icons
+  const getIconColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      // Flow pillar
+      'timeline': 'text-blue-500',
+      'calendar': 'text-indigo-500',
+      'thoughts': 'text-yellow-500',
+      'advice': 'text-amber-500',
+      'todos': 'text-green-500',
+      'on-this-day': 'text-purple-500',
+      // Visualize pillar
+      'life-dashboard': 'text-cyan-500',
+      'bubble': 'text-teal-500',
+      'event-heatmap': 'text-orange-500',
+      'gantt-timeline': 'text-blue-600',
+      'location-map': 'text-emerald-500',
+      'wealth-tracker': 'text-green-600',
+      // Me pillar
+      'job-tracker': 'text-blue-500',
+      'child-tracker': 'text-green-500',
+      'home-tracker': 'text-amber-500',
+      'relationship-tracker': 'text-pink-500',
+      'relationships': 'text-violet-500',
+      'likes-dislikes': 'text-rose-500',
+      'experimental': 'text-red-500',
+      'profile': 'text-sky-500',
+      'settings': 'text-slate-500',
+    };
+    return colors[type] || 'text-theme-secondary';
+  };
+
+  // Background color mapping for active items (matching icon colors)
+  const getActiveBgColor = (type: string): string => {
+    const bgColors: Record<string, string> = {
+      // Flow pillar
+      'timeline': 'bg-blue-500',
+      'calendar': 'bg-indigo-500',
+      'thoughts': 'bg-yellow-500',
+      'advice': 'bg-amber-500',
+      'todos': 'bg-green-500',
+      'on-this-day': 'bg-purple-500',
+      // Visualize pillar
+      'life-dashboard': 'bg-cyan-500',
+      'bubble': 'bg-teal-500',
+      'event-heatmap': 'bg-orange-500',
+      'gantt-timeline': 'bg-blue-600',
+      'location-map': 'bg-emerald-500',
+      'wealth-tracker': 'bg-green-600',
+      // Me pillar
+      'job-tracker': 'bg-blue-500',
+      'child-tracker': 'bg-green-500',
+      'home-tracker': 'bg-amber-500',
+      'relationship-tracker': 'bg-pink-500',
+      'relationships': 'bg-violet-500',
+      'likes-dislikes': 'bg-rose-500',
+      'experimental': 'bg-red-500',
+      'profile': 'bg-sky-500',
+      'settings': 'bg-slate-500',
+    };
+    return bgColors[type] || 'bg-theme-accent';
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -105,7 +167,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <nav className="shadow-sm border-b sticky top-0 z-50 bg-theme-primary border-theme">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-3">
               {/* Green + button for adding stories */}
@@ -142,30 +204,73 @@ export const Navigation: React.FC<NavigationProps> = ({
               ))}
             </div>
 
-            {/* Sub-Navigation Pills (filtered by active pillar) */}
-            <div className="hidden md:flex items-center flex-wrap gap-1 ml-4">
-              {items.filter(item => item.pillar === activePillar).map((item) => {
-                const Icon = item.icon;
-                const isActive = activeView === item.type;
+            {/* Sub-Navigation Pills (filtered by active pillar) - Two Row Layout */}
+            <div className="hidden md:flex flex-col gap-1 ml-4">
+              {(() => {
+                const pillarItems = items.filter(item => item.pillar === activePillar);
+                const topRowCount = Math.ceil(pillarItems.length / 2);
+                const topRow = pillarItems.slice(0, topRowCount);
+                const bottomRow = pillarItems.slice(topRowCount);
 
                 return (
-                  <button
-                    key={item.type}
-                    onClick={() => onViewChange(item.type)}
-                    className={`
-                      flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium
-                      transition-colors duration-200 whitespace-nowrap
-                      ${isActive
-                        ? 'bg-theme-accent text-white'
-                        : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
-                      }
-                    `}
-                  >
-                    <Icon className="w-3 h-3" />
-                    <span>{item.label}</span>
-                  </button>
+                  <>
+                    <div className="flex items-center gap-1">
+                      {topRow.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeView === item.type;
+                        const iconColor = getIconColor(item.type);
+                        const activeBgColor = getActiveBgColor(item.type);
+
+                        return (
+                          <button
+                            key={item.type}
+                            onClick={() => onViewChange(item.type)}
+                            className={`
+                              flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+                              transition-colors duration-200 whitespace-nowrap
+                              ${isActive
+                                ? `${activeBgColor} text-black`
+                                : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
+                              }
+                            `}
+                          >
+                            <Icon className={`w-5 h-5 ${isActive ? 'text-black' : iconColor}`} />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {bottomRow.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        {bottomRow.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = activeView === item.type;
+                          const iconColor = getIconColor(item.type);
+                          const activeBgColor = getActiveBgColor(item.type);
+
+                          return (
+                            <button
+                              key={item.type}
+                              onClick={() => onViewChange(item.type)}
+                              className={`
+                                flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+                                transition-colors duration-200 whitespace-nowrap
+                                ${isActive
+                                  ? `${activeBgColor} text-black`
+                                  : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
+                                }
+                              `}
+                            >
+                              <Icon className={`w-5 h-5 ${isActive ? 'text-black' : iconColor}`} />
+                              <span>{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 );
-              })}
+              })()}
             </div>
           </div>
 

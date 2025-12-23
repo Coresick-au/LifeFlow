@@ -237,6 +237,21 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
           </button>
         </div>
 
+        {/* Specialized Tracker Notice */}
+        {isEditing && formData.tags && (
+          (formData.tags.some(t => ['home', 'house', 'property'].includes(t.toLowerCase())) ||
+            formData.tags.some(t => ['child', 'children', 'baby', 'kid'].includes(t.toLowerCase())) ||
+            formData.tags.some(t => ['job', 'career', 'work'].includes(t.toLowerCase()))) && (
+            <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg text-amber-400 text-sm">
+              💡 <strong>Tip:</strong> This event was created with a specialized tracker. For a better editing experience with all fields, visit the{' '}
+              {formData.tags.some(t => ['home', 'house', 'property'].includes(t.toLowerCase())) && <strong>Home</strong>}
+              {formData.tags.some(t => ['child', 'children', 'baby', 'kid'].includes(t.toLowerCase())) && <strong>Children</strong>}
+              {formData.tags.some(t => ['job', 'career', 'work'].includes(t.toLowerCase())) && <strong>Career</strong>}
+              {' '}section in the Me menu.
+            </div>
+          )
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Story Type Selection */}
           <div className="flex space-x-4">
@@ -359,8 +374,11 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     <input
                       type="date"
                       id="date"
-                      value={format(formData.date!, 'yyyy-MM-dd')}
-                      onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value) })}
+                      value={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? format(formData.date, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => {
+                        const dateValue = e.target.value ? new Date(e.target.value) : new Date();
+                        setFormData({ ...formData, date: dateValue });
+                      }}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
                       required
                     />
@@ -408,7 +426,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
                       required={inputMode === 'age'}
                     />
-                    {ageValue && formData.date && (
+                    {ageValue && formData.date instanceof Date && !isNaN(formData.date.getTime()) && (
                       <p className="text-xs text-theme-tertiary">
                         📅 Approximate date: {format(formData.date, 'MMMM yyyy')} (start of the year you turned {ageValue})
                       </p>
@@ -417,7 +435,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 )}
 
                 {/* Age display */}
-                {formData.date && calculateAge(format(formData.date, 'yyyy-MM-dd')) !== null && (
+                {formData.date instanceof Date && !isNaN(formData.date.getTime()) && calculateAge(format(formData.date, 'yyyy-MM-dd')) !== null && (
                   <p className="mt-1 text-xs text-theme-tertiary">
                     You were {calculateAge(format(formData.date, 'yyyy-MM-dd'))} years old
                   </p>
@@ -433,9 +451,9 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 <input
                   type="date"
                   id="endDate"
-                  value={formData.endDate ? format(formData.endDate, 'yyyy-MM-dd') : ''}
+                  value={formData.endDate instanceof Date && !isNaN(formData.endDate.getTime()) ? format(formData.endDate, 'yyyy-MM-dd') : ''}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
-                  min={format(formData.date!, 'yyyy-MM-dd')}
+                  min={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? format(formData.date, 'yyyy-MM-dd') : ''}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
                 />
               </div>
@@ -821,7 +839,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isSubmitting || !formData.title || !formData.content || !formData.date}
+            disabled={isSubmitting || !formData.title || (!formData.content && !isEditing) || !(formData.date instanceof Date && !isNaN(formData.date.getTime()))}
             className="w-full flex items-center justify-center space-x-2 text-white py-3 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors btn-primary rounded-theme"
           >
             <Save className="w-4 h-4" />

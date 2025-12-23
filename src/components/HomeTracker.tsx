@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { format, differenceInYears, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { Home, Wrench, Calendar, DollarSign, MapPin, Plus } from 'lucide-react';
+import { Home, Wrench, Calendar, DollarSign, MapPin, Plus, Edit2 } from 'lucide-react';
 import { HouseTrackerForm } from './HouseTrackerForm';
 
 interface HomeEvent {
@@ -34,6 +34,19 @@ export const HomeTracker: React.FC = () => {
   const { stories, setCurrentView } = useTimelineStore();
   const [selectedHome, setSelectedHome] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<HomeEvent | null>(null);
+
+  // Handle edit click
+  const handleEdit = (event: HomeEvent) => {
+    setEditingEvent(event);
+    setShowForm(true);
+  };
+
+  // Handle form close
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingEvent(null);
+  };
 
   // Filter home-related stories
   const homeStories = useMemo(() => {
@@ -199,6 +212,13 @@ export const HomeTracker: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* House Tracker Form - must be inside this return for empty state */}
+        {showForm && (
+          <HouseTrackerForm
+            onClose={handleFormClose}
+          />
+        )}
       </div>
     );
   }
@@ -336,7 +356,7 @@ export const HomeTracker: React.FC = () => {
 
               <div className="space-y-4">
                 {events.map(event => (
-                  <div key={event.id} className="bg-theme-tertiary rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div key={event.id} className="bg-theme-tertiary rounded-lg p-4 hover:shadow-md transition-shadow group">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         {getEventIcon(event.type)}
@@ -351,6 +371,13 @@ export const HomeTracker: React.FC = () => {
                             {event.cost.toLocaleString()}
                           </span>
                         )}
+                        <button
+                          onClick={() => handleEdit(event)}
+                          className="p-1.5 hover:bg-theme-tertiary rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4 text-theme-secondary" />
+                        </button>
                       </div>
                     </div>
 
@@ -415,7 +442,26 @@ export const HomeTracker: React.FC = () => {
 
       {/* House Tracker Form */}
       {showForm && (
-        <HouseTrackerForm onClose={() => setShowForm(false)} />
+        <HouseTrackerForm
+          onClose={handleFormClose}
+          editData={editingEvent ? {
+            id: editingEvent.id,
+            address: editingEvent.address || editingEvent.location,
+            purchasePrice: editingEvent.purchasePrice,
+            salePrice: editingEvent.salePrice,
+            bedrooms: editingEvent.bedrooms,
+            bathrooms: editingEvent.bathrooms,
+            squareFootage: editingEvent.squareFootage,
+            photos: editingEvent.images,
+            description: editingEvent.description,
+            date: editingEvent.date,
+            type: editingEvent.type === 'purchase' ? 'purchase'
+              : editingEvent.type === 'renovation' ? 'renovation'
+                : editingEvent.type === 'maintenance' ? 'renovation'
+                  : editingEvent.type === 'improvement' ? 'renovation'
+                    : 'memory',
+          } : undefined}
+        />
       )}
     </div>
   );

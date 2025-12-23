@@ -3,7 +3,7 @@ import { format, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { LifeDistributionChart } from './LifeDistributionChart';
-import { ActivityTrendChart } from './ActivityTrendChart';
+import { LifeWeeksHeatmap } from './LifeWeeksHeatmap';
 import { LIFE_CATEGORIES, FAMILY_PEOPLE_TAGS } from '../constants/categories';
 import {
   Briefcase,
@@ -278,7 +278,7 @@ export const LifeDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-theme-primary mb-2">Life Dashboard</h1>
+          <h1 className="text-3xl font-bold text-theme-primary mb-2">Flow Board</h1>
           <p className="text-theme-tertiary">A complete overview of your life's journey across all areas</p>
         </div>
 
@@ -325,9 +325,9 @@ export const LifeDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Activity Trend Chart - Full Width */}
+        {/* Life Weeks Heatmap - Full Width */}
         <div className="mb-8">
-          <ActivityTrendChart stories={stories} months={6} />
+          <LifeWeeksHeatmap />
         </div>
 
         {/* Tracker Cards */}
@@ -376,76 +376,6 @@ export const LifeDashboard: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-theme-primary rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold text-theme-primary mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button
-              onClick={() => setCurrentView({ type: 'add-story' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-            >
-              <Calendar className="w-4 h-4" />
-              Add Story
-            </button>
-
-            <button
-              onClick={() => setCurrentView({ type: 'gantt-timeline' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
-            >
-              <Target className="w-4 h-4" />
-              Gantt Timeline
-            </button>
-
-            <button
-              onClick={() => setCurrentView({ type: 'thoughts' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
-            >
-              <Briefcase className="w-4 h-4" />
-              Thoughts
-            </button>
-
-            <button
-              onClick={() => setCurrentView({ type: 'life-dashboard' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
-            >
-              <TrendingUp className="w-4 h-4" />
-              Life Insights
-            </button>
-
-            <button
-              onClick={() => setCurrentView({ type: 'profile' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
-            >
-              <Users className="w-4 h-4" />
-              PDF Export
-            </button>
-
-            <button
-              onClick={() => setCurrentView({ type: 'location-map' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
-            >
-              <MapPin className="w-4 h-4" />
-              Locations
-            </button>
-
-            <button
-              onClick={() => setCurrentView({ type: 'bubble' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
-            >
-              <Target className="w-4 h-4" />
-              Bubble View
-            </button>
-
-            <button
-              onClick={() => setCurrentView({ type: 'timeline' })}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-theme-tertiary text-theme-secondary rounded-md hover:opacity-80 transition-colors"
-            >
-              <Calendar className="w-4 h-4" />
-              Timeline
-            </button>
-          </div>
         </div>
       </div>
     </div>

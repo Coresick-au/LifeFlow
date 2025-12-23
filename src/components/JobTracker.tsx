@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { format, differenceInYears, differenceInMonths, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { Briefcase, Calendar, MapPin, TrendingUp, Plus, Award, Target, Info } from 'lucide-react';
+import { Briefcase, Calendar, MapPin, TrendingUp, Plus, Award, Target, Info, Edit2 } from 'lucide-react';
 import { JobTrackerForm } from './JobTrackerForm';
 import { CareerInsights } from './CareerInsights';
 import { CareerExport } from './CareerExport';
@@ -21,6 +21,19 @@ export const JobTracker: React.FC = () => {
   const { stories, setCurrentView } = useTimelineStore();
   const [showForm, setShowForm] = useState(false);
   const [showWiki, setShowWiki] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CareerEvent | null>(null);
+
+  // Handle edit click
+  const handleEdit = (event: CareerEvent) => {
+    setEditingEvent(event);
+    setShowForm(true);
+  };
+
+  // Handle form close
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingEvent(null);
+  };
 
   // Filter career-related stories
   const careerStories = useMemo(() => {
@@ -263,15 +276,24 @@ export const JobTracker: React.FC = () => {
 
             <div className="space-y-4">
               {events.map(event => (
-                <div key={event.id} className="bg-theme-tertiary dark:bg-slate-800 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div key={event.id} className="bg-theme-tertiary dark:bg-slate-800 rounded-lg p-4 hover:shadow-md transition-shadow group">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       {getEventIcon(event.type)}
                       <h5 className="font-medium text-theme-primary">{event.title}</h5>
                     </div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">
-                      {format(event.date, 'MMM yyyy')}
-                      {event.endDate && ` - ${format(event.endDate, 'MMM yyyy')}`}
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                        {format(event.date, 'MMM yyyy')}
+                        {event.endDate && ` - ${format(event.endDate, 'MMM yyyy')}`}
+                      </div>
+                      <button
+                        onClick={() => handleEdit(event)}
+                        className="p-1.5 hover:bg-theme-tertiary rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4 text-theme-secondary" />
+                      </button>
                     </div>
                   </div>
 
@@ -292,7 +314,23 @@ export const JobTracker: React.FC = () => {
 
       {/* Job Tracker Form */}
       {showForm && (
-        <JobTrackerForm onClose={() => setShowForm(false)} />
+        <JobTrackerForm
+          onClose={handleFormClose}
+          editData={editingEvent ? {
+            id: editingEvent.id,
+            company: editingEvent.company || '',
+            position: editingEvent.title,
+            location: '',
+            startDate: editingEvent.date,
+            endDate: editingEvent.endDate,
+            description: editingEvent.description,
+            date: editingEvent.date,
+            type: editingEvent.type === 'position' ? 'started'
+              : editingEvent.type === 'promotion' ? 'promotion'
+                : editingEvent.type === 'achievement' ? 'achievement'
+                  : 'memory',
+          } : undefined}
+        />
       )}
     </div>
   );

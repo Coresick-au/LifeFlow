@@ -27,6 +27,9 @@ export const Relationships: React.FC = () => {
     metDate: undefined as Date | undefined,
     metDateFuzzy: false,
     yearsKnown: undefined as number | undefined,
+    trackNurturing: true, // Default to tracking nurturing
+    useAge: false, // Toggle for age-based date entry
+    metAtAge: undefined as number | undefined, // Age when met
   });
 
   // Sort relationships
@@ -58,9 +61,10 @@ export const Relationships: React.FC = () => {
         metDate: formData.metDate,
         metDateFuzzy: formData.metDateFuzzy,
         yearsKnown: formData.yearsKnown,
+        trackNurturing: formData.trackNurturing,
       });
 
-      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined });
+      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined, trackNurturing: true, useAge: false, metAtAge: undefined });
       setShowAddPerson(false);
     }
   };
@@ -76,9 +80,10 @@ export const Relationships: React.FC = () => {
         metDate: formData.metDate,
         metDateFuzzy: formData.metDateFuzzy,
         yearsKnown: formData.yearsKnown,
+        trackNurturing: formData.trackNurturing,
       });
 
-      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined });
+      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined, trackNurturing: true, useAge: false, metAtAge: undefined });
       setEditingPerson(null);
     }
   };
@@ -102,12 +107,15 @@ export const Relationships: React.FC = () => {
       metDate: relationship.metDate,
       metDateFuzzy: relationship.metDateFuzzy || false,
       yearsKnown: relationship.yearsKnown,
+      trackNurturing: relationship.trackNurturing !== false, // Default to true if undefined
+      useAge: false,
+      metAtAge: undefined,
     });
   };
 
   const cancelEdit = () => {
     setEditingPerson(null);
-    setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined });
+    setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined, trackNurturing: true, useAge: false, metAtAge: undefined });
   };
 
   const selectedPersonData = selectedPerson
@@ -117,7 +125,7 @@ export const Relationships: React.FC = () => {
   return (
     <div className="bg-theme-primary rounded-lg shadow-lg p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-theme-primary">Relationships</h2>
+        <h2 className="text-2xl font-bold text-theme-primary">Connections</h2>
 
         <button
           onClick={() => setShowAddPerson(true)}
@@ -229,34 +237,94 @@ export const Relationships: React.FC = () => {
                     Approximate
                   </label>
                 </div>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="date"
-                      value={formData.metDate && isValid(formData.metDate) ? format(formData.metDate, 'yyyy-MM-dd') : ''}
-                      onChange={(e) => setFormData({ ...formData, metDate: e.target.value ? new Date(e.target.value) : undefined, yearsKnown: undefined })}
-                      className="w-full pl-10 pr-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
+
+                {/* Date Entry Mode Toggle */}
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, useAge: false })}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${!formData.useAge ? 'bg-primary-600 text-white' : 'bg-theme-tertiary text-theme-secondary'}`}
+                  >
+                    Exact Date
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, useAge: true })}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${formData.useAge ? 'bg-primary-600 text-white' : 'bg-theme-tertiary text-theme-secondary'}`}
+                  >
+                    I Was Age...
+                  </button>
+                </div>
+
+                {!formData.useAge ? (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="date"
+                        value={formData.metDate && isValid(formData.metDate) ? format(formData.metDate, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => setFormData({ ...formData, metDate: e.target.value ? new Date(e.target.value) : undefined, yearsKnown: undefined, metAtAge: undefined })}
+                        className="w-full pl-10 pr-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div className="text-theme-tertiary self-center text-sm">or</div>
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formData.yearsKnown ?? ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          yearsKnown: e.target.value ? parseInt(e.target.value) : undefined,
+                          metDate: undefined,
+                          metDateFuzzy: true,
+                          metAtAge: undefined
+                        })}
+                        placeholder="Years known"
+                        className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
                   </div>
-                  <div className="text-theme-tertiary self-center text-sm">or</div>
-                  <div className="flex-1">
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <span className="text-sm text-theme-secondary">I was</span>
                     <input
                       type="number"
                       min="0"
-                      max="100"
-                      value={formData.yearsKnown ?? ''}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        yearsKnown: e.target.value ? parseInt(e.target.value) : undefined,
-                        metDate: undefined,
-                        metDateFuzzy: true
-                      })}
-                      placeholder="Years known"
-                      className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      max="120"
+                      value={formData.metAtAge ?? ''}
+                      onChange={(e) => {
+                        const age = e.target.value ? parseInt(e.target.value) : undefined;
+                        setFormData({
+                          ...formData,
+                          metAtAge: age,
+                          yearsKnown: age !== undefined ? undefined : formData.yearsKnown,
+                          metDate: undefined,
+                          metDateFuzzy: true
+                        });
+                      }}
+                      placeholder="age"
+                      className="w-20 px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 text-center"
                     />
+                    <span className="text-sm text-theme-secondary">years old when we met</span>
                   </div>
+                )}
+              </div>
+
+              {/* Track Nurturing Toggle */}
+              <div className="flex items-center justify-between p-3 bg-theme-tertiary rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-theme-primary">Track for Nurturing</label>
+                  <span className="text-xs text-theme-tertiary">Get reminders to stay in touch</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, trackNurturing: !formData.trackNurturing })}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${formData.trackNurturing ? 'bg-primary-600' : 'bg-gray-400'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${formData.trackNurturing ? 'left-6' : 'left-0.5'}`} />
+                </button>
               </div>
 
               <div>

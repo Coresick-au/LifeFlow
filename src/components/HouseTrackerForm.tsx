@@ -68,7 +68,7 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
       } else {
         await addStory(storyData);
       }
-      
+
       onClose();
     } catch (error) {
       console.error('Failed to save house event:', error);
@@ -86,9 +86,9 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
   };
 
   const removePhoto = (index: number) => {
-    setFormData({ 
-      ...formData, 
-      photos: formData.photos.filter((_, i) => i !== index) 
+    setFormData({
+      ...formData,
+      photos: formData.photos.filter((_, i) => i !== index)
     });
   };
 
@@ -120,11 +120,10 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
                   key={type}
                   type="button"
                   onClick={() => setFormData({ ...formData, type })}
-                  className={`px-4 py-2 rounded-lg capitalize transition-colors ${
-                    formData.type === type
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-                  }`}
+                  className={`px-4 py-2 rounded-lg capitalize transition-colors ${formData.type === type
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                    }`}
                 >
                   {type}
                 </button>
@@ -159,8 +158,11 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
               <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="date"
-                value={format(formData.date, 'yyyy-MM-dd')}
-                onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value) })}
+                value={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? format(formData.date, 'yyyy-MM-dd') : ''}
+                onChange={(e) => {
+                  const dateValue = e.target.value ? new Date(e.target.value) : new Date();
+                  setFormData({ ...formData, date: dateValue });
+                }}
                 className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -207,16 +209,16 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
                     type="number"
                     min="0"
                     value={formData.bedrooms || ''}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      bedrooms: e.target.value ? Number(e.target.value) : undefined 
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      bedrooms: e.target.value ? Number(e.target.value) : undefined
                     })}
                     className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="0"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-theme-secondary mb-2">
                   Bathrooms
@@ -228,19 +230,19 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
                     min="0"
                     step="0.5"
                     value={formData.bathrooms || ''}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      bathrooms: e.target.value ? Number(e.target.value) : undefined 
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      bathrooms: e.target.value ? Number(e.target.value) : undefined
                     })}
                     className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="0"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-theme-secondary mb-2">
-                  Square Feet
+                  Square Metres
                 </label>
                 <div className="relative">
                   <Square className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -248,9 +250,9 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
                     type="number"
                     min="0"
                     value={formData.squareFootage || ''}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      squareFootage: e.target.value ? Number(e.target.value) : undefined 
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      squareFootage: e.target.value ? Number(e.target.value) : undefined
                     })}
                     className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="0"

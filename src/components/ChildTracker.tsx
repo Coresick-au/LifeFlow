@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { format, differenceInYears, differenceInMonths, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
-import { Baby, Users, Heart, Plus, Camera, Trophy, School } from 'lucide-react';
+import { Baby, Users, Heart, Plus, Camera, Trophy, School, Edit2 } from 'lucide-react';
 import { ChildTrackerForm } from './ChildTrackerForm';
 
 interface Milestone {
@@ -36,6 +36,19 @@ export const ChildTracker: React.FC = () => {
   const { stories, setCurrentView } = useTimelineStore();
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
+
+  // Handle edit click
+  const handleEdit = (milestone: Milestone) => {
+    setEditingMilestone(milestone);
+    setShowForm(true);
+  };
+
+  // Handle form close
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingMilestone(null);
+  };
 
   // Filter child-related stories and extract child profiles
   const childData = useMemo(() => {
@@ -313,7 +326,7 @@ export const ChildTracker: React.FC = () => {
           ) : (
             <div className="space-y-4">
               {milestones.slice(0, 10).map(milestone => (
-                <div key={milestone.id} className="flex items-start gap-4 p-4 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary transition-colors">
+                <div key={milestone.id} className="flex items-start gap-4 p-4 bg-theme-tertiary rounded-lg hover:bg-theme-tertiary transition-colors group">
                   <div className="flex-shrink-0 w-10 h-10 bg-theme-primary rounded-full flex items-center justify-center shadow-sm">
                     {getMilestoneIcon(milestone.type)}
                   </div>
@@ -321,8 +334,17 @@ export const ChildTracker: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="font-medium text-theme-primary">{milestone.title}</h4>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">
-                        {milestone.age} • {format(milestone.date, 'MMM yyyy')}
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-slate-500 dark:text-slate-400">
+                          {milestone.age} • {format(milestone.date, 'MMM yyyy')}
+                        </div>
+                        <button
+                          onClick={() => handleEdit(milestone)}
+                          className="p-1.5 hover:bg-theme-tertiary rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4 text-theme-secondary" />
+                        </button>
                       </div>
                     </div>
                     <p className="text-sm text-theme-tertiary">{milestone.description}</p>
@@ -337,7 +359,25 @@ export const ChildTracker: React.FC = () => {
       {/* Child Tracker Form */}
       {
         showForm && (
-          <ChildTrackerForm onClose={() => setShowForm(false)} />
+          <ChildTrackerForm
+            onClose={handleFormClose}
+            editData={editingMilestone ? {
+              id: editingMilestone.id,
+              childName: editingMilestone.person,
+              birthDate: editingMilestone.birthDate || new Date(),
+              birthLocation: editingMilestone.birthLocation || '',
+              babyPhoto: editingMilestone.babyPhoto,
+              parents: editingMilestone.parents || [],
+              description: editingMilestone.description,
+              date: editingMilestone.date,
+              type: editingMilestone.type === 'first' ? 'milestone'
+                : editingMilestone.type === 'development' ? 'milestone'
+                  : editingMilestone.type === 'achievement' ? 'achievement'
+                    : editingMilestone.type === 'health' ? 'milestone'
+                      : editingMilestone.type === 'school' ? 'milestone'
+                        : 'memory',
+            } : undefined}
+          />
         )
       }
     </div >
