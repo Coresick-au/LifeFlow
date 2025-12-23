@@ -200,10 +200,10 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   key={pillar}
                   onClick={() => onViewChange(pillarDefaults[pillar])}
-                  className={`px - 4 py - 1 text - sm font - bold capitalize transition - all border - b - 2 ${activePillar === pillar
+                  className={`px-4 py-1 text-sm font-bold capitalize transition-all border-b-2 ${activePillar === pillar
                     ? 'border-theme-accent text-theme-accent'
                     : 'border-transparent text-theme-secondary hover:text-theme-primary'
-                    } `}
+                    }`}
                 >
                   {pillar}
                 </button>
@@ -231,16 +231,12 @@ export const Navigation: React.FC<NavigationProps> = ({
                           <button
                             key={item.type}
                             onClick={() => onViewChange(item.type)}
-                            className={`
-                              flex items - center space - x - 1.5 px - 3 py - 1.5 rounded - full text - sm font - medium
-transition - colors duration - 200 whitespace - nowrap
-                              ${isActive
-                                ? `${activeBgColor} text-black`
-                                : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
-                              }
-`}
+                            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 whitespace-nowrap ${isActive
+                              ? `${activeBgColor} text-black`
+                              : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
+                              }`}
                           >
-                            <Icon className={`w - 5 h - 5 ${isActive ? 'text-black' : iconColor} `} />
+                            <Icon className={`w-5 h-5 ${isActive ? 'text-black' : iconColor}`} />
                             <span>{item.label}</span>
                           </button>
                         );
@@ -258,16 +254,12 @@ transition - colors duration - 200 whitespace - nowrap
                             <button
                               key={item.type}
                               onClick={() => onViewChange(item.type)}
-                              className={`
-                                flex items - center space - x - 1.5 px - 3 py - 1.5 rounded - full text - sm font - medium
-transition - colors duration - 200 whitespace - nowrap
-                                ${isActive
-                                  ? `${activeBgColor} text-black`
-                                  : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
-                                }
-`}
+                              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 whitespace-nowrap ${isActive
+                                ? `${activeBgColor} text-black`
+                                : 'text-theme-secondary hover:text-theme-primary hover:bg-theme-tertiary'
+                                }`}
                             >
-                              <Icon className={`w - 5 h - 5 ${isActive ? 'text-black' : iconColor} `} />
+                              <Icon className={`w-5 h-5 ${isActive ? 'text-black' : iconColor}`} />
                               <span>{item.label}</span>
                             </button>
                           );
