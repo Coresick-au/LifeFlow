@@ -4,30 +4,6 @@ import { format } from 'date-fns';
 import { X, MapPin, Tag, Users, Calendar, Star, Edit } from 'lucide-react';
 import { useTimelineStore } from '../store/timelineStore';
 
-const getMoodColor = (mood: Story['mood']): string => {
-    const colors: Record<NonNullable<Story['mood']>, string> = {
-        happy: 'bg-yellow-500',
-        sad: 'bg-blue-500',
-        neutral: 'bg-gray-500',
-        excited: 'bg-pink-500',
-        proud: 'bg-purple-500',
-        grateful: 'bg-green-500',
-    };
-    return colors[mood || 'neutral'] || 'bg-gray-500';
-};
-
-const getMoodEmoji = (mood: Story['mood']): string => {
-    const moods: Record<NonNullable<Story['mood']>, string> = {
-        happy: '😊',
-        sad: '😢',
-        neutral: '😐',
-        excited: '🎉',
-        proud: '🏆',
-        grateful: '🙏',
-    };
-    return moods[mood || 'neutral'] || '😐';
-};
-
 interface StoryViewerProps {
     story: Story;
     onClose: () => void;
@@ -66,8 +42,8 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onEdit
                 className="bg-theme-primary w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl animate-slide-up"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Mood Color Header Bar */}
-                <div className={`h-2 ${getMoodColor(story.mood)}`} />
+                {/* Gradient Header Bar */}
+                <div className="h-2 bg-gradient-to-r from-primary-500 to-primary-600" />
 
                 <div className="p-8 max-h-[80vh] overflow-y-auto">
                     {/* Header */}
@@ -107,12 +83,6 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onEdit
 
                     {/* Meta Info Bar */}
                     <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-theme-secondary">
-                        {/* Mood */}
-                        <div className="flex items-center gap-1">
-                            <span className="text-lg">{getMoodEmoji(story.mood)}</span>
-                            <span className="capitalize">{story.mood || 'neutral'}</span>
-                        </div>
-
                         {/* Importance */}
                         <div className="flex items-center gap-1">
                             <Star className={`w-4 h-4 ${story.importance === 'high' ? 'text-red-500' :

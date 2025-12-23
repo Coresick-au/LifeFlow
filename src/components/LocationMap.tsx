@@ -33,12 +33,12 @@ export const LocationMap: React.FC = () => {
   // Group stories by location
   const locations = useMemo(() => {
     const locationMap: Record<string, LocationData> = {};
-    
+
     stories.forEach(story => {
       if (!story.location) return;
-      
+
       const locationKey = story.location;
-      
+
       if (!locationMap[locationKey]) {
         locationMap[locationKey] = {
           name: story.location,
@@ -49,9 +49,9 @@ export const LocationMap: React.FC = () => {
           uniquePeople: [],
         };
       }
-      
+
       locationMap[locationKey].stories.push(story);
-      
+
       // Update visit dates
       const storyDate = new Date(story.date);
       if (storyDate < locationMap[locationKey].firstVisit) {
@@ -60,7 +60,7 @@ export const LocationMap: React.FC = () => {
       if (storyDate > locationMap[locationKey].lastVisit) {
         locationMap[locationKey].lastVisit = storyDate;
       }
-      
+
       // Add people to unique list
       story.people.forEach(person => {
         if (!locationMap[locationKey].uniquePeople.includes(person)) {
@@ -68,14 +68,14 @@ export const LocationMap: React.FC = () => {
         }
       });
     });
-    
+
     // Calculate total days for each location
     Object.values(locationMap).forEach(location => {
       if (location.stories.length > 1) {
         const sortedDates = location.stories
           .map(s => new Date(s.date))
           .sort((a, b) => a.getTime() - b.getTime());
-        
+
         let totalDays = 0;
         for (let i = 0; i < sortedDates.length - 1; i++) {
           totalDays += differenceInDays(sortedDates[i + 1], sortedDates[i]) || 1;
@@ -85,8 +85,8 @@ export const LocationMap: React.FC = () => {
         location.totalDays = 1;
       }
     });
-    
-    return Object.values(locationMap).sort((a, b) => 
+
+    return Object.values(locationMap).sort((a, b) =>
       b.lastVisit.getTime() - a.lastVisit.getTime()
     );
   }, [stories]);
@@ -94,31 +94,31 @@ export const LocationMap: React.FC = () => {
   // Filter locations based on search and filters
   const filteredLocations = useMemo(() => {
     let filtered = locations;
-    
+
     // Search by location name
     if (searchQuery) {
-      filtered = filtered.filter(location => 
+      filtered = filtered.filter(location =>
         location.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     // Filter by tag
     if (filterType === 'tag' && filterValue) {
-      filtered = filtered.filter(location => 
+      filtered = filtered.filter(location =>
         location.stories.some(story => story.tags.includes(filterValue))
       );
     }
-    
+
     // Filter by person
     if (filterType === 'person' && filterValue) {
-      filtered = filtered.filter(location => 
+      filtered = filtered.filter(location =>
         location.uniquePeople.includes(filterValue)
       );
     }
-    
+
     return filtered;
   }, [locations, searchQuery, filterType, filterValue]);
-  
+
   // Get all unique tags and people for filters
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -127,7 +127,7 @@ export const LocationMap: React.FC = () => {
     });
     return Array.from(tagSet).sort();
   }, [stories]);
-  
+
   const allPeople = useMemo(() => {
     const personSet = new Set<string>();
     stories.forEach(story => {
@@ -140,7 +140,7 @@ export const LocationMap: React.FC = () => {
   const stats = useMemo((): LocationStats => {
     const uniqueCountries = new Set<string>();
     const uniqueCities = new Set<string>();
-    
+
     locations.forEach(location => {
       const parts = location.name.split(',').map((p: string) => p.trim());
       if (parts.length >= 2) {
@@ -150,21 +150,21 @@ export const LocationMap: React.FC = () => {
         uniqueCities.add(parts[0] || '');
       }
     });
-    
+
     const mostVisited = locations.reduce((most, location) => {
       if (location.stories.length > most.count) {
         return { location: location.name, count: location.stories.length };
       }
       return most;
     }, { location: '', count: 0 });
-    
+
     const longestStay = locations.reduce((longest, location) => {
       if (location.totalDays > longest.days) {
         return { location: location.name, days: location.totalDays };
       }
       return longest;
     }, { location: '', days: 0 });
-    
+
     return {
       totalLocations: locations.length,
       countries: uniqueCountries.size,
@@ -174,7 +174,7 @@ export const LocationMap: React.FC = () => {
     };
   }, [locations]);
 
-  const selectedLocationData = selectedLocation 
+  const selectedLocationData = selectedLocation
     ? locations.find(l => l.name === selectedLocation)
     : null;
 
@@ -182,35 +182,32 @@ export const LocationMap: React.FC = () => {
     <div className="bg-theme-primary rounded-lg shadow-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-theme-primary">Location Map</h2>
-        
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => setViewMode('list')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              viewMode === 'list' 
-                ? 'bg-primary-600 text-white' 
+            className={`px-4 py-2 rounded-md transition-colors ${viewMode === 'list'
+                ? 'bg-primary-600 text-white'
                 : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-            }`}
+              }`}
           >
             List View
           </button>
           <button
             onClick={() => setViewMode('statistics')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              viewMode === 'statistics' 
-                ? 'bg-primary-600 text-white' 
+            className={`px-4 py-2 rounded-md transition-colors ${viewMode === 'statistics'
+                ? 'bg-primary-600 text-white'
                 : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-            }`}
+              }`}
           >
             Statistics
           </button>
           <button
             onClick={() => setShowTravelPath(!showTravelPath)}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              showTravelPath 
-                ? 'bg-green-600 text-white' 
+            className={`px-4 py-2 rounded-md transition-colors ${showTravelPath
+                ? 'bg-green-600 text-white'
                 : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-            }`}
+              }`}
           >
             {showTravelPath ? 'Hide Path' : 'Show Path'}
           </button>
@@ -238,7 +235,7 @@ export const LocationMap: React.FC = () => {
             </button>
           )}
         </div>
-        
+
         {/* Filter Options */}
         <div className="flex gap-4">
           <select
@@ -253,7 +250,7 @@ export const LocationMap: React.FC = () => {
             <option value="tag">Filter by Tag</option>
             <option value="person">Filter by Person</option>
           </select>
-          
+
           {filterType === 'tag' && (
             <select
               value={filterValue}
@@ -266,7 +263,7 @@ export const LocationMap: React.FC = () => {
               ))}
             </select>
           )}
-          
+
           {filterType === 'person' && (
             <select
               value={filterValue}
@@ -280,7 +277,7 @@ export const LocationMap: React.FC = () => {
             </select>
           )}
         </div>
-        
+
         {(searchQuery || filterValue) && (
           <div className="text-sm text-theme-tertiary">
             Showing {filteredLocations.length} of {locations.length} locations
@@ -363,11 +360,10 @@ export const LocationMap: React.FC = () => {
                 <div
                   key={location.name}
                   onClick={() => setSelectedLocation(location.name)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    selectedLocation === location.name
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedLocation === location.name
                       ? 'border-primary-500 bg-primary-500/20'
                       : 'border-theme hover:border-theme hover:bg-theme-tertiary'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -470,12 +466,6 @@ export const LocationMap: React.FC = () => {
                               <Calendar className="w-3 h-3" />
                               {format(new Date(story.date), 'MMM d, yyyy')}
                             </span>
-                            {story.mood && (
-                              <span className="flex items-center gap-1">
-                                <Heart className="w-3 h-3" />
-                                {story.mood}
-                              </span>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -527,7 +517,7 @@ export const LocationMap: React.FC = () => {
                   />
                 ))}
               </svg>
-              
+
               {/* Location nodes */}
               <div className="flex relative z-10">
                 {locations.map((location, index) => (
@@ -556,7 +546,7 @@ export const LocationMap: React.FC = () => {
                 ))}
               </div>
             </div>
-            
+
             <div className="mt-6 pt-4 border-t border-theme">
               <div className="flex items-center justify-between text-sm">
                 <div className="text-theme-tertiary">

@@ -2,16 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { format, addDays } from 'date-fns';
-import { X, Calendar, MapPin, Users, Tag, Heart, Star, Lock, Clock, FileText, ChevronDown, Check, Save } from 'lucide-react';
+import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save } from 'lucide-react';
 
-const moodOptions = [
-  { value: 'happy', label: '😊 Happy', color: 'bg-yellow-500/20 text-yellow-400' },
-  { value: 'sad', label: '😢 Sad', color: 'bg-blue-500/200/20 text-blue-400' },
-  { value: 'neutral', label: '😐 Neutral', color: 'bg-theme-tertiary text-theme-primary' },
-  { value: 'excited', label: '🎉 Excited', color: 'bg-pink-100 text-pink-800' },
-  { value: 'proud', label: '🏆 Proud', color: 'bg-purple-500/200/20 text-purple-400' },
-  { value: 'grateful', label: '🙏 Grateful', color: 'bg-green-500/200/20 text-green-400' },
-];
 
 const importanceOptions = [
   { value: 'low', label: 'Low', icon: Star, className: 'text-gray-400' },
@@ -42,7 +34,6 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
     tags: [],
     people: [],
     importance: 'medium',
-    mood: undefined,
     location: '',
     images: [],
     lockedUntil: undefined,
@@ -118,7 +109,6 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
       tags: formData.tags || [],
       people: formData.people || [],
       importance: formData.importance as 'low' | 'medium' | 'high',
-      mood: formData.mood,
       location: formData.location,
       images: formData.images || [],
       lockedUntil: isTimeCapsule ? formData.lockedUntil : undefined,
@@ -675,28 +665,6 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
             </div>
           </div>
 
-          {/* Mood */}
-          <div>
-            <label className="block text-sm font-medium text-theme-secondary mb-2">
-              <Heart className="inline w-4 h-4 mr-1" />
-              How did you feel?
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {moodOptions.map((mood) => (
-                <button
-                  key={mood.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, mood: mood.value as Story['mood'] })}
-                  className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${formData.mood === mood.value
-                    ? mood.color
-                    : 'bg-theme-tertiary text-theme-tertiary hover:opacity-80'
-                    }`}
-                >
-                  {mood.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Importance */}
           <div>

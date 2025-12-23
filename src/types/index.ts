@@ -4,7 +4,6 @@ export interface Thought {
   type: 'idea' | 'observation' | 'pondering' | 'note';
   createdAt: Date;
   tags?: string[];
-  mood?: 'happy' | 'sad' | 'neutral' | 'excited' | 'proud' | 'grateful';
   relatedStoryId?: string; // Link to a Story for context
   isPrivate?: boolean; // For PDF export filtering
 }
@@ -45,7 +44,6 @@ export interface Story {
   tags: string[];
   people: string[];
   importance: 'low' | 'medium' | 'high';
-  mood?: 'happy' | 'sad' | 'neutral' | 'excited' | 'proud' | 'grateful';
   location?: string;
   images?: string[];
   metadata?: Record<string, any>;
@@ -121,6 +119,9 @@ export interface Relationship {
   lastName: string;
   fullName: string;
   relationshipType: string;
+  startDate: Date;
+  endDate?: Date;
+  isCurrent: boolean;
   interactionCount: number;
   notes?: string;
   metDate?: Date;         // When you first met

@@ -11,36 +11,16 @@ const thoughtTypes = [
   { value: 'note', label: 'Note', icon: MessageSquare, color: 'bg-theme-tertiary text-theme-primary' },
 ] as const;
 
-const moodEmojis = {
-  happy: '😊',
-  sad: '😢',
-  neutral: '😐',
-  excited: '🎉',
-  proud: '😤',
-  grateful: '🙏',
-};
-
-// Mood-based gradient backgrounds
-const moodGradients: Record<string, string> = {
-  happy: 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10',
-  sad: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10',
-  neutral: '',
-  excited: 'bg-gradient-to-r from-pink-500/10 to-rose-500/10',
-  proud: 'bg-gradient-to-r from-purple-500/10 to-violet-500/10',
-  grateful: 'bg-gradient-to-r from-amber-500/10 to-yellow-500/10',
-};
 
 export const Thoughts: React.FC = () => {
   const { thoughts, addThought, updateThought, deleteThought, setCurrentView, isSaving } = useTimelineStore();
   const [filterType, setFilterType] = useState<string>('all');
-  const [filterMood, setFilterMood] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddingThought, setIsAddingThought] = useState(false);
   const [editingThought, setEditingThought] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     content: '',
     type: 'idea' as Thought['type'],
-    mood: undefined as Thought['mood'],
     tags: [] as string[],
   });
 
@@ -52,10 +32,6 @@ export const Thoughts: React.FC = () => {
       filtered = filtered.filter(t => t.type === filterType);
     }
 
-    if (filterMood !== 'all') {
-      filtered = filtered.filter(t => t.mood === filterMood);
-    }
-
     if (searchTerm) {
       filtered = filtered.filter(t =>
         t.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,7 +40,7 @@ export const Thoughts: React.FC = () => {
     }
 
     return filtered;
-  }, [thoughts, filterType, filterMood, searchTerm]);
+  }, [thoughts, filterType, searchTerm]);
 
   // Group thoughts by date
   const groupedThoughts = useMemo(() => {
@@ -95,7 +71,7 @@ export const Thoughts: React.FC = () => {
       });
     }
 
-    setFormData({ content: '', type: 'idea', mood: undefined, tags: [] });
+    setFormData({ content: '', type: 'idea', tags: [] });
     setIsAddingThought(false);
   };
 
@@ -103,7 +79,6 @@ export const Thoughts: React.FC = () => {
     setFormData({
       content: thought.content,
       type: thought.type,
-      mood: thought.mood,
       tags: thought.tags || [],
     });
     setEditingThought(thought.id);
@@ -117,7 +92,7 @@ export const Thoughts: React.FC = () => {
   };
 
   const handleCancel = () => {
-    setFormData({ content: '', type: 'idea', mood: undefined, tags: [] });
+    setFormData({ content: '', type: 'idea', tags: [] });
     setIsAddingThought(false);
     setEditingThought(null);
   };
@@ -167,34 +142,12 @@ export const Thoughts: React.FC = () => {
                     type="button"
                     onClick={() => setFormData({ ...formData, type: value as Thought['type'] })}
                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${formData.type === value
-                        ? color
-                        : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                      ? color
+                      : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
                       }`}
                   >
                     <Icon className="w-4 h-4" />
                     {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-theme-secondary mb-2">Mood (optional)</label>
-              <div className="flex gap-2">
-                {Object.entries(moodEmojis).map(([mood, emoji]) => (
-                  <button
-                    key={mood}
-                    type="button"
-                    onClick={() => setFormData({
-                      ...formData,
-                      mood: mood as Thought['mood'] || undefined
-                    })}
-                    className={`w-10 h-10 rounded-md text-lg transition-colors ${formData.mood === mood
-                        ? 'bg-primary-500/30 ring-2 ring-primary-500'
-                        : 'bg-theme-tertiary hover:opacity-80'
-                      }`}
-                  >
-                    {emoji}
                   </button>
                 ))}
               </div>
@@ -241,30 +194,6 @@ export const Thoughts: React.FC = () => {
         </select>
       </div>
 
-      {/* Mood Filter */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        <button
-          onClick={() => setFilterMood('all')}
-          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filterMood === 'all'
-              ? 'bg-primary-600 text-white'
-              : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-            }`}
-        >
-          All Moods
-        </button>
-        {Object.entries(moodEmojis).map(([mood, emoji]) => (
-          <button
-            key={mood}
-            onClick={() => setFilterMood(mood)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filterMood === mood
-                ? 'bg-primary-600 text-white'
-                : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-              }`}
-          >
-            {emoji}
-          </button>
-        ))}
-      </div>
 
       {/* Thoughts List */}
       {Object.entries(groupedThoughts).length > 0 ? (
@@ -284,7 +213,7 @@ export const Thoughts: React.FC = () => {
                     return (
                       <div
                         key={thought.id}
-                        className={`p-4 rounded-lg shadow-sm border border-theme hover:shadow-md transition-shadow ${moodGradients[thought.mood || 'neutral'] || 'bg-theme-primary'}`}
+                        className="p-4 rounded-lg shadow-sm border border-theme hover:shadow-md transition-shadow bg-theme-primary"
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -292,9 +221,6 @@ export const Thoughts: React.FC = () => {
                               <Icon className="w-3 h-3 inline mr-1" />
                               {typeConfig?.label}
                             </span>
-                            {thought.mood && (
-                              <span className="text-lg">{moodEmojis[thought.mood]}</span>
-                            )}
                             <span className="text-sm text-slate-500 dark:text-slate-400">
                               {format(new Date(thought.createdAt), 'h:mm a')}
                             </span>

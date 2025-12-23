@@ -6,122 +6,54 @@ import { Story } from '../types';
 export const AIInsights: React.FC = () => {
   const { stories } = useTimelineStore();
 
-  // Calculate mood correlations
-  const moodInsights = useMemo(() => {
+  // Calculate story stats (without mood)
+  const storyStats = useMemo(() => {
     if (stories.length === 0) return null;
 
-    // Filter stories with moods
-    const storiesWithMood = stories.filter(s => s.mood);
-    if (storiesWithMood.length === 0) return null;
-
-    // Calculate mood distribution
-    const moodCounts = storiesWithMood.reduce((acc, story) => {
-      acc[story.mood!] = (acc[story.mood!] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const totalMoods = storiesWithMood.length;
-    const moodDistribution = Object.entries(moodCounts).map(([mood, count]) => ({
-      mood,
-      count,
-      percentage: Math.round((count / totalMoods) * 100)
-    }));
-
-    // Find correlations with people
-    const peopleMoodCorrelations: { person: string; mood: string; correlation: number }[] = [];
-    const peopleGroups: Record<string, Story[]> = {};
-
-    storiesWithMood.forEach(story => {
-      story.people.forEach(person => {
-        if (!peopleGroups[person]) peopleGroups[person] = [];
-        peopleGroups[person].push(story);
-      });
-    });
-
-    Object.entries(peopleGroups).forEach(([person, personStories]) => {
-      if (personStories.length < 3) return; // Need at least 3 stories
-
-      const personMoodCounts = personStories.reduce((acc, story) => {
-        acc[story.mood!] = (acc[story.mood!] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      Object.entries(personMoodCounts).forEach(([mood, count]) => {
-        const baselinePercentage = (moodCounts[mood] || 0) / totalMoods;
-        const personPercentage = count / personStories.length;
-        const correlation = Math.round(((personPercentage - baselinePercentage) / baselinePercentage) * 100);
-
-        if (Math.abs(correlation) > 20) { // Only show significant correlations
-          peopleMoodCorrelations.push({ person, mood, correlation });
-        }
-      });
-    });
-
-    // Find correlations with locations
-    const locationMoodCorrelations: { location: string; mood: string; correlation: number }[] = [];
-    const locationGroups: Record<string, Story[]> = {};
-
-    storiesWithMood.forEach(story => {
+    // Calculate top locations
+    const locationCounts: Record<string, number> = {};
+    stories.forEach(story => {
       if (story.location) {
-        if (!locationGroups[story.location]) locationGroups[story.location] = [];
-        locationGroups[story.location].push(story);
+        locationCounts[story.location] = (locationCounts[story.location] || 0) + 1;
       }
     });
 
-    Object.entries(locationGroups).forEach(([location, locationStories]) => {
-      if (locationStories.length < 3) return;
+    const topLocations = Object.entries(locationCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([location, count]) => ({ location, count, percentage: Math.round((count / stories.length) * 100) }));
 
-      const locationMoodCounts = locationStories.reduce((acc, story) => {
-        acc[story.mood!] = (acc[story.mood!] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      Object.entries(locationMoodCounts).forEach(([mood, count]) => {
-        const baselinePercentage = (moodCounts[mood] || 0) / totalMoods;
-        const locationPercentage = count / locationStories.length;
-        const correlation = Math.round(((locationPercentage - baselinePercentage) / baselinePercentage) * 100);
-
-        if (Math.abs(correlation) > 20) {
-          locationMoodCorrelations.push({ location, mood, correlation });
-        }
-      });
-    });
-
-    // Find correlations with tags
-    const tagMoodCorrelations: { tag: string; mood: string; correlation: number }[] = [];
-    const tagGroups: Record<string, Story[]> = {};
-
-    storiesWithMood.forEach(story => {
+    // Calculate top tags
+    const tagCounts: Record<string, number> = {};
+    stories.forEach(story => {
       story.tags.forEach(tag => {
-        if (!tagGroups[tag]) tagGroups[tag] = [];
-        tagGroups[tag].push(story);
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
       });
     });
 
-    Object.entries(tagGroups).forEach(([tag, tagStories]) => {
-      if (tagStories.length < 3) return;
+    const topTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([tag, count]) => ({ tag, count, percentage: Math.round((count / stories.length) * 100) }));
 
-      const tagMoodCounts = tagStories.reduce((acc, story) => {
-        acc[story.mood!] = (acc[story.mood!] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      Object.entries(tagMoodCounts).forEach(([mood, count]) => {
-        const baselinePercentage = (moodCounts[mood] || 0) / totalMoods;
-        const tagPercentage = count / tagStories.length;
-        const correlation = Math.round(((tagPercentage - baselinePercentage) / baselinePercentage) * 100);
-
-        if (Math.abs(correlation) > 20) {
-          tagMoodCorrelations.push({ tag, mood, correlation });
-        }
+    // Calculate people frequency
+    const peopleCounts: Record<string, number> = {};
+    stories.forEach(story => {
+      story.people.forEach(person => {
+        peopleCounts[person] = (peopleCounts[person] || 0) + 1;
       });
     });
+
+    const topPeople = Object.entries(peopleCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([person, count]) => ({ person, count }));
 
     return {
-      moodDistribution,
-      peopleMoodCorrelations: peopleMoodCorrelations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation)).slice(0, 3),
-      locationMoodCorrelations: locationMoodCorrelations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation)).slice(0, 3),
-      tagMoodCorrelations: tagMoodCorrelations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation)).slice(0, 3)
+      topLocations,
+      topTags,
+      topPeople,
+      totalStories: stories.length,
     };
   }, [stories]);
 
@@ -250,105 +182,71 @@ export const AIInsights: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Mood Distribution */}
-          {moodInsights && (
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <BarChart3 className="w-5 h-5 text-purple-500" />
-                <h3 className="text-lg font-semibold text-theme-primary">Mood Distribution</h3>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {moodInsights.moodDistribution.map(({ mood, count, percentage }) => (
-                  <div key={mood} className="text-center p-3 bg-theme-tertiary rounded-lg">
-                    <div className="text-2xl mb-1">
-                      {mood === 'happy' ? '😊' :
-                        mood === 'sad' ? '😢' :
-                          mood === 'excited' ? '🎉' :
-                            mood === 'proud' ? '🏆' :
-                              mood === 'grateful' ? '🙏' : '😐'}
-                    </div>
-                    <div className="text-sm font-medium text-theme-primary capitalize">{mood}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">{percentage}%</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Correlations */}
-          {moodInsights && (
+          {/* Story Stats */}
+          {storyStats && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              {/* People Correlations */}
-              <div className="border border-theme rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <Users className="w-5 h-5 text-blue-500" />
-                  <h4 className="font-semibold text-theme-primary">People & Mood</h4>
-                </div>
-                {moodInsights.peopleMoodCorrelations.length > 0 ? (
-                  <div className="space-y-2">
-                    {moodInsights.peopleMoodCorrelations.map(({ person, mood, correlation }) => (
-                      <div key={`${person}-${mood}`} className="text-sm">
-                        <span className="font-medium">{person}</span>
-                        <span className="mx-1">→</span>
-                        <span className={correlation > 0 ? 'text-green-600' : 'text-red-600'}>
-                          {mood} ({correlation > 0 ? '+' : ''}{correlation}%)
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                    Need more stories to find patterns
-                  </p>
-                )}
-              </div>
-
-              {/* Location Correlations */}
-              <div className="border border-theme rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <MapPin className="w-5 h-5 text-green-500" />
-                  <h4 className="font-semibold text-theme-primary">Places & Mood</h4>
-                </div>
-                {moodInsights.locationMoodCorrelations.length > 0 ? (
-                  <div className="space-y-2">
-                    {moodInsights.locationMoodCorrelations.map(({ location, mood, correlation }) => (
-                      <div key={`${location}-${mood}`} className="text-sm">
-                        <span className="font-medium">{location.split(',')[0]}</span>
-                        <span className="mx-1">→</span>
-                        <span className={correlation > 0 ? 'text-green-600' : 'text-red-600'}>
-                          {mood} ({correlation > 0 ? '+' : ''}{correlation}%)
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                    Need more location data
-                  </p>
-                )}
-              </div>
-
-              {/* Tag Correlations */}
+              {/* Top Tags */}
               <div className="border border-theme rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Tag className="w-5 h-5 text-purple-500" />
-                  <h4 className="font-semibold text-theme-primary">Activities & Mood</h4>
+                  <h4 className="font-semibold text-theme-primary">Top Categories</h4>
                 </div>
-                {moodInsights.tagMoodCorrelations.length > 0 ? (
+                {storyStats.topTags.length > 0 ? (
                   <div className="space-y-2">
-                    {moodInsights.tagMoodCorrelations.map(({ tag, mood, correlation }) => (
-                      <div key={`${tag}-${mood}`} className="text-sm">
+                    {storyStats.topTags.map(({ tag, count, percentage }) => (
+                      <div key={tag} className="flex justify-between text-sm">
                         <span className="font-medium">#{tag}</span>
-                        <span className="mx-1">→</span>
-                        <span className={correlation > 0 ? 'text-green-600' : 'text-red-600'}>
-                          {mood} ({correlation > 0 ? '+' : ''}{correlation}%)
-                        </span>
+                        <span className="text-theme-tertiary">{percentage}%</span>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                    Need more tagged activities
+                    No tags yet
+                  </p>
+                )}
+              </div>
+
+              {/* Top Locations */}
+              <div className="border border-theme rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <MapPin className="w-5 h-5 text-green-500" />
+                  <h4 className="font-semibold text-theme-primary">Top Places</h4>
+                </div>
+                {storyStats.topLocations.length > 0 ? (
+                  <div className="space-y-2">
+                    {storyStats.topLocations.map(({ location, count, percentage }) => (
+                      <div key={location} className="flex justify-between text-sm">
+                        <span className="font-medium truncate">{location.split(',')[0]}</span>
+                        <span className="text-theme-tertiary">{count} stories</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                    No locations yet
+                  </p>
+                )}
+              </div>
+
+              {/* Top People */}
+              <div className="border border-theme rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Users className="w-5 h-5 text-blue-500" />
+                  <h4 className="font-semibold text-theme-primary">Key People</h4>
+                </div>
+                {storyStats.topPeople.length > 0 ? (
+                  <div className="space-y-2">
+                    {storyStats.topPeople.map(({ person, count }) => (
+                      <div key={person} className="flex justify-between text-sm">
+                        <span className="font-medium">{person}</span>
+                        <span className="text-theme-tertiary">{count} stories</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                    No people tagged yet
                   </p>
                 )}
               </div>

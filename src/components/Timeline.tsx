@@ -29,17 +29,6 @@ import {
   List
 } from 'lucide-react';
 
-const getMoodEmoji = (mood: Story['mood']) => {
-  const moods: Record<NonNullable<Story['mood']>, string> = {
-    happy: '😊',
-    sad: '😢',
-    neutral: '😐',
-    excited: '🎉',
-    proud: '🏆',
-    grateful: '🙏',
-  };
-  return moods[mood || 'neutral'] || '😐';
-};
 
 const getImportanceStars = (importance: Story['importance']) => {
   const stars = {
@@ -135,7 +124,6 @@ const CompactTimelineCard = ({ story, onClick, isLocked }: { story: Story; onCli
 
         {/* Metadata - Icons on hover */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-sm">{getMoodEmoji(story.mood)}</span>
           {story.importance === 'high' && <Target className="w-3.5 h-3.5 text-orange-500" />}
           <ChevronRight className="w-4 h-4 text-theme-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
@@ -170,7 +158,6 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
     tags: ['birth', 'milestone', 'beginning'],
     people: [],
     importance: 'high',
-    mood: 'happy',
     location: userProfile.birthLocation || '',
     images: [],
     createdAt: new Date(userProfile.birthDate),
@@ -206,12 +193,6 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
   // Timeline Snapshot Stats
   const snapshotStats = useMemo(() => {
     const milestones = filteredStories.filter(s => s.importance === 'high').length;
-    const moodCounts = filteredStories.reduce((acc, s) => {
-      const mood = s.mood || 'neutral';
-      acc[mood] = (acc[mood] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0];
     const locationCounts = filteredStories.reduce((acc, s) => {
       if (s.location) {
         acc[s.location] = (acc[s.location] || 0) + 1;
@@ -219,7 +200,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
       return acc;
     }, {} as Record<string, number>);
     const topLocation = Object.entries(locationCounts).sort((a, b) => b[1] - a[1])[0];
-    return { milestones, topMood, topLocation };
+    return { milestones, topLocation };
   }, [filteredStories]);
 
   // Group stories by month
@@ -346,18 +327,8 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
             <div className="text-theme-tertiary">Milestones</div>
           </div>
           <div>
-            {snapshotStats.topMood && (
-              <>
-                <div className="text-lg font-bold text-theme-primary">
-                  {snapshotStats.topMood[0] === 'happy' ? '😊' :
-                    snapshotStats.topMood[0] === 'proud' ? '🏆' :
-                      snapshotStats.topMood[0] === 'excited' ? '🎉' :
-                        snapshotStats.topMood[0] === 'grateful' ? '🙏' :
-                          snapshotStats.topMood[0] === 'sad' ? '😢' : '😐'}
-                </div>
-                <div className="text-theme-tertiary capitalize">Top Mood</div>
-              </>
-            )}
+            <div className="text-lg font-bold text-theme-primary">📍 {filteredStories.filter(s => s.location).length}</div>
+            <div className="text-theme-tertiary">Locations</div>
           </div>
           <div>
             {snapshotStats.topLocation && (
@@ -514,7 +485,6 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                                   {story.location}
                                 </span>
                               )}
-                              <span>{getMoodEmoji(story.mood)}</span>
                               {getImportanceStars(story.importance)}
                             </div>
                           </div>

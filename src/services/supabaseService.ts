@@ -86,7 +86,6 @@ export async function getStories(userId: string): Promise<Story[]> {
         tags: s.tags || [],
         people: s.people || [],
         importance: s.importance as 'low' | 'medium' | 'high',
-        mood: s.mood,
         location: s.location,
         images: s.images || [],
         metadata: s.metadata,
@@ -112,7 +111,6 @@ export async function addStory(userId: string, story: Omit<Story, 'id' | 'create
             tags: story.tags,
             people: story.people,
             importance: story.importance,
-            mood: story.mood,
             location: story.location,
             images: story.images,
             metadata: story.metadata,
@@ -134,7 +132,6 @@ export async function addStory(userId: string, story: Omit<Story, 'id' | 'create
         tags: data.tags || [],
         people: data.people || [],
         importance: data.importance,
-        mood: data.mood,
         location: data.location,
         images: data.images || [],
         metadata: data.metadata,
@@ -157,7 +154,6 @@ export async function updateStory(storyId: string, updates: Partial<Story>): Pro
     if (updates.tags !== undefined) updateData.tags = updates.tags;
     if (updates.people !== undefined) updateData.people = updates.people;
     if (updates.importance !== undefined) updateData.importance = updates.importance;
-    if (updates.mood !== undefined) updateData.mood = updates.mood;
     if (updates.location !== undefined) updateData.location = updates.location;
     if (updates.images !== undefined) updateData.images = updates.images;
     if (updates.metadata !== undefined) updateData.metadata = updates.metadata;
@@ -202,7 +198,6 @@ export async function getThoughts(userId: string): Promise<Thought[]> {
         type: t.type,
         createdAt: new Date(t.created_at),
         tags: t.tags,
-        mood: t.mood,
     }));
 }
 
@@ -216,7 +211,6 @@ export async function addThought(userId: string, thought: Omit<Thought, 'id'>): 
             content: thought.content,
             type: thought.type,
             tags: thought.tags,
-            mood: thought.mood,
         })
         .select()
         .single();
@@ -229,7 +223,6 @@ export async function addThought(userId: string, thought: Omit<Thought, 'id'>): 
         type: data.type,
         createdAt: new Date(data.created_at),
         tags: data.tags,
-        mood: data.mood,
     };
 }
 
@@ -484,6 +477,9 @@ export async function getRelationships(userId: string): Promise<Relationship[]> 
         relationshipType: r.relationship_type,
         interactionCount: r.interaction_count,
         notes: r.notes,
+        startDate: r.start_date ? new Date(r.start_date) : new Date(r.created_at),
+        endDate: r.end_date ? new Date(r.end_date) : undefined,
+        isCurrent: r.is_current ?? true,
         createdAt: new Date(r.created_at),
         updatedAt: new Date(r.updated_at),
     }));
@@ -500,6 +496,9 @@ export async function addRelationship(userId: string, rel: Omit<Relationship, 'i
             last_name: rel.lastName,
             relationship_type: rel.relationshipType,
             notes: rel.notes,
+            start_date: rel.startDate instanceof Date ? rel.startDate.toISOString().split('T')[0] : rel.startDate,
+            end_date: rel.endDate instanceof Date ? rel.endDate.toISOString().split('T')[0] : rel.endDate,
+            is_current: rel.isCurrent,
         })
         .select()
         .single();
@@ -514,6 +513,9 @@ export async function addRelationship(userId: string, rel: Omit<Relationship, 'i
         relationshipType: data.relationship_type,
         interactionCount: data.interaction_count,
         notes: data.notes,
+        startDate: data.start_date ? new Date(data.start_date) : new Date(data.created_at),
+        endDate: data.end_date ? new Date(data.end_date) : undefined,
+        isCurrent: data.is_current ?? true,
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
     };
@@ -528,6 +530,9 @@ export async function updateRelationship(relId: string, updates: Partial<Relatio
     if (updates.relationshipType !== undefined) updateData.relationship_type = updates.relationshipType;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
     if (updates.interactionCount !== undefined) updateData.interaction_count = updates.interactionCount;
+    if (updates.startDate !== undefined) updateData.start_date = updates.startDate instanceof Date ? updates.startDate.toISOString().split('T')[0] : updates.startDate;
+    if (updates.endDate !== undefined) updateData.end_date = updates.endDate instanceof Date ? updates.endDate.toISOString().split('T')[0] : updates.endDate;
+    if (updates.isCurrent !== undefined) updateData.is_current = updates.isCurrent;
 
     const { error } = await supabase
         .from('relationships')

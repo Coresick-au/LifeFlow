@@ -12,7 +12,6 @@ import { LocationMap } from './components/LocationMap';
 import { LikesDislikes } from './components/LikesDislikes';
 import { UserProfile } from './components/UserProfile';
 import { Settings } from './components/Settings';
-import { MoodHeatmap } from './components/MoodHeatmap';
 import { LifeDashboard } from './components/LifeDashboard';
 import { JobTracker } from './components/JobTracker';
 import { ChildTracker } from './components/ChildTracker';

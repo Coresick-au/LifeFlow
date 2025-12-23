@@ -19,7 +19,6 @@ interface TimelineBar {
   startDate: Date;
   endDate: Date;
   category: string;
-  mood: Story['mood'];
   color: string;
 }
 
@@ -103,7 +102,6 @@ export const GanttTimeline: React.FC = () => {
         startDate,
         endDate,
         category,
-        mood: story.mood,
         color: categoryColors[category as keyof typeof categoryColors],
       });
     });
@@ -131,7 +129,6 @@ export const GanttTimeline: React.FC = () => {
         startDate,
         endDate,
         category,
-        mood: story.mood,
         color: categoryColors[category as keyof typeof categoryColors] || categoryColors.other,
       });
     });

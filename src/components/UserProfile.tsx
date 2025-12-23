@@ -66,11 +66,6 @@ export const UserProfile: React.FC = () => {
       return acc;
     }, {} as Record<string, number>);
 
-    const storiesByMood = stories.reduce((acc, story) => {
-      const mood = story.mood || 'neutral';
-      acc[mood] = (acc[mood] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
 
     const importantStories = stories.filter(s => s.importance === 'high').length;
     const fuzzyDateStories = stories.filter(s => s.fuzzyDate).length;
@@ -117,7 +112,6 @@ export const UserProfile: React.FC = () => {
       ageInMonths,
       totalStories,
       storiesByType,
-      storiesByMood,
       importantStories,
       fuzzyDateStories,
       timelineSpan,
@@ -399,21 +393,6 @@ export const UserProfile: React.FC = () => {
           </div>
         </div>
 
-        {/* Mood Distribution */}
-        <div className="bg-theme-primary rounded-lg p-4 shadow-sm">
-          <h4 className="font-semibold text-theme-primary mb-3 flex items-center gap-2">
-            <Heart className="w-5 h-5 text-red-500" />
-            Mood Distribution
-          </h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {Object.entries(dashboardStats.storiesByMood).map(([mood, count]) => (
-              <div key={mood} className="text-center p-2 bg-theme-tertiary rounded">
-                <div className="text-lg font-bold text-theme-primary">{count}</div>
-                <div className="text-sm text-theme-tertiary capitalize">{mood}</div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Achievements */}
         <div className="bg-gradient-to-r from-amber-900/20 to-yellow-900/20 rounded-lg p-4 border border-amber-800/30">

@@ -13,7 +13,6 @@ export const storySchema = z.object({
   tags: z.array(z.string()),
   people: z.array(z.string()),
   importance: z.string().regex(/^(low|medium|high)$/),
-  mood: z.string().regex(/^(happy|sad|neutral|excited|proud|grateful)$/).optional(),
   location: z.string().optional(),
   images: z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.any()).optional(),
@@ -29,7 +28,6 @@ export const thoughtSchema = z.object({
   type: z.string().regex(/^(idea|observation|pondering|note)$/),
   createdAt: z.date(),
   tags: z.array(z.string()).optional(),
-  mood: z.string().regex(/^(happy|sad|neutral|excited|proud|grateful)$/).optional(),
 });
 
 // TodoItem schema

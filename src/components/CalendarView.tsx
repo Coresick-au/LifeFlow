@@ -54,17 +54,6 @@ const categoryIcons: Record<string, React.ComponentType<any>> = {
   mindfulness: Heart,
 };
 
-const getMoodEmoji = (mood: Story['mood']) => {
-  const moods: Record<NonNullable<Story['mood']>, string> = {
-    happy: '😊',
-    sad: '😢',
-    neutral: '😐',
-    excited: '🎉',
-    proud: '🏆',
-    grateful: '🙏',
-  };
-  return moods[mood || 'neutral'] || '😐';
-};
 
 type ViewMode = 'month' | 'quarter' | 'year';
 
@@ -144,13 +133,6 @@ export const CalendarView: React.FC = () => {
   const uniqueLocations = new Set(yearlyStories.map(s => s.location).filter(Boolean));
   const uniquePeople = new Set(yearlyStories.flatMap(s => s.people));
 
-  const moodCounts = yearlyStories.reduce((acc, story) => {
-    if (story.mood) {
-      acc[story.mood] = (acc[story.mood] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-  const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
   const monthCounts = yearlyStories.reduce((acc, story) => {
     const month = format(new Date(story.date), 'MMMM');
@@ -577,9 +559,9 @@ export const CalendarView: React.FC = () => {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold" style={{ color: 'var(--theme-accent)' }}>
-              {topMood}
+              {yearlyStories.filter(s => s.importance === 'high').length}
             </div>
-            <div className="text-sm text-theme-tertiary">Top Mood</div>
+            <div className="text-sm text-theme-tertiary">Milestones</div>
           </div>
         </div>
 
@@ -623,7 +605,6 @@ export const CalendarView: React.FC = () => {
                     <h4 className="font-medium text-theme-primary mb-1">{story.title}</h4>
                     <p className="text-sm text-theme-tertiary line-clamp-2">{story.content}</p>
                     <div className="flex items-center space-x-2 mt-2 text-xs text-slate-500 dark:text-slate-400">
-                      <span>{getMoodEmoji(story.mood)}</span>
                       {story.location && (
                         <span className="flex items-center">
                           <MapPin className="w-3 h-3 mr-1" />
@@ -687,7 +668,6 @@ export const CalendarView: React.FC = () => {
                   {selectedStory.location}
                 </span>
               )}
-              <span>{getMoodEmoji(selectedStory.mood)}</span>
             </div>
 
             <p className="text-theme-secondary mb-4">{selectedStory.content}</p>

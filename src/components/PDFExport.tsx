@@ -8,14 +8,6 @@ interface PDFExportProps {
   onClose?: () => void;
 }
 
-const moodEmojis = {
-  happy: '😊',
-  excited: '🎉',
-  proud: '🏆',
-  grateful: '🙏',
-  neutral: '😐',
-  sad: '😢',
-};
 
 export const PDFExport: React.FC<PDFExportProps> = ({ onClose }) => {
   const { stories, userProfile } = useTimelineStore();
@@ -39,7 +31,7 @@ export const PDFExport: React.FC<PDFExportProps> = ({ onClose }) => {
 
     // Filter by category
     if (exportType === 'category' && selectedCategory !== 'all') {
-      filteredStories = filteredStories.filter(story => 
+      filteredStories = filteredStories.filter(story =>
         story.tags.includes(selectedCategory)
       );
     }
@@ -298,7 +290,7 @@ export const PDFExport: React.FC<PDFExportProps> = ({ onClose }) => {
             <h2 className="chapter-title">
               {format(new Date(monthKey + '-01'), 'MMMM yyyy')}
             </h2>
-            
+
             {monthStories.map((story: Story) => (
               <div key={story.id} className="mb-8">
                 <h3 className="story-title">{story.title}</h3>
@@ -314,11 +306,6 @@ export const PDFExport: React.FC<PDFExportProps> = ({ onClose }) => {
                   ))}
                 </div>
                 <div className="story-meta">
-                  {story.mood && (
-                    <span className="mr-4">
-                      Mood: {moodEmojis[story.mood]} {story.mood}
-                    </span>
-                  )}
                   {story.tags.length > 0 && (
                     <span>
                       Tags: {story.tags.join(', ')}

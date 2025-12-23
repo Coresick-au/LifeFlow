@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS stories (
   tags TEXT[] DEFAULT '{}',
   people TEXT[] DEFAULT '{}',
   importance TEXT CHECK (importance IN ('low', 'medium', 'high')) DEFAULT 'medium',
-  mood TEXT CHECK (mood IN ('happy', 'sad', 'neutral', 'excited', 'proud', 'grateful')),
   location TEXT,
   images TEXT[] DEFAULT '{}',
   metadata JSONB DEFAULT '{}',
@@ -50,7 +49,7 @@ CREATE TABLE IF NOT EXISTS thoughts (
   content TEXT NOT NULL,
   type TEXT CHECK (type IN ('idea', 'observation', 'pondering', 'note')) DEFAULT 'note',
   tags TEXT[] DEFAULT '{}',
-  mood TEXT CHECK (mood IN ('happy', 'sad', 'neutral', 'excited', 'proud', 'grateful')),
+
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -79,6 +78,9 @@ CREATE TABLE IF NOT EXISTS relationships (
   relationship_type TEXT NOT NULL,
   interaction_count INTEGER DEFAULT 0,
   notes TEXT,
+  start_date DATE DEFAULT CURRENT_DATE,
+  end_date DATE,
+  is_current BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

@@ -16,14 +16,6 @@ interface Reflection {
   createdAt: Date;
 }
 
-const moodEmojis = {
-  happy: '😊',
-  excited: '🎉',
-  proud: '🏆',
-  grateful: '🙏',
-  neutral: '😐',
-  sad: '😢',
-};
 
 export const OnThisDay: React.FC = () => {
   const { stories, userProfile } = useTimelineStore();
@@ -35,10 +27,10 @@ export const OnThisDay: React.FC = () => {
 
   const memories = useMemo(() => {
     const memoriesByYear: Record<number, Story[]> = {};
-    
+
     stories.forEach(story => {
       const storyDate = new Date(story.date);
-      
+
       // Check if same month and day
       if (
         storyDate.getMonth() === selectedDate.getMonth() &&
@@ -56,13 +48,13 @@ export const OnThisDay: React.FC = () => {
     const memoryGroups: MemoryGroup[] = Object.entries(memoriesByYear)
       .map(([year, yearStories]) => {
         const yearNum = parseInt(year);
-        const age = userProfile?.birthDate 
+        const age = userProfile?.birthDate
           ? yearNum - userProfile.birthDate.getFullYear()
           : undefined;
-        
+
         return {
           year: yearNum,
-          stories: yearStories.sort((a, b) => 
+          stories: yearStories.sort((a, b) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
           ),
           age: age && age > 0 ? age : undefined,
@@ -95,7 +87,7 @@ export const OnThisDay: React.FC = () => {
   // Go to random anniversary
   const goToRandomAnniversary = () => {
     if (availableYears.length === 0) return;
-    
+
     const randomYear = availableYears[Math.floor(Math.random() * availableYears.length)];
     const newDate = new Date(selectedDate);
     newDate.setFullYear(randomYear);
@@ -130,13 +122,13 @@ export const OnThisDay: React.FC = () => {
   // Save reflection
   const saveReflection = (storyId: string) => {
     if (!reflectionText.trim()) return;
-    
+
     const reflection: Reflection = {
       storyId,
       content: reflectionText.trim(),
       createdAt: new Date()
     };
-    
+
     const updated = { ...reflections, [storyId]: reflection };
     setReflections(updated);
     localStorage.setItem('onthisday-reflections', JSON.stringify(updated));
@@ -165,7 +157,7 @@ export const OnThisDay: React.FC = () => {
     <div className="bg-theme-primary rounded-lg shadow-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-theme-primary">On This Day</h2>
-        
+
         {/* Date Navigation */}
         <div className="flex items-center gap-2">
           <button
@@ -175,7 +167,7 @@ export const OnThisDay: React.FC = () => {
           >
             <Calendar className="w-5 h-5" />
           </button>
-          
+
           <div className="relative">
             <button
               onClick={() => setShowYearPicker(!showYearPicker)}
@@ -186,7 +178,7 @@ export const OnThisDay: React.FC = () => {
               </span>
               <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             </button>
-            
+
             {/* Year Picker Dropdown */}
             {showYearPicker && availableYears.length > 0 && (
               <div className="absolute top-full left-0 mt-1 bg-theme-primary border border-theme rounded-md shadow-lg z-10 max-h-60 overflow-y-auto">
@@ -205,7 +197,7 @@ export const OnThisDay: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           <button
             onClick={() => handleDateChange(1)}
             className="p-2 hover:bg-theme-tertiary rounded-full transition-colors"
@@ -213,7 +205,7 @@ export const OnThisDay: React.FC = () => {
           >
             <Calendar className="w-5 h-5" />
           </button>
-          
+
           <button
             onClick={goToRandomAnniversary}
             disabled={availableYears.length === 0}
@@ -222,7 +214,7 @@ export const OnThisDay: React.FC = () => {
           >
             <Shuffle className="w-5 h-5" />
           </button>
-          
+
           <button
             onClick={goToToday}
             className="px-3 py-1 text-sm bg-primary-500/30 text-primary-700 rounded-md hover:bg-primary-200 transition-colors"
@@ -254,7 +246,7 @@ export const OnThisDay: React.FC = () => {
               {memoryGroup.stories.map((story) => {
                 const reflection = reflections[story.id];
                 const isEditing = editingReflection === story.id;
-                
+
                 return (
                   <div key={story.id} className="bg-theme-tertiary rounded-lg p-4 hover:bg-theme-tertiary transition-colors">
                     <div className="flex items-start justify-between">
@@ -262,7 +254,7 @@ export const OnThisDay: React.FC = () => {
                         <h4 className="font-medium text-theme-primary mb-1">
                           {story.title}
                         </h4>
-                        
+
                         {story.content && (
                           <p className="text-sm text-theme-tertiary mb-2 line-clamp-2">
                             {story.content}
@@ -274,21 +266,14 @@ export const OnThisDay: React.FC = () => {
                             <Clock className="w-3 h-3" />
                             <span>{format(new Date(story.date), 'MMM d, yyyy')}</span>
                           </div>
-                          
+
                           {story.location && (
                             <div className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
                               <span>{story.location}</span>
                             </div>
                           )}
-                          
-                          {story.mood && (
-                            <div className="flex items-center gap-1">
-                              <Heart className="w-3 h-3" />
-                              <span>{moodEmojis[story.mood]} {story.mood}</span>
-                            </div>
-                          )}
-                          
+
                           {story.tags.length > 0 && (
                             <div className="flex items-center gap-1">
                               <Tag className="w-3 h-3" />
@@ -325,7 +310,7 @@ export const OnThisDay: React.FC = () => {
                           </button>
                         )}
                       </div>
-                      
+
                       {isEditing ? (
                         <div className="space-y-2">
                           <textarea

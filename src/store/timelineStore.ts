@@ -11,9 +11,9 @@ import { supabase } from '../lib/supabaseClient';
 
 // Initialize IndexedDB
 const db = new Dexie('LifeFlowDB');
-db.version(5).stores({
-  stories: '++id, title, content, type, date, endDate, fuzzyDate, tags, people, importance, mood, location, images, createdAt, updatedAt',
-  thoughts: '++id, content, type, createdAt, tags, mood',
+db.version(6).stores({
+  stories: '++id, title, content, type, date, endDate, fuzzyDate, tags, people, importance, location, images, createdAt, updatedAt',
+  thoughts: '++id, content, type, createdAt, tags',
   todos: '++id, title, description, status, priority, createdAt, completedAt, archivedAt, tags, dueDate',
   userProfile: '++id, name, birthDate, location, bio',
   preferences: '++id, item, category, type, dateAdded',

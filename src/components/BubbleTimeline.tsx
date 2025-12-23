@@ -14,27 +14,34 @@ interface BubbleNode extends d3.SimulationNodeDatum {
   category: string | null;
 }
 
-// Calculate radius based on importance
+// Calculate radius based on importance - increased for better text visibility
 const getRadiusByImportance = (importance: Story['importance']): number => {
   switch (importance) {
-    case 'high': return 50;
-    case 'medium': return 35;
-    case 'low': return 25;
-    default: return 30;
+    case 'high': return 70;
+    case 'medium': return 50;
+    case 'low': return 38;
+    default: return 45;
   }
 };
 
-// Get mood emoji
-const getMoodEmoji = (mood: Story['mood']): string => {
-  const moods: Record<string, string> = {
-    happy: '😊',
-    sad: '😢',
-    neutral: '😐',
-    excited: '🎉',
-    proud: '🏆',
-    grateful: '🙏',
-  };
-  return moods[mood || 'neutral'] || '😐';
+// Get category icon symbol for display in bubbles
+const getCategoryIcon = (story: Story): string => {
+  const category = getCategoryForStory(story.tags);
+  const lowerTags = story.tags.map(t => t.toLowerCase());
+
+  // Check for ended relationship (breakup, divorce, loss, etc.)
+  if (lowerTags.some(t => ['breakup', 'divorce', 'ended', 'loss', 'passed', 'death', 'ex'].includes(t))) {
+    return '💔'; // Broken heart
+  }
+
+  // Category-based icons
+  switch (category) {
+    case 'career': return '💼';
+    case 'family': return '👶';
+    case 'home': return '🏠';
+    case 'relationships': return '❤️';
+    default: return '📝'; // Default note icon
+  }
 };
 
 export const BubbleTimeline: React.FC = () => {
@@ -133,24 +140,28 @@ export const BubbleTimeline: React.FC = () => {
       .attr('stroke', d => d3.color(d.color)?.darker(0.5)?.toString() || d.color)
       .attr('stroke-width', 2);
 
-    // Add text labels inside bubbles
+    // Add text labels inside bubbles - improved sizing
     bubbleGroups.append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '-0.3em')
+      .attr('dy', '-0.2em')
       .attr('fill', 'white')
-      .attr('font-size', d => Math.max(10, d.radius / 4))
+      .attr('font-size', d => Math.max(11, d.radius / 3.5))
       .attr('font-weight', 'bold')
       .style('pointer-events', 'none')
-      .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.5)')
-      .text(d => d.story.title.substring(0, Math.floor(d.radius / 5)) + (d.story.title.length > Math.floor(d.radius / 5) ? '...' : ''));
+      .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.7)')
+      .text(d => {
+        const maxChars = Math.floor(d.radius / 4);
+        const title = d.story.title;
+        return title.length > maxChars ? title.substring(0, maxChars) + '...' : title;
+      });
 
-    // Add mood emoji
+    // Add category icon instead of mood emoji
     bubbleGroups.append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '1em')
-      .attr('font-size', d => Math.max(14, d.radius / 3))
+      .attr('dy', '1.2em')
+      .attr('font-size', d => Math.max(16, d.radius / 2.5))
       .style('pointer-events', 'none')
-      .text(d => getMoodEmoji(d.story.mood));
+      .text(d => getCategoryIcon(d.story));
 
     // Click handler
     bubbleGroups.on('click', (event, d) => {
@@ -209,9 +220,10 @@ export const BubbleTimeline: React.FC = () => {
     setSelectedStory(null);
   };
 
-  // Open in viewer
+  // Open in story viewer - navigate to timeline and open story drawer
   const handleViewStory = (story: Story) => {
     setActiveStory(story.id);
+    setCurrentView({ type: 'timeline' });
     setSelectedStory(null);
   };
 
@@ -328,7 +340,7 @@ export const BubbleTimeline: React.FC = () => {
             <div className="flex items-center gap-2 mb-4 text-sm text-theme-tertiary">
               <span>{format(new Date(selectedStory.date), 'MMMM d, yyyy')}</span>
               {selectedStory.location && <span>• {selectedStory.location}</span>}
-              <span>{getMoodEmoji(selectedStory.mood)}</span>
+              <span>{getCategoryIcon(selectedStory)}</span>
             </div>
 
             <p className="text-theme-secondary mb-4 line-clamp-4">{selectedStory.content}</p>

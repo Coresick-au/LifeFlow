@@ -3,6 +3,7 @@ import { format, isValid, subYears } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Relationship } from '../types';
 import { Users, Calendar, MapPin, Plus, X, Edit, Trash2, ChevronDown, User, HelpCircle } from 'lucide-react';
+import { RelationshipTrackerForm } from './RelationshipTrackerForm';
 
 type SortOption = 'name' | 'interactions' | 'recent' | 'relationshipType';
 
@@ -50,41 +51,36 @@ export const Relationships: React.FC = () => {
     }
   }, [relationships, sortBy]);
 
-  const handleAddPerson = async () => {
-    if (formData.firstName.trim() && formData.lastName.trim()) {
-      await addRelationship({
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        fullName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
-        relationshipType: formData.relationshipType.trim() || 'Friend',
-        notes: formData.notes.trim(),
-        metDate: formData.metDate,
-        metDateFuzzy: formData.metDateFuzzy,
-        yearsKnown: formData.yearsKnown,
-        trackNurturing: formData.trackNurturing,
-      });
 
-      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined, trackNurturing: true, useAge: false, metAtAge: undefined });
-      setShowAddPerson(false);
-    }
-  };
 
-  const handleUpdatePerson = async () => {
-    if (editingPerson && formData.firstName.trim() && formData.lastName.trim()) {
+  const handleFormSubmit = async (data: any) => {
+    if (editingPerson) {
       await updateRelationship(editingPerson.id, {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        fullName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
-        relationshipType: formData.relationshipType.trim() || 'Friend',
-        notes: formData.notes.trim(),
-        metDate: formData.metDate,
-        metDateFuzzy: formData.metDateFuzzy,
-        yearsKnown: formData.yearsKnown,
-        trackNurturing: formData.trackNurturing,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        fullName: `${data.firstName} ${data.lastName}`.trim(),
+        relationshipType: data.relationshipType,
+        notes: data.notes,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        isCurrent: data.isCurrent,
+        // Preserve existing fields not in form if needed, or defaults
+        trackNurturing: editingPerson.trackNurturing,
       });
-
-      setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined, trackNurturing: true, useAge: false, metAtAge: undefined });
       setEditingPerson(null);
+    } else {
+      await addRelationship({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        fullName: `${data.firstName} ${data.lastName}`.trim(),
+        relationshipType: data.relationshipType,
+        notes: data.notes,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        isCurrent: data.isCurrent,
+        trackNurturing: true,
+      });
+      setShowAddPerson(false);
     }
   };
 
@@ -99,23 +95,10 @@ export const Relationships: React.FC = () => {
 
   const startEdit = (relationship: Relationship) => {
     setEditingPerson(relationship);
-    setFormData({
-      firstName: relationship.firstName,
-      lastName: relationship.lastName,
-      relationshipType: relationship.relationshipType,
-      notes: relationship.notes || '',
-      metDate: relationship.metDate,
-      metDateFuzzy: relationship.metDateFuzzy || false,
-      yearsKnown: relationship.yearsKnown,
-      trackNurturing: relationship.trackNurturing !== false, // Default to true if undefined
-      useAge: false,
-      metAtAge: undefined,
-    });
   };
 
   const cancelEdit = () => {
     setEditingPerson(null);
-    setFormData({ firstName: '', lastName: '', relationshipType: '', notes: '', metDate: undefined, metDateFuzzy: false, yearsKnown: undefined, trackNurturing: true, useAge: false, metAtAge: undefined });
   };
 
   const selectedPersonData = selectedPerson
@@ -179,182 +162,14 @@ export const Relationships: React.FC = () => {
 
       {/* Add/Edit Person Modal */}
       {(showAddPerson || editingPerson) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-theme-primary rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingPerson ? 'Edit Person' : 'Add Person'}
-            </h3>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-theme-secondary mb-1">First Name</label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    placeholder="First name"
-                    className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-theme-secondary mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    placeholder="Last name"
-                    className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-theme-secondary mb-1">Relationship Type</label>
-                <input
-                  type="text"
-                  value={formData.relationshipType}
-                  onChange={(e) => setFormData({ ...formData, relationshipType: e.target.value })}
-                  placeholder="e.g., Friend, Family, Colleague"
-                  className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-
-              {/* When did you meet? */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium text-theme-secondary">
-                    When did you meet?
-                  </label>
-                  <label className="flex items-center text-xs text-theme-tertiary">
-                    <input
-                      type="checkbox"
-                      checked={formData.metDateFuzzy}
-                      onChange={(e) => setFormData({ ...formData, metDateFuzzy: e.target.checked })}
-                      className="mr-1"
-                    />
-                    Approximate
-                  </label>
-                </div>
-
-                {/* Date Entry Mode Toggle */}
-                <div className="flex gap-2 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, useAge: false })}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${!formData.useAge ? 'bg-primary-600 text-white' : 'bg-theme-tertiary text-theme-secondary'}`}
-                  >
-                    Exact Date
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, useAge: true })}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${formData.useAge ? 'bg-primary-600 text-white' : 'bg-theme-tertiary text-theme-secondary'}`}
-                  >
-                    I Was Age...
-                  </button>
-                </div>
-
-                {!formData.useAge ? (
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="date"
-                        value={formData.metDate && isValid(formData.metDate) ? format(formData.metDate, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => setFormData({ ...formData, metDate: e.target.value ? new Date(e.target.value) : undefined, yearsKnown: undefined, metAtAge: undefined })}
-                        className="w-full pl-10 pr-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                    </div>
-                    <div className="text-theme-tertiary self-center text-sm">or</div>
-                    <div className="flex-1">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={formData.yearsKnown ?? ''}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          yearsKnown: e.target.value ? parseInt(e.target.value) : undefined,
-                          metDate: undefined,
-                          metDateFuzzy: true,
-                          metAtAge: undefined
-                        })}
-                        placeholder="Years known"
-                        className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-2 items-center">
-                    <span className="text-sm text-theme-secondary">I was</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={formData.metAtAge ?? ''}
-                      onChange={(e) => {
-                        const age = e.target.value ? parseInt(e.target.value) : undefined;
-                        setFormData({
-                          ...formData,
-                          metAtAge: age,
-                          yearsKnown: age !== undefined ? undefined : formData.yearsKnown,
-                          metDate: undefined,
-                          metDateFuzzy: true
-                        });
-                      }}
-                      placeholder="age"
-                      className="w-20 px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 text-center"
-                    />
-                    <span className="text-sm text-theme-secondary">years old when we met</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Track Nurturing Toggle */}
-              <div className="flex items-center justify-between p-3 bg-theme-tertiary rounded-lg">
-                <div>
-                  <label className="block text-sm font-medium text-theme-primary">Track for Nurturing</label>
-                  <span className="text-xs text-theme-tertiary">Get reminders to stay in touch</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, trackNurturing: !formData.trackNurturing })}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${formData.trackNurturing ? 'bg-primary-600' : 'bg-gray-400'}`}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${formData.trackNurturing ? 'left-6' : 'left-0.5'}`} />
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-theme-secondary mb-1">Notes (optional)</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Additional notes..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={editingPerson ? handleUpdatePerson : handleAddPerson}
-                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-              >
-                {editingPerson ? 'Update' : 'Add'}
-              </button>
-              <button
-                onClick={() => editingPerson ? cancelEdit() : setShowAddPerson(false)}
-                className="flex-1 px-4 py-2 bg-theme-tertiary text-theme-primary rounded-md hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <RelationshipTrackerForm
+          onClose={() => {
+            setShowAddPerson(false);
+            setEditingPerson(null);
+          }}
+          onSubmit={handleFormSubmit}
+          initialData={editingPerson || undefined}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
