@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, X, Tag as TagIcon, Palette, AlertTriangle, Trash2, LogOut, Cloud, CloudOff, User } from 'lucide-react';
+import { Plus, X, Tag as TagIcon, Palette, AlertTriangle, Trash2, LogOut, Cloud, CloudOff, User, RefreshCw } from 'lucide-react';
+import * as supabaseService from '../services/supabaseService';
 
 export const Settings: React.FC = () => {
   const { managedTags, addManagedTag, updateManagedTag, deleteManagedTag, loadManagedTags } = useTimelineStore();
@@ -126,6 +127,24 @@ export const Settings: React.FC = () => {
                 >
                   <Cloud className="w-4 h-4" />
                   Force Sync to Cloud
+                </button>
+              )}
+
+              {!isOfflineMode && user && (
+                <button
+                  onClick={async () => {
+                    if (window.confirm('This will scan for and remove duplicate stories from the cloud. Continue?')) {
+                      const result = await supabaseService.deduplicateStories(user.id);
+                      alert(`Cleaned up ${result.removed} duplicate stories. ${result.kept} unique stories remain.`);
+                      if (result.removed > 0) {
+                        window.location.reload();
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Clean Duplicates
                 </button>
               )}
 

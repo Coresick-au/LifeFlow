@@ -862,37 +862,13 @@ export const useTimelineStore = create<TimelineStore>()(
             console.log('[Force Sync] Profile synced with user ID:', user.id);
           }
 
-          // 2. Stories
+          // 2. Stories - Use upsertStory to prevent duplicates
           const localStories = await db.table('stories').toArray();
           let storiesSynced = 0;
           for (const story of localStories) {
-            // Use addStory but with upsert-like logic? existing addStory creates new ID if not passed?
-            // Actually addStory takes Omit<Story, 'id'>. If we pass existing ID it might be ignored?
-            // supabaseService.addStory actually DOES NOT accept ID.
-            // It relies on Supabase generating ID or us passing it?
-            // Looking at service: it takes story without ID.
-            // Ideally we want to KEEP the ID.
-            // We should check if story exists?
-            // For this emergency patch, let's use a specialized upsert or check existence.
-            // But supabaseService doesn't have upsertStory with ID.
-            // Wait, addStory in service:
-            // .insert({ user_id: userId, title: story.title ... })
-            // It creates a NEW ID. This will duplicate stories if we run it multiple times!
-            // But our Cloud is EMPTY. So duplication is not a risk right now.
-            // However, local stories have IDs. If we upload, they get NEW IDs.
-            // Then loadStories will pull them back.
-            // We should ideally update local with new ID?
-            // Or we can modify addStory simply to accept an optional ID?
-            // Let's assume for now we just push and let Cloud be the source of truth for future.
-            // Ideally we should use upsert logic.
-            // Given time constraints: We will push. Duplicates are better than zero data.
-            // But wait, if we push, cloud gets new IDs.
-            // Next reload... cloud (new IDs) comes down.
-            // Local (old IDs) exists.
-            // Sync Logic says "Cloud has data -> Replace Local".
-            // So Local (Old IDs) gets wiped. Local gets New IDs.
-            // That works!
-            await supabaseService.addStory(user.id, story);
+            // upsertStory checks if story with same title+date exists and updates it
+            // Otherwise it creates a new one. This prevents duplicates on multiple syncs.
+            await supabaseService.upsertStory(user.id, story);
             storiesSynced++;
           }
 

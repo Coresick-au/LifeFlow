@@ -188,6 +188,166 @@ export async function deleteStory(storyId: string): Promise<boolean> {
     return !error;
 }
 
+/**
+ * Upsert a story - insert if new, update if exists.
+ * Uses the story's ID to determine if it should insert or update.
+ * For syncing local data to cloud, we need to match on user_id + title + date
+ * since local IDs don't match cloud IDs.
+ */
+export async function upsertStory(userId: string, story: Story): Promise<Story | null> {
+    if (!supabase) return null;
+
+    // First, check if this story already exists in the cloud
+    // Match by user_id, title, and date (since local ID won't match cloud ID)
+    const { data: existing } = await supabase
+        .from('stories')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('title', story.title)
+        .eq('date', story.date instanceof Date ? story.date.toISOString().split('T')[0] : story.date)
+        .maybeSingle();
+
+    const storyData = {
+        user_id: userId,
+        title: story.title,
+        content: story.content,
+        type: story.type,
+        date: story.date instanceof Date ? story.date.toISOString().split('T')[0] : story.date,
+        end_date: story.endDate instanceof Date ? story.endDate.toISOString().split('T')[0] : story.endDate,
+        fuzzy_date: story.fuzzyDate,
+        tags: story.tags,
+        people: story.people,
+        importance: story.importance,
+        location: story.location,
+        images: story.images,
+        metadata: story.metadata,
+        locked_until: story.lockedUntil,
+    };
+
+    let result;
+    if (existing?.id) {
+        // Update existing record
+        console.log('[Supabase] Updating existing story:', existing.id);
+        const { data, error } = await supabase
+            .from('stories')
+            .update(storyData)
+            .eq('id', existing.id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('[Supabase] Story update error:', error);
+            return null;
+        }
+        result = data;
+    } else {
+        // Insert new record
+        console.log('[Supabase] Inserting new story:', story.title);
+        const { data, error } = await supabase
+            .from('stories')
+            .insert(storyData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('[Supabase] Story insert error:', error);
+            return null;
+        }
+        result = data;
+    }
+
+    if (!result) return null;
+
+    return {
+        id: result.id,
+        title: result.title,
+        content: result.content,
+        type: result.type,
+        date: new Date(result.date),
+        endDate: result.end_date ? new Date(result.end_date) : undefined,
+        fuzzyDate: result.fuzzy_date,
+        tags: result.tags || [],
+        people: result.people || [],
+        importance: result.importance,
+        location: result.location,
+        images: result.images || [],
+        metadata: result.metadata,
+        lockedUntil: result.locked_until ? new Date(result.locked_until) : undefined,
+        createdAt: new Date(result.created_at),
+        updatedAt: new Date(result.updated_at),
+    };
+}
+
+/**
+ * Remove duplicate stories from Supabase.
+ * Duplicates are identified by matching title + date.
+ * Keeps the oldest record (first created) and deletes the rest.
+ */
+export async function deduplicateStories(userId: string): Promise<{ removed: number; kept: number }> {
+    if (!supabase) return { removed: 0, kept: 0 };
+
+    console.log('[Supabase] Starting deduplication for user:', userId);
+
+    // Get all stories for the user
+    const { data: allStories, error } = await supabase
+        .from('stories')
+        .select('id, title, date, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true }); // Oldest first
+
+    if (error || !allStories) {
+        console.error('[Supabase] Failed to fetch stories for deduplication:', error);
+        return { removed: 0, kept: 0 };
+    }
+
+    // Group stories by title + date
+    const storyGroups = new Map<string, typeof allStories>();
+    for (const story of allStories) {
+        const key = `${story.title}|${story.date}`;
+        if (!storyGroups.has(key)) {
+            storyGroups.set(key, []);
+        }
+        storyGroups.get(key)!.push(story);
+    }
+
+    // Find duplicates (groups with more than 1 story)
+    const idsToDelete: string[] = [];
+    let keptCount = 0;
+
+    for (const [key, stories] of Array.from(storyGroups.entries())) {
+        if (stories.length > 1) {
+            // Keep the first one (oldest), delete the rest
+            keptCount++;
+            for (let i = 1; i < stories.length; i++) {
+                idsToDelete.push(stories[i].id);
+            }
+            console.log(`[Supabase] Found ${stories.length} copies of "${stories[0].title}", keeping oldest, removing ${stories.length - 1}`);
+        } else {
+            keptCount++;
+        }
+    }
+
+    if (idsToDelete.length === 0) {
+        console.log('[Supabase] No duplicates found');
+        return { removed: 0, kept: keptCount };
+    }
+
+    // Delete duplicates in batches
+    console.log(`[Supabase] Deleting ${idsToDelete.length} duplicate stories...`);
+    const { error: deleteError } = await supabase
+        .from('stories')
+        .delete()
+        .in('id', idsToDelete);
+
+    if (deleteError) {
+        console.error('[Supabase] Failed to delete duplicates:', deleteError);
+        return { removed: 0, kept: keptCount };
+    }
+
+    console.log(`[Supabase] Deduplication complete. Removed ${idsToDelete.length} duplicates, kept ${keptCount} unique stories.`);
+    return { removed: idsToDelete.length, kept: keptCount };
+}
+
 // ==========================================
 // THOUGHTS
 // ==========================================
