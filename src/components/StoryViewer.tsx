@@ -116,15 +116,15 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onEdit
                         {/* Importance */}
                         <div className="flex items-center gap-1">
                             <Star className={`w-4 h-4 ${story.importance === 'high' ? 'text-red-500' :
-                                    story.importance === 'medium' ? 'text-yellow-500' : 'text-gray-400'
+                                story.importance === 'medium' ? 'text-yellow-500' : 'text-gray-400'
                                 }`} />
                             <span className="capitalize">{story.importance} importance</span>
                         </div>
 
                         {/* Type */}
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${story.type === 'long'
-                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
                             }`}>
                             {story.type === 'long' ? 'Long Story' : 'Short Story'}
                         </span>
@@ -132,7 +132,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onEdit
 
                     {/* Story Content */}
                     <div className="prose dark:prose-invert max-w-none mb-8">
-                        <p className="text-lg leading-relaxed text-theme-secondary whitespace-pre-wrap">
+                        <p className="text-lg leading-relaxed text-theme-secondary whitespace-pre-wrap break-words">
                             {story.content}
                         </p>
                     </div>

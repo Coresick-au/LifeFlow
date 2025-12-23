@@ -22,7 +22,11 @@ import {
   Gift,
   Camera,
   Coffee,
-  Sparkles
+  Sparkles,
+  ChevronRight,
+  Target,
+  Eye,
+  List
 } from 'lucide-react';
 
 const getMoodEmoji = (mood: Story['mood']) => {
@@ -88,9 +92,62 @@ const getCategoryIcon = (tags: string[]) => {
   return <Coffee className="w-5 h-5 text-theme-tertiary" />;
 };
 
+/**
+ * Compact Timeline Card
+ * Prevents "blow out" by enforcing fixed dimensions and truncation.
+ * Designed for high-density scanning.
+ */
+const CompactTimelineCard = ({ story, onClick, isLocked }: { story: Story; onClick: () => void; isLocked: boolean }) => {
+  return (
+    <div className="relative">
+      {/* Timeline Dot - positioned on the left border */}
+      <div className="absolute -left-[22px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 border-2 border-theme-primary" />
+
+      <div
+        onClick={() => !isLocked && onClick()}
+        className={`group flex items-center gap-4 p-2 h-14 bg-theme-primary border border-theme hover:border-primary-500 rounded-lg cursor-pointer transition-all overflow-hidden ${isLocked ? 'opacity-50' : ''}`}
+      >
+        {/* Date Anchor - Fixed Width */}
+        <div className="flex-shrink-0 w-12 text-center border-r border-theme pr-3">
+          <span className="text-[10px] font-bold text-theme-tertiary uppercase">
+            {format(new Date(story.date), 'MMM')}
+          </span>
+          <div className="text-sm font-bold text-theme-primary leading-none">
+            {format(new Date(story.date), 'dd')}
+          </div>
+        </div>
+
+        {/* Category Icon */}
+        <div className="flex-shrink-0">
+          {getCategoryIcon(story.tags)}
+        </div>
+
+        {/* Content - Flex Grow with Truncation */}
+        <div className="flex-grow min-w-0">
+          <h4 className="text-sm font-semibold text-theme-primary truncate group-hover:text-primary-500 transition-colors">
+            {isLocked && <Lock className="inline w-3 h-3 mr-1 text-yellow-500" />}
+            {story.title}
+          </h4>
+          <p className="text-xs text-theme-tertiary truncate">
+            {story.content.replace(/[\n\r]+/g, ' ')}
+          </p>
+        </div>
+
+        {/* Metadata - Icons on hover */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-sm">{getMoodEmoji(story.mood)}</span>
+          {story.importance === 'high' && <Target className="w-3.5 h-3.5 text-orange-500" />}
+          <ChevronRight className="w-4 h-4 text-theme-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: () => void }> = ({ searchResults, onAddStory }) => {
   const { stories, userProfile, deleteStory, setCurrentView, activeStoryId, setActiveStory } = useTimelineStore();
   const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
 
   // Get the active story for the viewer
   const activeStory = useMemo(() => {
@@ -256,7 +313,32 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
       <div className="mb-6 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-lg p-4 border border-blue-800/30">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-2xl font-bold text-theme-primary">Timeline</h2>
-          <span className="text-sm text-theme-tertiary">{filteredStories.length} stories</span>
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex gap-1 bg-theme-tertiary rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('compact')}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'compact'
+                  ? 'bg-theme-primary text-theme-primary shadow-sm'
+                  : 'text-theme-tertiary hover:text-theme-secondary'
+                  }`}
+              >
+                <List className="w-3 h-3" />
+                Compact
+              </button>
+              <button
+                onClick={() => setViewMode('expanded')}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'expanded'
+                  ? 'bg-theme-primary text-theme-primary shadow-sm'
+                  : 'text-theme-tertiary hover:text-theme-secondary'
+                  }`}
+              >
+                <Eye className="w-3 h-3" />
+                Expanded
+              </button>
+            </div>
+            <span className="text-sm text-theme-tertiary">{filteredStories.length} stories</span>
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-4 text-center text-sm">
           <div>
@@ -360,135 +442,152 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
               <h3 className="sticky top-0 py-3 px-4 text-lg font-semibold border-b z-10 bg-theme-secondary text-theme-primary border-theme">
                 {month}
               </h3>
-              {/* Stories for this month */}
-              {stories.map((story: Story, index: number) => {
-                const isLocked = isTimeCapsuleLocked(story);
-                const isEven = index % 2 === 0;
 
-                return (
-                  <div
-                    key={story.id}
-                    className={`relative mb-8 animate-slide-up flex items-start md:justify-center ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'
-                      }`}
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    {/* Spacer for desktop alternating layout */}
-                    <div className="hidden md:block md:w-[calc(50%-2.5rem)]" />
+              {/* Compact View - Left-anchored timeline */}
+              {viewMode === 'compact' ? (
+                <div className="relative border-l-2 border-slate-300 dark:border-slate-700 ml-6 pl-4 space-y-2 py-4">
+                  {stories.map((story: Story) => {
+                    const isLocked = isTimeCapsuleLocked(story);
+                    return (
+                      <CompactTimelineCard
+                        key={story.id}
+                        story={story}
+                        isLocked={isLocked}
+                        onClick={() => setActiveStory(story.id)}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Expanded View - Original Cards */
+                stories.map((story: Story, index: number) => {
+                  const isLocked = isTimeCapsuleLocked(story);
+                  const isEven = index % 2 === 0;
 
-                    {/* Timeline dot with contextual icon */}
-                    <div className="timeline-dot">
-                      {getCategoryIcon(story.tags)}
-                    </div>
-
-                    {/* Story card - clickable to open viewer */}
+                  return (
                     <div
-                      className={`story-card cursor-pointer hover:shadow-lg transition-shadow ${isEven ? 'md:story-card-right' : 'md:story-card-left'} ${isLocked ? 'relative' : ''}`}
-                      onClick={() => !isLocked && setActiveStory(story.id)}
+                      key={story.id}
+                      className={`relative mb-8 animate-slide-up flex items-start md:justify-center ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'}`}
+                      style={{ animationDelay: `${index * 50}ms` }}
                     >
-                      {/* Time capsule overlay */}
-                      {isLocked && (
-                        <div className="absolute inset-0 backdrop-blur-sm rounded-lg z-10 flex flex-col items-center justify-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
-                          <Lock className="w-8 h-8 mb-2" style={{ color: '#fbbf24' }} />
-                          <p className="font-semibold" style={{ color: '#fbbf24' }}>Time Capsule</p>
-                          <p className="text-sm mt-1 text-theme-secondary">
-                            Opens on {format(new Date(story.lockedUntil!), 'MMM d, yyyy')}
-                          </p>
-                          <p className="text-xs mt-2 text-theme-tertiary">
-                            {Math.ceil((new Date(story.lockedUntil!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days remaining
-                          </p>
-                        </div>
-                      )}
+                      {/* Spacer for desktop alternating layout */}
+                      <div className="hidden md:block md:w-[calc(50%-2.5rem)]" />
 
-                      <div className={`flex items-start justify-between mb-2 ${isLocked ? 'opacity-30' : ''}`}>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold mb-1 text-theme-primary">
-                            {story.title}
-                            {isLocked && <Lock className="inline w-4 h-4 ml-2" style={{ color: '#f59e0b' }} />}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-theme-secondary">
-                            <span className="flex items-center">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {format(new Date(story.date), 'MMM d, yyyy')}
-                            </span>
-                            {story.location && (
-                              <span className="flex items-center">
-                                <MapPin className="w-4 h-4 mr-1" />
-                                {story.location}
-                              </span>
-                            )}
-                            <span>{getMoodEmoji(story.mood)}</span>
-                            {getImportanceStars(story.importance)}
-                          </div>
-                        </div>
+                      {/* Timeline dot with contextual icon */}
+                      <div className="timeline-dot">
+                        {getCategoryIcon(story.tags)}
                       </div>
 
-                      {/* Image Gallery */}
-                      {story.images && story.images.length > 0 && !isLocked && (
-                        <div className={`grid gap-2 mb-3 mt-2 ${story.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                          {story.images.slice(0, 4).map((img, i) => (
-                            <img
-                              key={i}
-                              src={img}
-                              alt={`Memory ${i + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border border-theme hover:opacity-90 transition-opacity cursor-pointer"
-                              onClick={() => window.open(img, '_blank')}
-                            />
-                          ))}
-                          {story.images.length > 4 && (
-                            <div className="w-full h-32 flex items-center justify-center bg-theme-tertiary rounded-lg border border-theme text-theme-secondary">
-                              +{story.images.length - 4} more
+                      {/* Story card - clickable to open viewer */}
+                      <div
+                        className={`story-card cursor-pointer hover:shadow-lg transition-shadow ${isEven ? 'md:story-card-right' : 'md:story-card-left'} ${isLocked ? 'relative' : ''}`}
+                        onClick={() => !isLocked && setActiveStory(story.id)}
+                      >
+                        {/* Time capsule overlay */}
+                        {isLocked && (
+                          <div className="absolute inset-0 backdrop-blur-sm rounded-lg z-10 flex flex-col items-center justify-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
+                            <Lock className="w-8 h-8 mb-2" style={{ color: '#fbbf24' }} />
+                            <p className="font-semibold" style={{ color: '#fbbf24' }}>Time Capsule</p>
+                            <p className="text-sm mt-1 text-theme-secondary">
+                              Opens on {format(new Date(story.lockedUntil!), 'MMM d, yyyy')}
+                            </p>
+                            <p className="text-xs mt-2 text-theme-tertiary">
+                              {Math.ceil((new Date(story.lockedUntil!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days remaining
+                            </p>
+                          </div>
+                        )}
+
+                        <div className={`flex items-start justify-between mb-2 ${isLocked ? 'opacity-30' : ''}`}>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold mb-1 text-theme-primary">
+                              {story.title}
+                              {isLocked && <Lock className="inline w-4 h-4 ml-2" style={{ color: '#f59e0b' }} />}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-theme-secondary">
+                              <span className="flex items-center">
+                                <Calendar className="w-4 h-4 mr-1" />
+                                {format(new Date(story.date), 'MMM d, yyyy')}
+                              </span>
+                              {story.location && (
+                                <span className="flex items-center">
+                                  <MapPin className="w-4 h-4 mr-1" />
+                                  {story.location}
+                                </span>
+                              )}
+                              <span>{getMoodEmoji(story.mood)}</span>
+                              {getImportanceStars(story.importance)}
                             </div>
-                          )}
+                          </div>
                         </div>
-                      )}
 
-                      {/* Content */}
-                      <p className={`${isLocked ? 'opacity-30' : ''} text-theme-primary leading-relaxed`}>
-                        {story.content}
-                      </p>
+                        {/* Image Gallery */}
+                        {story.images && story.images.length > 0 && !isLocked && (
+                          <div className={`grid gap-2 mb-3 mt-2 ${story.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                            {story.images.slice(0, 4).map((img, i) => (
+                              <img
+                                key={i}
+                                src={img}
+                                alt={`Memory ${i + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border border-theme hover:opacity-90 transition-opacity cursor-pointer"
+                                onClick={() => window.open(img, '_blank')}
+                              />
+                            ))}
+                            {story.images.length > 4 && (
+                              <div className="w-full h-32 flex items-center justify-center bg-theme-tertiary rounded-lg border border-theme text-theme-secondary">
+                                +{story.images.length - 4} more
+                              </div>
+                            )}
+                          </div>
+                        )}
 
-                      {/* Tags */}
-                      {story.tags.length > 0 && (
-                        <div className={`flex flex-wrap gap-2 mt-3 ${isLocked ? 'opacity-30' : ''}`}>
-                          {story.tags.map((tag: string) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-theme-tertiary text-theme-primary"
+                        {/* Content */}
+                        <p className={`${isLocked ? 'opacity-30' : ''} text-theme-primary leading-relaxed`}>
+                          {story.content}
+                        </p>
+
+                        {/* Tags */}
+                        {story.tags.length > 0 && (
+                          <div className={`flex flex-wrap gap-2 mt-3 ${isLocked ? 'opacity-30' : ''}`}>
+                            {story.tags.map((tag: string) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-theme-tertiary text-theme-primary"
+                              >
+                                <Tag className="w-3 h-3 mr-1" />
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Actions - hide for locked stories and synthetic birth story */}
+                        {!isLocked && story.id !== 'birth-event-synthetic' && (
+                          <div className="flex space-x-2 mt-4 pt-4 border-t border-theme">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditStory(story);
+                              }}
+                              className="text-theme-secondary hover:text-theme-primary"
                             >
-                              <Tag className="w-3 h-3 mr-1" />
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Actions - hide for locked stories and synthetic birth story */}
-                      {!isLocked && story.id !== 'birth-event-synthetic' && (
-                        <div className="flex space-x-2 mt-4 pt-4 border-t border-theme">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditStory(story);
-                            }}
-                            className="text-theme-secondary hover:text-theme-primary"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteStory(story.id);
-                            }}
-                            className="text-theme-secondary hover:text-red-500"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteStory(story.id);
+                              }}
+                              className="text-theme-secondary hover:text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           ))
         )}
