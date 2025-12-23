@@ -44,29 +44,43 @@ export async function upsertProfile(profile: UserProfile): Promise<boolean> {
     }
 
     console.log('[Supabase] Upserting profile with ID:', profile.id);
+    console.log('[Supabase] Profile data:', {
+        id: profile.id,
+        name: profile.name,
+        birthDate: profile.birthDate,
+        birthLocation: profile.birthLocation,
+        location: profile.location,
+    });
 
-    const { error } = await supabase
+    const profileData = {
+        id: profile.id,
+        name: profile.name,
+        birth_date: profile.birthDate instanceof Date
+            ? profile.birthDate.toISOString().split('T')[0]
+            : profile.birthDate,
+        birth_location: profile.birthLocation,
+        location: profile.location,
+        hometown: profile.hometown,
+        bio: profile.bio,
+        avatar_url: profile.avatar,
+        family: profile.family || [],
+        blood_type: profile.bloodType,
+    };
+
+    console.log('[Supabase] Sending to Supabase:', profileData);
+
+    const { data, error } = await supabase
         .from('profiles')
-        .upsert({
-            id: profile.id,
-            name: profile.name,
-            birth_date: profile.birthDate instanceof Date
-                ? profile.birthDate.toISOString().split('T')[0]
-                : profile.birthDate,
-            birth_location: profile.birthLocation,
-            location: profile.location,
-            hometown: profile.hometown,
-            bio: profile.bio,
-            avatar_url: profile.avatar,
-            family: profile.family || [],
-            blood_type: profile.bloodType,
-        });
+        .upsert(profileData)
+        .select();
 
     if (error) {
         console.error('[Supabase] Profile upsert error:', error);
+        console.error('[Supabase] Error details:', JSON.stringify(error, null, 2));
         return false;
     }
 
+    console.log('[Supabase] Profile upsert response:', data);
     console.log('[Supabase] Profile upserted successfully');
     return true;
 }

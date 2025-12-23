@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { format, isValid, subYears } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Relationship } from '../types';
-import { Users, Calendar, MapPin, Plus, X, Edit, Trash2, ChevronDown, User, HelpCircle } from 'lucide-react';
+import { Users, Calendar, MapPin, Plus, X, Edit, Trash2, ChevronDown, User, HelpCircle, Archive } from 'lucide-react';
 import { RelationshipTrackerForm } from './RelationshipTrackerForm';
 
 type SortOption = 'name' | 'interactions' | 'recent' | 'relationshipType';
+type StatusFilter = 'all' | 'current' | 'ended';
 
 export const Relationships: React.FC = () => {
   const {
@@ -20,6 +21,7 @@ export const Relationships: React.FC = () => {
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Relationship | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('recent');
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>('current');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -33,10 +35,18 @@ export const Relationships: React.FC = () => {
     metAtAge: undefined as number | undefined, // Age when met
   });
 
-  // Sort relationships
+  // Filter and sort relationships
   const sortedRelationships = useMemo(() => {
-    const sorted = [...relationships];
+    // First filter by status
+    let filtered = relationships;
+    if (filterStatus === 'current') {
+      filtered = relationships.filter(r => r.isCurrent !== false);
+    } else if (filterStatus === 'ended') {
+      filtered = relationships.filter(r => r.isCurrent === false);
+    }
 
+    // Then sort
+    const sorted = [...filtered];
     switch (sortBy) {
       case 'name':
         return sorted.sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -49,7 +59,7 @@ export const Relationships: React.FC = () => {
       default:
         return sorted;
     }
-  }, [relationships, sortBy]);
+  }, [relationships, sortBy, filterStatus]);
 
 
 
@@ -145,19 +155,33 @@ export const Relationships: React.FC = () => {
         </div>
       </div>
 
-      {/* Sort Options */}
-      <div className="mb-4">
-        <label className="text-sm font-medium text-theme-secondary mr-2">Sort by:</label>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortOption)}
-          className="px-3 py-1 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="recent">Recently Updated</option>
-          <option value="name">Name</option>
-          <option value="interactions">Most Interactions</option>
-          <option value="relationshipType">Relationship Type</option>
-        </select>
+      {/* Filter and Sort Options */}
+      <div className="mb-4 flex flex-wrap gap-4">
+        <div>
+          <label className="text-sm font-medium text-theme-secondary mr-2">Status:</label>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as StatusFilter)}
+            className="px-3 py-1 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="current">Current</option>
+            <option value="ended">Ended</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-sm font-medium text-theme-secondary mr-2">Sort by:</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="px-3 py-1 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="recent">Recently Updated</option>
+            <option value="name">Name</option>
+            <option value="interactions">Most Interactions</option>
+            <option value="relationshipType">Relationship Type</option>
+          </select>
+        </div>
       </div>
 
       {/* Add/Edit Person Modal */}
@@ -184,20 +208,25 @@ export const Relationships: React.FC = () => {
                 className={`p-3 rounded-lg border cursor-pointer transition-all group ${selectedPerson === relationship.id
                   ? 'border-primary-500 bg-primary-500/20'
                   : 'border-theme hover:border-theme hover:bg-theme-tertiary'
-                  }`}
+                  } ${relationship.isCurrent === false ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div
                     className="flex items-center gap-3 flex-1"
                     onClick={() => setSelectedPerson(relationship.id)}
                   >
-                    <div className="w-10 h-10 bg-primary-500/30 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary-600" />
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${relationship.isCurrent === false ? 'bg-gray-400/30' : 'bg-primary-500/30'}`}>
+                      {relationship.isCurrent === false ? (
+                        <Archive className="w-5 h-5 text-gray-500" />
+                      ) : (
+                        <User className="w-5 h-5 text-primary-600" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-theme-primary">{relationship.fullName}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">
                         {relationship.relationshipType} • {relationship.interactionCount} interactions
+                        {relationship.isCurrent === false && <span className="ml-2 text-yellow-600">(Ended)</span>}
                       </div>
                     </div>
                   </div>

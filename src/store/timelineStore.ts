@@ -856,10 +856,16 @@ export const useTimelineStore = create<TimelineStore>()(
 
           // 1. Profile - CRITICAL: Use user.id for cloud profile
           const localProfiles = await db.table('userProfile').toArray();
+          console.log('[Force Sync] Local profiles found:', localProfiles.length);
           if (localProfiles.length > 0) {
+            console.log('[Force Sync] Local profile data:', localProfiles[0]);
             const cloudProfile = { ...localProfiles[0], id: user.id };
-            await supabaseService.upsertProfile(cloudProfile);
+            console.log('[Force Sync] Cloud profile to upsert:', cloudProfile);
+            const result = await supabaseService.upsertProfile(cloudProfile);
+            console.log('[Force Sync] Profile upsert result:', result);
             console.log('[Force Sync] Profile synced with user ID:', user.id);
+          } else {
+            console.warn('[Force Sync] No local profile found to sync!');
           }
 
           // 2. Stories - Use upsertStory to prevent duplicates
