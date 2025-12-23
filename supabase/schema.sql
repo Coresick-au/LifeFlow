@@ -12,8 +12,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   birth_date DATE NOT NULL,
   birth_location TEXT,
   location TEXT,
+  hometown TEXT,
   bio TEXT,
   avatar_url TEXT,
+  family JSONB DEFAULT '[]',
+  blood_type TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

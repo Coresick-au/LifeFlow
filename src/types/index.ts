@@ -49,14 +49,26 @@ export interface Story {
   updatedAt: Date;
 }
 
+export interface FamilyMember {
+  id: string;
+  role: 'parent' | 'sibling' | 'partner' | 'child';
+  name: string;
+  birthDate?: Date;
+  isLiving: boolean;
+  notes?: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   birthDate: Date;
   birthLocation?: string;
   location?: string;
+  hometown?: string;
   bio?: string;
   avatar?: string;
+  family?: FamilyMember[];
+  bloodType?: string;
 }
 
 export type TimelineView =

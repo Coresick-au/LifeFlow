@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
-import { UserProfile as UserProfileType, Story } from '../types';
-import { Save, Calendar, MapPin, User as UserIcon, Database, Download, TrendingUp, Heart, BookOpen, Users, Target, Award, Clock, X, Upload, AlertTriangle, Camera } from 'lucide-react';
+import { UserProfile as UserProfileType, Story, FamilyMember } from '../types';
+import { Save, Calendar, MapPin, User as UserIcon, Database, Download, TrendingUp, Heart, BookOpen, Users, Target, Award, Clock, X, Upload, AlertTriangle, Camera, Plus, Trash2, Home } from 'lucide-react';
 import { PDFExport } from './PDFExport';
 import { format, differenceInYears, differenceInDays, differenceInMonths } from 'date-fns';
+import { AgeOverview, ActivityMetrics, Achievements, LifeCalendar, FamilyCircle } from './ProfileDashboard';
 
 export const UserProfile: React.FC = () => {
   const { userProfile, setUserProfile, stories, relationships, setCurrentView, isLoading, exportData, importData } = useTimelineStore();
@@ -12,8 +13,11 @@ export const UserProfile: React.FC = () => {
     birthDate: userProfile?.birthDate ? new Date(userProfile.birthDate) : new Date(),
     birthLocation: userProfile?.birthLocation || '',
     location: userProfile?.location || '',
+    hometown: userProfile?.hometown || '',
     bio: userProfile?.bio || '',
     avatar: userProfile?.avatar || '',
+    family: userProfile?.family || [],
+    bloodType: userProfile?.bloodType || '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -30,8 +34,11 @@ export const UserProfile: React.FC = () => {
         birthDate: new Date(userProfile.birthDate),
         birthLocation: userProfile.birthLocation || '',
         location: userProfile.location || '',
+        hometown: userProfile.hometown || '',
         bio: userProfile.bio || '',
         avatar: userProfile.avatar || '',
+        family: userProfile.family || [],
+        bloodType: userProfile.bloodType || '',
       });
     }
   }, [userProfile]);
@@ -175,8 +182,11 @@ export const UserProfile: React.FC = () => {
       birthDate: formData.birthDate,
       birthLocation: formData.birthLocation,
       location: formData.location,
+      hometown: formData.hometown,
       bio: formData.bio,
       avatar: formData.avatar,
+      family: formData.family,
+      bloodType: formData.bloodType,
     };
 
     await setUserProfile(profile);
@@ -666,6 +676,147 @@ export const UserProfile: React.FC = () => {
               className="w-full px-3 py-2 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="City, Country"
             />
+          </div>
+
+          <div>
+            <label htmlFor="hometown" className="block text-sm font-medium text-theme-secondary mb-1">
+              <Home className="inline w-4 h-4 mr-1" />
+              Hometown (optional)
+            </label>
+            <input
+              type="text"
+              id="hometown"
+              value={formData.hometown}
+              onChange={(e) => setFormData({ ...formData, hometown: e.target.value })}
+              className="w-full px-3 py-2 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="Where you grew up"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="bloodType" className="block text-sm font-medium text-theme-secondary mb-1">
+                Blood Type (optional)
+              </label>
+              <select
+                id="bloodType"
+                value={formData.bloodType || ''}
+                onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
+                className="w-full px-3 py-2 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Select...</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+              <p className="mt-1 text-xs text-theme-tertiary">Useful for health/emergency context</p>
+            </div>
+          </div>
+
+          {/* Family Members Section */}
+          <div className="border-t border-theme pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-theme-secondary">
+                <Users className="inline w-4 h-4 mr-1" />
+                Family Members
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const newMember: FamilyMember = {
+                    id: crypto.randomUUID(),
+                    role: 'parent',
+                    name: '',
+                    isLiving: true,
+                  };
+                  setFormData({
+                    ...formData,
+                    family: [...(formData.family || []), newMember],
+                  });
+                }}
+                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+              >
+                <Plus className="w-4 h-4" />
+                Add Member
+              </button>
+            </div>
+
+            {formData.family && formData.family.length > 0 ? (
+              <div className="space-y-3">
+                {formData.family.map((member, index) => (
+                  <div key={member.id} className="flex items-start gap-2 p-3 bg-theme-tertiary rounded-lg">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        value={member.name}
+                        onChange={(e) => {
+                          const updated = [...(formData.family || [])];
+                          updated[index] = { ...member, name: e.target.value };
+                          setFormData({ ...formData, family: updated });
+                        }}
+                        className="px-2 py-1 text-sm border border-theme-border bg-theme-primary text-theme-primary rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <select
+                        value={member.role}
+                        onChange={(e) => {
+                          const updated = [...(formData.family || [])];
+                          updated[index] = { ...member, role: e.target.value as FamilyMember['role'] };
+                          setFormData({ ...formData, family: updated });
+                        }}
+                        className="px-2 py-1 text-sm border border-theme-border bg-theme-primary text-theme-primary rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      >
+                        <option value="parent">Parent</option>
+                        <option value="sibling">Sibling</option>
+                        <option value="partner">Partner</option>
+                        <option value="child">Child</option>
+                      </select>
+                      <input
+                        type="date"
+                        placeholder="Birth date"
+                        value={member.birthDate ? new Date(member.birthDate).toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const updated = [...(formData.family || [])];
+                          updated[index] = { ...member, birthDate: e.target.value ? new Date(e.target.value) : undefined };
+                          setFormData({ ...formData, family: updated });
+                        }}
+                        className="px-2 py-1 text-sm border border-theme-border bg-theme-primary text-theme-primary rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <label className="flex items-center gap-1 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={member.isLiving}
+                          onChange={(e) => {
+                            const updated = [...(formData.family || [])];
+                            updated[index] = { ...member, isLiving: e.target.checked };
+                            setFormData({ ...formData, family: updated });
+                          }}
+                          className="rounded"
+                        />
+                        Living
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = (formData.family || []).filter((_, i) => i !== index);
+                        setFormData({ ...formData, family: updated });
+                      }}
+                      className="p-1 text-red-500 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-theme-tertiary">No family members added. Click "Add Member" to start.</p>
+            )}
           </div>
 
           <div>

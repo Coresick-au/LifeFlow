@@ -29,8 +29,11 @@ export async function getProfile(userId: string): Promise<UserProfile | null> {
         birthDate: new Date(data.birth_date),
         birthLocation: data.birth_location,
         location: data.location,
+        hometown: data.hometown,
         bio: data.bio,
         avatar: data.avatar_url,
+        family: data.family || [],
+        bloodType: data.blood_type,
     };
 }
 
@@ -47,8 +50,11 @@ export async function upsertProfile(profile: UserProfile): Promise<boolean> {
                 : profile.birthDate,
             birth_location: profile.birthLocation,
             location: profile.location,
+            hometown: profile.hometown,
             bio: profile.bio,
             avatar_url: profile.avatar,
+            family: profile.family || [],
+            blood_type: profile.bloodType,
         });
 
     return !error;
