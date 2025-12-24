@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
-import { format } from 'date-fns';
-import { Home, Calendar, DollarSign, MapPin, Bed, Bath, Square, Camera, X, Save, ChevronDown } from 'lucide-react';
+import { format, isValid } from 'date-fns';
+import { Home, Calendar, DollarSign, MapPin, Bed, Bath, Square, Camera, X, Save, ChevronDown, Building2, PiggyBank, Palmtree } from 'lucide-react';
 
 interface HouseTrackerFormProps {
   onClose: () => void;
@@ -32,7 +32,8 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
     photos: editData?.photos || [],
     description: editData?.description || '',
     date: editData?.date || new Date(),
-    type: editData?.type || 'purchase' as 'purchase' | 'sale' | 'renovation' | 'memory'
+    type: editData?.type || 'purchase' as 'purchase' | 'sale' | 'renovation' | 'memory',
+    propertyType: 'residence' as 'residence' | 'investment' | 'holiday'
   });
   const [isSaving, setIsSaving] = useState(false);
   const [showExistingDropdown, setShowExistingDropdown] = useState(false);
@@ -91,7 +92,7 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
         content: formData.description,
         type: 'long' as const,
         date: formData.date,
-        tags: ['home', 'house', formData.type],
+        tags: ['home', 'house', formData.type, formData.propertyType],
         people: [],
         importance: 'medium' as const,
         location: formData.address,
@@ -103,6 +104,7 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
           bedrooms: formData.bedrooms,
           bathrooms: formData.bathrooms,
           squareFootage: formData.squareFootage,
+          propertyType: formData.propertyType,
           eventType: 'home'
         }
       };
@@ -174,6 +176,55 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
               ))}
             </div>
           </div>
+
+          {/* Property Type Selector (only show for purchase/sale) */}
+          {(formData.type === 'purchase' || formData.type === 'sale') && (
+            <div>
+              <label className="block text-sm font-medium text-theme-secondary mb-2">
+                Property Type
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, propertyType: 'residence' })}
+                  className={`px-3 py-3 rounded-lg transition-all flex flex-col items-center gap-1 ${formData.propertyType === 'residence'
+                      ? 'bg-green-600 text-white ring-2 ring-green-400'
+                      : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary/50'
+                    }`}
+                >
+                  <Home className="w-5 h-5" />
+                  <span className="text-xs font-medium">Residence</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, propertyType: 'investment' })}
+                  className={`px-3 py-3 rounded-lg transition-all flex flex-col items-center gap-1 ${formData.propertyType === 'investment'
+                      ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                      : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary/50'
+                    }`}
+                >
+                  <PiggyBank className="w-5 h-5" />
+                  <span className="text-xs font-medium">Investment</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, propertyType: 'holiday' })}
+                  className={`px-3 py-3 rounded-lg transition-all flex flex-col items-center gap-1 ${formData.propertyType === 'holiday'
+                      ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                      : 'bg-theme-tertiary text-theme-secondary hover:bg-theme-secondary/50'
+                    }`}
+                >
+                  <Palmtree className="w-5 h-5" />
+                  <span className="text-xs font-medium">Holiday</span>
+                </button>
+              </div>
+              <p className="text-xs text-theme-tertiary mt-2">
+                {formData.propertyType === 'residence' && '🏠 This will update your current location and living timeline.'}
+                {formData.propertyType === 'investment' && '💰 Investment properties are tracked for wealth only, not living history.'}
+                {formData.propertyType === 'holiday' && '🌴 Holiday homes are tracked separately from your primary residence.'}
+              </p>
+            </div>
+          )}
 
           {/* Address */}
           <div>

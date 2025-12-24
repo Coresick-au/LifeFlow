@@ -2,14 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { format, differenceInYears, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { Home, Wrench, Calendar, DollarSign, MapPin, Plus, Edit2 } from 'lucide-react';
+import { Home, Wrench, Calendar, DollarSign, MapPin, Plus, Edit2, PiggyBank, Palmtree } from 'lucide-react';
 import { HouseTrackerForm } from './HouseTrackerForm';
 
 interface HomeEvent {
   id: string;
   title: string;
   date: Date;
-  type: 'purchase' | 'renovation' | 'maintenance' | 'improvement' | 'memory';
+  type: 'purchase' | 'renovation' | 'maintenance' | 'improvement' | 'memory' | 'sale';
   cost?: number;
   description: string;
   location: string;
@@ -20,6 +20,7 @@ interface HomeEvent {
   bathrooms?: number;
   squareFootage?: number;
   images?: string[];
+  propertyType?: 'residence' | 'investment' | 'holiday';
 }
 
 interface HomeStats {
@@ -80,12 +81,26 @@ export const HomeTracker: React.FC = () => {
 
       if (story.tags.some(t => ['purchase', 'bought'].includes(t.toLowerCase()))) {
         type = 'purchase';
+      } else if (story.tags.some(t => ['sale', 'sold'].includes(t.toLowerCase()))) {
+        type = 'sale';
       } else if (story.tags.some(t => ['renovation', 'remodel'].includes(t.toLowerCase()))) {
         type = 'renovation';
       } else if (story.tags.some(t => ['maintenance', 'repair'].includes(t.toLowerCase()))) {
         type = 'maintenance';
       } else if (story.tags.some(t => ['improvement', 'upgrade'].includes(t.toLowerCase()))) {
         type = 'improvement';
+      }
+
+      // Determine property type from metadata or tags
+      let propertyType: HomeEvent['propertyType'] = story.metadata?.propertyType as HomeEvent['propertyType'];
+      if (!propertyType) {
+        if (story.tags.some(t => t.toLowerCase() === 'investment')) {
+          propertyType = 'investment';
+        } else if (story.tags.some(t => t.toLowerCase() === 'holiday')) {
+          propertyType = 'holiday';
+        } else {
+          propertyType = 'residence'; // Default to residence for legacy data
+        }
       }
 
       // Extract cost from content or metadata
@@ -115,6 +130,7 @@ export const HomeTracker: React.FC = () => {
         bathrooms,
         squareFootage,
         images: story.images,
+        propertyType,
       });
     });
 
@@ -175,15 +191,35 @@ export const HomeTracker: React.FC = () => {
   }, [filteredEvents]);
 
   // Get event icon
-  const getEventIcon = (type: HomeEvent['type']) => {
+  const getEventIcon = (type: HomeEvent['type'], propertyType?: HomeEvent['propertyType']) => {
+    if (propertyType === 'investment') {
+      return <PiggyBank className="w-4 h-4 text-blue-500" />;
+    }
+    if (propertyType === 'holiday') {
+      return <Palmtree className="w-4 h-4 text-purple-500" />;
+    }
     switch (type) {
       case 'purchase': return <Home className="w-4 h-4 text-green-600" />;
+      case 'sale': return <DollarSign className="w-4 h-4 text-red-500" />;
       case 'renovation': return <Wrench className="w-4 h-4 text-blue-600" />;
       case 'maintenance': return <Wrench className="w-4 h-4 text-orange-600" />;
       case 'improvement': return <Plus className="w-4 h-4 text-purple-600" />;
       default: return <Home className="w-4 h-4 text-theme-tertiary" />;
     }
   };
+
+  // Split events by property type
+  const residenceEvents = useMemo(() => {
+    return filteredEvents.filter(e => e.propertyType === 'residence' || !e.propertyType);
+  }, [filteredEvents]);
+
+  const investmentEvents = useMemo(() => {
+    return filteredEvents.filter(e => e.propertyType === 'investment');
+  }, [filteredEvents]);
+
+  const holidayEvents = useMemo(() => {
+    return filteredEvents.filter(e => e.propertyType === 'holiday');
+  }, [filteredEvents]);
 
   // Get event type label
   const getEventTypeLabel = (type: HomeEvent['type']) => {

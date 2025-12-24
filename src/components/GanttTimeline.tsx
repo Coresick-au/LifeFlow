@@ -162,7 +162,15 @@ export const GanttTimeline: React.FC = () => {
       const tags = story.tags.map((t: string) => t.toLowerCase());
 
       if (tags.some((t: string) => ['career', 'work', 'job'].includes(t))) category = 'job';
-      else if (tags.some((t: string) => ['home', 'house', 'property'].includes(t))) category = 'home';
+      else if (tags.some((t: string) => ['home', 'house', 'property'].includes(t))) {
+        // Check if this is an investment property - skip from home lane
+        const propertyType = story.metadata?.propertyType as string;
+        if (propertyType === 'investment') {
+          // Skip investments from the "where I lived" timeline
+          return;
+        }
+        category = 'home';
+      }
       else if (tags.some((t: string) => ['relationship', 'partner', 'dating', 'love', 'connection'].includes(t))) category = 'relationship';
       else if (story.tags.length > 0) category = story.tags[0]; // Fallback to first tag
 
