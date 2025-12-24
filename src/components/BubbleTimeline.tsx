@@ -85,6 +85,33 @@ export const BubbleTimeline: React.FC = () => {
       }
     });
 
+    // Build a map of housing durations from stories
+    // Find purchase stories and calculate ownership duration
+    const houseDurations: Map<string, number> = new Map();
+    const purchaseStories = stories.filter(s =>
+      s.tags.some(t => ['purchase', 'bought'].includes(t.toLowerCase())) &&
+      s.tags.some(t => ['house', 'home', 'property'].includes(t.toLowerCase()))
+    );
+
+    purchaseStories.forEach(purchaseStory => {
+      // Extract address from location or title
+      const address = purchaseStory.location?.toLowerCase() || purchaseStory.title.toLowerCase();
+
+      // Look for a matching sale story
+      const saleStory = stories.find(s =>
+        s.tags.some(t => ['sale', 'sold'].includes(t.toLowerCase())) &&
+        (s.location?.toLowerCase().includes(address.split(',')[0]) ||
+          s.title.toLowerCase().includes(address.split(',')[0]))
+      );
+
+      const endDate = saleStory ? new Date(saleStory.date) : new Date();
+      const days = differenceInDays(endDate, new Date(purchaseStory.date));
+
+      // Store by first part of address (street address)
+      const addressKey = address.split(',')[0].trim();
+      houseDurations.set(addressKey, Math.max(1, days));
+    });
+
     // Connect stories that share people or specific tags
     const nodes: BubbleNode[] = stories.map(story => {
       // Size Calculation: Based on Duration
@@ -100,6 +127,18 @@ export const BubbleTimeline: React.FC = () => {
           const duration = personDurations.get(person.toLowerCase());
           if (duration && duration > durationDays) {
             durationDays = duration;
+          }
+        }
+      } else if (story.tags.some(t => ['house', 'home', 'property', 'purchase'].includes(t.toLowerCase()))) {
+        // For housing events, look up duration from house durations map
+        const storyAddress = (story.location || story.title).toLowerCase();
+        const durationEntries = Array.from(houseDurations.entries());
+        for (const [addressKey, duration] of durationEntries) {
+          if (storyAddress.includes(addressKey) || addressKey.includes(storyAddress.split(',')[0].trim())) {
+            if (duration > durationDays) {
+              durationDays = duration;
+            }
+            break;
           }
         }
       }
