@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { format, intervalToDuration, addYears, addMonths } from 'date-fns';
-import { Calendar, Clock, HeartCrack, Heart, X, Save, Share2, Sparkles, Trash2, UserCheck, UserX } from 'lucide-react';
+import { format, intervalToDuration, addYears, addMonths, isValid } from 'date-fns';
+import { Calendar, Clock, X, Save, Share2, Trash2, UserCheck, UserX } from 'lucide-react';
 import { Relationship } from '../types';
 import { useTimelineStore } from '../store/timelineStore';
 
@@ -57,7 +57,6 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
     const [selectedMilestone, setSelectedMilestone] = useState<string>('started-dating');
 
     // New State: Decouple the "Phase/Event" end from the "Person" end
-    // If true, we show the end date inputs for the TIMELINE EVENT, regardless of if the person is active
     const [eventHasEnded, setEventHasEnded] = useState(!!initialData?.endDate);
 
     const [startDateMode, setStartDateMode] = useState<'date' | 'age'>('date');
@@ -65,6 +64,12 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
 
     const [durationYears, setDurationYears] = useState<number>(0);
     const [durationMonths, setDurationMonths] = useState<number>(0);
+
+    // Safe date formatting helper
+    const safeFormatDate = (date: Date | undefined): string => {
+        if (!date || !isValid(date)) return '';
+        return format(date, 'yyyy-MM-dd');
+    };
 
     // Sync eventHasEnded with initial data if editing
     useEffect(() => {
@@ -111,7 +116,6 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
     const durationText = useMemo(() => {
         if (!formData.startDate) return null;
         const start = new Date(formData.startDate);
-        // Use endDate if event has ended, otherwise use now for "ongoing" duration calc
         const end = eventHasEnded ? (formData.endDate ? new Date(formData.endDate) : new Date()) : new Date();
 
         if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
@@ -128,68 +132,42 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // LOGIC FIX:
-        // Save the endDate if the phase/event ended (eventHasEnded), regardless of connection status
-        // The endDate represents "when the phase ended" not "when the connection ended"
+        // 1. Connection Logic (For the "Friends/Connections" List)
         const personDataToSave = {
             ...formData,
-            endDate: eventHasEnded ? formData.endDate : undefined
+            endDate: formData.isCurrent ? undefined : formData.endDate
         };
-
-        // Step A: Save the Person (Connection)
         await onSubmit(personDataToSave);
 
-        // Step B: Generate Timeline Stories
+        // 2. Timeline Logic (For the Gantt Chart / Timeline)
         if (addToTimeline) {
             const fullName = `${formData.firstName} ${formData.lastName}`.trim();
             const milestone = MILESTONE_TYPES.find(m => m.value === selectedMilestone);
 
-            // Create START event title based on milestone type
-            let startTitle = `Started relationship with ${fullName}`;
-            if (selectedMilestone === 'met') startTitle = `Met ${fullName}`;
-            if (selectedMilestone === 'engaged') startTitle = `Got engaged to ${fullName}`;
-            if (selectedMilestone === 'married') startTitle = `Married ${fullName}`;
-            if (selectedMilestone === 'colleague') startTitle = `Started working with ${fullName}`;
+            // Construct ONE title for the whole relationship
+            let title = `Relationship with ${fullName}`;
+            if (selectedMilestone === 'met') title = `Known ${fullName}`;
+            if (selectedMilestone === 'married') title = `Marriage to ${fullName}`;
+            if (selectedMilestone === 'colleague') title = `Worked with ${fullName}`;
 
-            // Create the START event
+            // Create ONE continuous story
             await addStory({
-                title: startTitle,
-                content: formData.notes || `Started ${milestone?.label.toLowerCase()} with ${fullName}`,
-                type: 'short',
+                title: title,
+                content: formData.notes || `${milestone?.label} duration with ${fullName}`,
+                type: 'long', // CRITICAL: 'long' tells the system this is a span, not a point
                 date: formData.startDate,
-                tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase(), 'start'],
+                // If the phase ended, we save the end date.
+                // If it hasn't ended, we leave it undefined (so it shows as "Ongoing" in Gantt)
+                endDate: eventHasEnded ? formData.endDate : undefined,
+                tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase()],
                 people: [fullName],
                 importance: 'high',
                 metadata: {
                     generatedFromRelationship: true,
                     milestoneType: selectedMilestone,
-                    personName: fullName,
-                    eventType: 'start'
+                    personName: fullName
                 }
             });
-
-            // If the phase ended, create the END event
-            if (eventHasEnded && formData.endDate) {
-                let endTitle = `Ended relationship with ${fullName}`;
-                if (selectedMilestone === 'colleague') endTitle = `Stopped working with ${fullName}`;
-                if (selectedMilestone === 'married') endTitle = `Divorced from ${fullName}`;
-
-                await addStory({
-                    title: endTitle,
-                    content: `Ended ${milestone?.label.toLowerCase()} with ${fullName}`,
-                    type: 'short',
-                    date: formData.endDate,
-                    tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase(), 'end'],
-                    people: [fullName],
-                    importance: 'medium',
-                    metadata: {
-                        generatedFromRelationship: true,
-                        milestoneType: selectedMilestone,
-                        personName: fullName,
-                        eventType: 'end'
-                    }
-                });
-            }
         }
     };
 
@@ -231,7 +209,6 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                 type="button"
                                 onClick={() => {
                                     setFormData({ ...formData, isCurrent: false });
-                                    // Logic convenience: If connection ended, usually the phase ended too
                                     setEventHasEnded(true);
                                 }}
                                 className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${!formData.isCurrent
@@ -281,7 +258,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                             />
                             <div className="flex items-center gap-2 font-medium text-theme-primary group-hover:text-primary-600 transition-colors">
                                 <Share2 className="w-4 h-4" />
-                                Create Timeline Event
+                                Create Timeline Span
                             </div>
                         </label>
 
@@ -289,7 +266,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                         {addToTimeline && (
                             <div className="animate-fade-in pl-7">
                                 <label className="block text-xs font-medium text-theme-secondary mb-2">
-                                    What kind of phase/event was this?
+                                    What kind of relationship was this?
                                 </label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {MILESTONE_TYPES.map((type) => (
@@ -348,8 +325,8 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-primary-500 transition-colors" />
                                         <input
                                             type="date"
-                                            value={formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : ''}
-                                            onChange={(e) => setFormData({ ...formData, startDate: new Date(e.target.value) })}
+                                            value={safeFormatDate(formData.startDate)}
+                                            onChange={(e) => setFormData({ ...formData, startDate: e.target.value ? new Date(e.target.value) : new Date() })}
                                             className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
                                         />
                                     </div>
@@ -448,8 +425,8 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                         ) : (
                                             <input
                                                 type="date"
-                                                value={formData.endDate ? format(formData.endDate, 'yyyy-MM-dd') : ''}
-                                                onChange={(e) => setFormData({ ...formData, endDate: new Date(e.target.value) })}
+                                                value={safeFormatDate(formData.endDate)}
+                                                onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
                                                 className="w-full px-2 py-1.5 text-sm border border-theme rounded-md bg-theme-primary text-theme-primary"
                                             />
                                         )}
