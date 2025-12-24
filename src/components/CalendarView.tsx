@@ -64,6 +64,8 @@ export const CalendarView: React.FC = () => {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [searchTerm, setSearchTerm] = useState('');
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
+  const [hoveredPosition, setHoveredPosition] = useState<{ x: number, y: number } | null>(null);
 
   // Filter stories by search term
   const filteredStories = useMemo(() => {
@@ -116,10 +118,7 @@ export const CalendarView: React.FC = () => {
 
   const handleDayClick = (day: Date) => {
     setSelectedDate(day);
-    const dayStories = getStoriesForDay(day);
-    if (dayStories.length === 1) {
-      setSelectedStory(dayStories[0]);
-    }
+    // Removed automatic selectedStory assignment to prevent modal from opening on click
   };
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -225,6 +224,17 @@ export const CalendarView: React.FC = () => {
               <button
                 key={day.toISOString()}
                 onClick={() => handleDayClick(day)}
+                onMouseEnter={(e) => {
+                  if (dayStories.length > 0) {
+                    setHoveredDate(day);
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredPosition({ x: rect.left + rect.width / 2, y: rect.top });
+                  }
+                }}
+                onMouseLeave={() => {
+                  setHoveredDate(null);
+                  setHoveredPosition(null);
+                }}
                 className={`
                   aspect-square p-2 rounded-lg border transition-all duration-200 transform hover:scale-105
                   ${isSelected ? 'border-primary-500 bg-primary-500/20 shadow-md' : 'border-theme'}
@@ -268,6 +278,48 @@ export const CalendarView: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Hovering Quick View */}
+        {hoveredDate && hoveredPosition && getStoriesForDay(hoveredDate).length > 0 && (
+          <div
+            className="fixed z-[100] w-64 p-3 bg-theme-primary border border-theme rounded-lg shadow-xl animate-fade-in pointer-events-none"
+            style={{
+              left: `${hoveredPosition.x}px`,
+              top: `${hoveredPosition.y - 10}px`,
+              transform: 'translate(-50%, -100%)'
+            }}
+          >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between border-b border-theme pb-1 mb-1">
+                <span className="text-[10px] font-bold text-theme-secondary uppercase tracking-wider">
+                  {format(hoveredDate, 'MMM d, yyyy')}
+                </span>
+                <span className="text-[10px] text-theme-tertiary">
+                  {getStoriesForDay(hoveredDate).length} event{getStoriesForDay(hoveredDate).length > 1 ? 's' : ''}
+                </span>
+              </div>
+              {getStoriesForDay(hoveredDate).slice(0, 2).map((story, idx) => (
+                <div key={story.id} className={idx > 0 ? "pt-2 border-t border-theme/50" : ""}>
+                  <h4 className="text-xs font-bold text-theme-primary line-clamp-1 truncate">{story.title}</h4>
+                  <p className="text-[10px] text-theme-tertiary line-clamp-2 mt-0.5 leading-relaxed">
+                    {story.content}
+                  </p>
+                  {story.location && (
+                    <div className="flex items-center gap-1 mt-1 text-[9px] text-theme-accent">
+                      <MapPin className="w-2.5 h-2.5" />
+                      <span className="truncate">{story.location}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {getStoriesForDay(hoveredDate).length > 2 && (
+                <div className="text-[9px] text-theme-tertiary text-center pt-1 italic">
+                  + {getStoriesForDay(hoveredDate).length - 2} more...
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
