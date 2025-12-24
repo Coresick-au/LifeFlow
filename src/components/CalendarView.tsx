@@ -256,19 +256,19 @@ export const CalendarView: React.FC = () => {
                   {/* Story indicators with icons */}
                   <div className="flex-1 flex items-center justify-center">
                     {dayStories.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1.5 justify-center">
                         {dayStories.slice(0, 3).map((story: Story, index: number) => {
                           const Icon = categoryIcons[story.tags[0]] || CalendarIcon;
                           return (
                             <Icon
                               key={index}
-                              className="w-3 h-3 text-theme-tertiary"
+                              className="w-5 h-5 text-theme-tertiary"
                               title={story.title}
                             />
                           );
                         })}
                         {dayStories.length > 3 && (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">+{dayStories.length - 3}</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">+{dayStories.length - 3}</span>
                         )}
                       </div>
                     )}
