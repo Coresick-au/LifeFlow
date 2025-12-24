@@ -2,394 +2,298 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { format } from 'date-fns';
-import { getCategoryColorForStory, LIFE_CATEGORIES, getCategoryForStory } from '../constants/categories';
-import { X, Maximize2, Minimize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
+import {
+  LayoutGrid,
+  Network
+} from 'lucide-react';
 
 interface BubbleNode extends d3.SimulationNodeDatum {
   id: string;
+  r: number;
   story: Story;
-  radius: number;
+  group: string;
   color: string;
-  category: string | null;
+  emoji: string;
+  isEnded?: boolean;
 }
 
-// Calculate radius based on importance - increased for better text visibility
-const getRadiusByImportance = (importance: Story['importance']): number => {
-  switch (importance) {
-    case 'high': return 70;
-    case 'medium': return 50;
-    case 'low': return 38;
-    default: return 45;
-  }
+interface GraphLink extends d3.SimulationLinkDatum<BubbleNode> {
+  source: string | BubbleNode;
+  target: string | BubbleNode;
+  value: number;
+}
+
+// Lighter/Brighter colors for better visibility on dark backgrounds
+const CATEGORY_COLORS: Record<string, string> = {
+  relationship: '#f472b6', // Pink-400 (Lighter than red)
+  career: '#60a5fa',       // Blue-400
+  travel: '#c084fc',       // Purple-400
+  family: '#4ade80',       // Green-400
+  life: '#fbbf24',         // Amber-400
+  other: '#94a3b8',        // Slate-400
 };
 
-// Get category icon symbol for display in bubbles
-const getCategoryIcon = (story: Story): string => {
-  const category = getCategoryForStory(story.tags);
-  const lowerTags = story.tags.map(t => t.toLowerCase());
+const CATEGORY_EMOJIS: Record<string, string> = {
+  relationship: '❤️',
+  career: '💼',
+  travel: '✈️',
+  family: '👨‍👩‍👧',
+  life: '🌟',
+  other: '📌',
+};
 
-  // Check for ended relationship (breakup, divorce, loss, etc.)
-  if (lowerTags.some(t => ['breakup', 'divorce', 'ended', 'loss', 'passed', 'death', 'ex'].includes(t))) {
-    return '💔'; // Broken heart
+// Helper to get emoji for a story
+const getStoryEmoji = (story: Story): string => {
+  // Check specific relationship status
+  if (story.tags.includes('relationship')) {
+    // Check if it's an "Ended" relationship (based on story data or your specific logic)
+    // You mentioned "broken heart" for ended.
+    if (story.tags.includes('end')) {
+      return '💔';
+    }
+    return '❤️';
   }
 
-  // Category-based icons
-  switch (category) {
-    case 'career': return '💼';
-    case 'family': return '👶';
-    case 'home': return '🏠';
-    case 'relationships': return '❤️';
-    default: return '📝'; // Default note icon
-  }
+  // Check tags for other mappings
+  if (story.tags.some(t => ['travel', 'trip', 'holiday'].includes(t))) return '✈️';
+  if (story.tags.some(t => ['work', 'job', 'career'].includes(t))) return '💼';
+  if (story.tags.some(t => ['house', 'home', 'move'].includes(t))) return '🏠';
+
+  // Fallback to category default
+  const cat = story.tags[0] || 'other';
+  return CATEGORY_EMOJIS[cat] || '📌';
 };
 
 export const BubbleTimeline: React.FC = () => {
-  const { stories, setCurrentView, setActiveStory } = useTimelineStore();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [groupByMonth, setGroupByMonth] = useState(false);
-  const [scale, setScale] = useState(1); // Zoom scale factor (0.25 to 1)
-  const simulationRef = useRef<d3.Simulation<BubbleNode, undefined> | null>(null);
+  const { stories } = useTimelineStore();
+  const [viewMode, setViewMode] = useState<'bubble' | 'graph'>('bubble');
+  const [hoveredNode, setHoveredNode] = useState<BubbleNode | null>(null);
 
-  // Create bubble nodes from stories with scale
-  const nodes: BubbleNode[] = useMemo(() => {
-    return stories.map(story => ({
-      id: story.id,
-      story,
-      radius: getRadiusByImportance(story.importance) * scale,
-      color: getCategoryColorForStory(story.tags),
-      category: getCategoryForStory(story.tags),
-    }));
-  }, [stories, scale]);
-
-  // Update dimensions on resize
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: Math.max(600, window.innerHeight - 200),
-        });
+  // 1. Process Data into Nodes
+  const data = useMemo(() => {
+    // A. Calculate Connections (Links) for Graph View
+    // Connect stories that share people or specific tags
+    const nodes: BubbleNode[] = stories.map(story => {
+      // Size Calculation: Based on Duration
+      let durationDays = 1; // Default min size
+      if (story.endDate) {
+        durationDays = differenceInDays(new Date(story.endDate), new Date(story.date));
+        if (durationDays < 1) durationDays = 1;
       }
-    };
 
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
+      // Scale: Logarithmic or Square Root is usually best for areas
+      // Base size 15, max size cap at 60
+      const radius = Math.min(60, 15 + Math.sqrt(durationDays) * 1.5);
 
-  // D3 Force Simulation
+      const category = story.tags.find(t => CATEGORY_COLORS[t]) || 'other';
+      const color = CATEGORY_COLORS[category] || CATEGORY_COLORS.other;
+
+      return {
+        id: story.id,
+        r: radius,
+        story,
+        group: category,
+        color,
+        emoji: getStoryEmoji(story),
+        isEnded: story.tags.includes('end')
+      };
+    });
+
+    const links: GraphLink[] = [];
+
+    // Simple Link Logic: Link sequential stories or stories with same people
+    // (This creates the "Obsidian" web effect)
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const nodeA = nodes[i];
+        const nodeB = nodes[j];
+
+        // Link if they share a person
+        const sharedPeople = nodeA.story.people.filter(p => nodeB.story.people.includes(p));
+        if (sharedPeople.length > 0) {
+          links.push({ source: nodeA.id, target: nodeB.id, value: 1 });
+        }
+      }
+    }
+
+    return { nodes, links };
+  }, [stories]);
+
+  // 2. Render Simulation
   useEffect(() => {
-    if (!svgRef.current || nodes.length === 0) return;
+    if (!svgRef.current || !containerRef.current) return;
 
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
+    const width = containerRef.current.clientWidth;
+    const height = 600;
 
-    const { width, height } = dimensions;
+    // Clear previous
+    d3.select(svgRef.current).selectAll("*").remove();
 
-    // Create simulation
-    const simulation = d3.forceSimulation<BubbleNode>(nodes)
-      .force('charge', d3.forceManyBody().strength(5))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide<BubbleNode>().radius(d => d.radius + 4))
-      .force('x', d3.forceX(width / 2).strength(0.05))
-      .force('y', d3.forceY(height / 2).strength(0.05));
+    const svg = d3.select(svgRef.current)
+      .attr("viewBox", [0, 0, width, height].join(' '));
 
-    simulationRef.current = simulation;
+    // Graph Group (Zoomable)
+    const g = svg.append("g");
 
-    // Create gradient definitions for depth effect
-    const defs = svg.append('defs');
+    // Zoom behavior
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 4])
+      .on("zoom", (event) => g.attr("transform", event.transform));
 
-    nodes.forEach(node => {
-      const gradient = defs.append('radialGradient')
-        .attr('id', `gradient-${node.id}`)
-        .attr('cx', '30%')
-        .attr('cy', '30%');
+    svg.call(zoom);
 
-      gradient.append('stop')
-        .attr('offset', '0%')
-        .attr('stop-color', d3.color(node.color)?.brighter(0.5)?.toString() || node.color);
+    // --- FORCE SIMULATION ---
+    const simulation = d3.forceSimulation<BubbleNode>(data.nodes)
+      .force("charge", d3.forceManyBody().strength(viewMode === 'graph' ? -200 : -50)) // Stronger repel in graph mode
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collide", d3.forceCollide<BubbleNode>().radius(d => d.r + 2).iterations(2));
 
-      gradient.append('stop')
-        .attr('offset', '100%')
-        .attr('stop-color', d3.color(node.color)?.darker(0.3)?.toString() || node.color);
+    if (viewMode === 'graph') {
+      simulation.force("link", d3.forceLink<BubbleNode, GraphLink>(data.links).id(d => d.id).distance(100).strength(0.1));
+    }
+
+    // --- RENDER LINKS (Graph Mode Only) ---
+    let link: d3.Selection<SVGLineElement, GraphLink, SVGGElement, unknown> | undefined;
+    if (viewMode === 'graph') {
+      link = g.append("g")
+        .attr("stroke", "#475569") // Slate-600
+        .attr("stroke-opacity", 0.4)
+        .selectAll<SVGLineElement, GraphLink>("line")
+        .data(data.links)
+        .join("line")
+        .attr("stroke-width", 1);
+    }
+
+    // --- RENDER NODES ---
+    const node = g.append("g")
+      .selectAll<SVGGElement, BubbleNode>("g")
+      .data(data.nodes)
+      .join("g")
+      .call(d3.drag<SVGGElement, BubbleNode>()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+
+    // Node Circles
+    node.append("circle")
+      .attr("r", d => d.r)
+      .attr("fill", d => viewMode === 'graph' ? '#1e293b' : d.color) // Dark bubbles in graph mode (Obsidian style)
+      .attr("stroke", d => d.color)
+      .attr("stroke-width", viewMode === 'graph' ? 2 : 0)
+      .attr("opacity", viewMode === 'graph' ? 1 : 0.8)
+      .style("cursor", "pointer")
+      .on("mouseover", (event, d) => setHoveredNode(d))
+      .on("mouseout", () => setHoveredNode(null));
+
+    // Node Emojis (Centered)
+    node.append("text")
+      .text(d => d.emoji)
+      .attr("text-anchor", "middle")
+      .attr("dy", "0.35em")
+      .style("font-size", d => `${Math.max(12, d.r * 0.8)}px`) // Scale emoji with bubble
+      .style("pointer-events", "none")
+      .style("filter", "drop-shadow(0px 2px 2px rgba(0,0,0,0.3))"); // Shadow for visibility
+
+    // Simulation Tick
+    simulation.on("tick", () => {
+      if (viewMode === 'graph' && link) {
+        link
+          .attr("x1", d => (d.source as BubbleNode).x!)
+          .attr("y1", d => (d.source as BubbleNode).y!)
+          .attr("x2", d => (d.target as BubbleNode).x!)
+          .attr("y2", d => (d.target as BubbleNode).y!);
+      }
+
+      node.attr("transform", d => `translate(${d.x},${d.y})`);
     });
 
-    // Create bubble groups
-    const bubbleGroups = svg.selectAll<SVGGElement, BubbleNode>('g.bubble')
-      .data(nodes, d => d.id)
-      .join('g')
-      .attr('class', 'bubble')
-      .style('cursor', 'pointer');
+    // Drag functions
+    function dragstarted(event: d3.D3DragEvent<SVGGElement, BubbleNode, BubbleNode>, d: BubbleNode) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
 
-    // Add shadow circles
-    bubbleGroups.append('circle')
-      .attr('class', 'shadow')
-      .attr('r', d => d.radius)
-      .attr('fill', 'rgba(0,0,0,0.2)')
-      .attr('transform', 'translate(3, 3)');
+    function dragged(event: d3.D3DragEvent<SVGGElement, BubbleNode, BubbleNode>, d: BubbleNode) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
 
-    // Add main circles with gradient
-    bubbleGroups.append('circle')
-      .attr('class', 'main')
-      .attr('r', d => d.radius)
-      .attr('fill', d => `url(#gradient-${d.id})`)
-      .attr('stroke', d => d3.color(d.color)?.darker(0.5)?.toString() || d.color)
-      .attr('stroke-width', 2);
-
-    // Add text labels inside bubbles - improved sizing
-    bubbleGroups.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '-0.2em')
-      .attr('fill', 'white')
-      .attr('font-size', d => Math.max(11, d.radius / 3.5))
-      .attr('font-weight', 'bold')
-      .style('pointer-events', 'none')
-      .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.7)')
-      .text(d => {
-        const maxChars = Math.floor(d.radius / 4);
-        const title = d.story.title;
-        return title.length > maxChars ? title.substring(0, maxChars) + '...' : title;
-      });
-
-    // Add category icon instead of mood emoji
-    bubbleGroups.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '1.2em')
-      .attr('font-size', d => Math.max(16, d.radius / 2.5))
-      .style('pointer-events', 'none')
-      .text(d => getCategoryIcon(d.story));
-
-    // Click handler
-    bubbleGroups.on('click', (event, d) => {
-      event.stopPropagation();
-      setSelectedStory(d.story);
-
-      // Expand clicked bubble and push others away
-      d.radius = d.radius * 1.3;
-      simulation.force('collision', d3.forceCollide<BubbleNode>().radius(n => n.radius + 4));
-      simulation.alpha(0.5).restart();
-
-      // Restore after delay
-      setTimeout(() => {
-        d.radius = getRadiusByImportance(d.story.importance);
-        simulation.force('collision', d3.forceCollide<BubbleNode>().radius(n => n.radius + 4));
-        simulation.alpha(0.3).restart();
-      }, 800);
-    });
-
-    // Drag behavior
-    const drag = d3.drag<SVGGElement, BubbleNode>()
-      .on('start', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      })
-      .on('drag', (event, d) => {
-        d.fx = event.x;
-        d.fy = event.y;
-      })
-      .on('end', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      });
-
-    bubbleGroups.call(drag);
-
-    // Update positions on tick
-    simulation.on('tick', () => {
-      bubbleGroups.attr('transform', d => `translate(${d.x}, ${d.y})`);
-    });
-
-    // Shuffle on click background
-    svg.on('click', () => {
-      simulation.alpha(0.8).restart();
-    });
+    function dragended(event: d3.D3DragEvent<SVGGElement, BubbleNode, BubbleNode>, d: BubbleNode) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
 
     return () => {
       simulation.stop();
     };
-  }, [nodes, dimensions]);
-
-  // Close story detail
-  const handleCloseDetail = () => {
-    setSelectedStory(null);
-  };
-
-  // Open in story viewer - navigate to timeline and open story drawer
-  const handleViewStory = (story: Story) => {
-    setActiveStory(story.id);
-    setCurrentView({ type: 'timeline' });
-    setSelectedStory(null);
-  };
-
-  // Edit story
-  const handleEditStory = (story: Story) => {
-    setCurrentView({ type: 'edit-story', storyId: story.id });
-  };
+  }, [data, viewMode]);
 
   return (
-    <div className="max-w-7xl mx-auto" ref={containerRef}>
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-theme-primary mb-2">Bubble Timeline</h2>
-        <p className="text-theme-tertiary mb-4">Click bubbles to explore • Drag to reposition • Click background to shuffle</p>
+    <div className="bg-theme-primary rounded-lg shadow-lg flex flex-col h-[700px] border border-theme">
+      {/* Header / Controls */}
+      <div className="p-4 border-b border-theme flex justify-between items-center bg-theme-secondary/30">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-bold text-theme-primary">
+            {viewMode === 'bubble' ? 'Time Bubbles' : 'Knowledge Graph'}
+          </h2>
 
-        {/* Legend */}
-        <div className="flex flex-wrap gap-4 mb-4">
-          {Object.values(LIFE_CATEGORIES).map(cat => (
-            <div key={cat.id} className="flex items-center gap-2">
-              <div
-                className="w-4 h-4 rounded-full"
-                style={{ backgroundColor: cat.color.hex }}
-              />
-              <span className="text-sm text-theme-secondary">{cat.name}</span>
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-slate-400" />
-            <span className="text-sm text-theme-secondary">Other</span>
+          {/* View Switcher */}
+          <div className="flex bg-theme-tertiary p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('bubble')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'bubble'
+                  ? 'bg-theme-primary text-theme-accent shadow-sm'
+                  : 'text-theme-secondary hover:text-theme-primary'
+                }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Bubble
+            </button>
+            <button
+              onClick={() => setViewMode('graph')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'graph'
+                  ? 'bg-theme-primary text-theme-accent shadow-sm'
+                  : 'text-theme-secondary hover:text-theme-primary'
+                }`}
+            >
+              <Network className="w-4 h-4" />
+              Obsidian
+            </button>
           </div>
         </div>
 
-        {/* Size legend */}
-        <div className="flex items-center gap-4 text-sm text-theme-tertiary">
-          <span>Bubble size = importance:</span>
-          <span className="flex items-center gap-1">
-            <div className="w-6 h-6 rounded-full bg-theme-tertiary" /> High
-          </span>
-          <span className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded-full bg-theme-tertiary" /> Medium
-          </span>
-          <span className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-theme-tertiary" /> Low
-          </span>
-        </div>
-
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-4 mt-4 p-3 bg-theme-tertiary rounded-lg">
-          <span className="text-sm font-medium text-theme-secondary">Zoom:</span>
-          <button
-            onClick={() => setScale(prev => Math.max(0.15, prev - 0.15))}
-            className="p-2 bg-theme-primary rounded-lg hover:bg-theme-secondary transition-colors"
-            title="Zoom out"
-          >
-            <ZoomOut className="w-5 h-5 text-theme-secondary" />
-          </button>
-          <input
-            type="range"
-            min="0.15"
-            max="1"
-            step="0.05"
-            value={scale}
-            onChange={(e) => setScale(parseFloat(e.target.value))}
-            className="w-32 h-2 bg-theme-primary rounded-lg appearance-none cursor-pointer accent-primary-500"
-          />
-          <button
-            onClick={() => setScale(prev => Math.min(1, prev + 0.15))}
-            className="p-2 bg-theme-primary rounded-lg hover:bg-theme-secondary transition-colors"
-            title="Zoom in"
-          >
-            <ZoomIn className="w-5 h-5 text-theme-secondary" />
-          </button>
-          <span className="text-sm text-theme-tertiary">{Math.round(scale * 100)}%</span>
-          {stories.length > 100 && scale > 0.5 && (
-            <span className="text-xs text-amber-500 ml-2">
-              💡 Tip: Zoom out for {stories.length} stories
-            </span>
-          )}
+        <div className="text-xs text-theme-tertiary hidden sm:block">
+          {stories.length} memories • {data.links.length} connections
         </div>
       </div>
 
-      {/* SVG Container */}
-      <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg overflow-hidden shadow-xl">
-        <svg
-          ref={svgRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          className="block"
-        />
+      {/* Visualisation Area */}
+      <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#0f172a] dark:bg-[#020617]"> {/* Force dark bg for contrast */}
+        <svg ref={svgRef} className="w-full h-full cursor-grab active:cursor-grabbing"></svg>
 
-        {/* Story count */}
-        <div className="absolute top-4 right-4 bg-black/50 rounded-lg px-3 py-1">
-          <span className="text-white text-sm">{stories.length} stories</span>
-        </div>
+        {/* Hover Tooltip (Overlay) */}
+        {hoveredNode && (
+          <div className="absolute top-4 left-4 max-w-xs bg-theme-primary/95 backdrop-blur border border-theme p-4 rounded-lg shadow-xl animate-fade-in pointer-events-none">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-2xl">{hoveredNode.emoji}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-white`} style={{ backgroundColor: hoveredNode.color }}>
+                {hoveredNode.group}
+              </span>
+            </div>
+            <h3 className="font-bold text-theme-primary mb-1">{hoveredNode.story.title}</h3>
+            <p className="text-xs text-theme-secondary line-clamp-2">{hoveredNode.story.content}</p>
+            <div className="mt-2 text-[10px] text-theme-tertiary font-mono">
+              {format(new Date(hoveredNode.story.date), 'MMM d, yyyy')}
+              {hoveredNode.story.endDate && ` — ${format(new Date(hoveredNode.story.endDate), 'MMM d, yyyy')}`}
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Selected Story Modal */}
-      {selectedStory && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={handleCloseDetail}
-        >
-          <div
-            className="bg-theme-primary rounded-lg shadow-2xl max-w-lg w-full p-6 animate-slide-up"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-xl font-bold text-theme-primary">{selectedStory.title}</h3>
-              <button onClick={handleCloseDetail} className="text-gray-400 hover:text-theme-primary">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 mb-4 text-sm text-theme-tertiary">
-              <span>{format(new Date(selectedStory.date), 'MMMM d, yyyy')}</span>
-              {selectedStory.location && <span>• {selectedStory.location}</span>}
-              <span>{getCategoryIcon(selectedStory)}</span>
-            </div>
-
-            <p className="text-theme-secondary mb-4 line-clamp-4">{selectedStory.content}</p>
-
-            {selectedStory.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {selectedStory.tags.map(tag => (
-                  <span key={tag} className="px-2 py-1 bg-theme-tertiary rounded-full text-xs text-theme-secondary">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleViewStory(selectedStory)}
-                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Maximize2 className="w-4 h-4" />
-                View Full
-              </button>
-              <button
-                onClick={() => handleEditStory(selectedStory)}
-                className="px-4 py-2 bg-theme-tertiary text-theme-primary rounded-lg hover:opacity-80 transition-colors"
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {stories.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-24 h-24 rounded-full bg-theme-tertiary flex items-center justify-center mb-6">
-            <span className="text-4xl">🫧</span>
-          </div>
-          <h3 className="text-xl font-semibold text-theme-primary mb-2">No stories yet</h3>
-          <p className="text-theme-tertiary mb-6">Add stories to see them as interactive bubbles</p>
-          <button
-            onClick={() => setCurrentView({ type: 'add-story' })}
-            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            Add Your First Story
-          </button>
-        </div>
-      )}
     </div>
   );
 };
