@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import imageCompression from 'browser-image-compression';
 import { useTimelineStore } from '../store/timelineStore';
+import { uploadMedia, deleteMedia } from '../services/supabaseService';
 import { Story } from '../types';
 import { format, addDays } from 'date-fns';
-import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save, Trash2 } from 'lucide-react';
+import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save, Trash2, Loader2 } from 'lucide-react';
 
 
 const importanceOptions = [
@@ -20,6 +22,7 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
   const [peopleSearchTerm, setPeopleSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(!!storyId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [inputMode, setInputMode] = useState<'date' | 'age'>('date');
   const [ageValue, setAgeValue] = useState('');
 
@@ -217,21 +220,78 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
     return new Date(birthDate.getTime() + age * msInYear);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const newImages = Array.from(files).map(file => URL.createObjectURL(file));
-      setFormData(prev => ({ ...prev, images: [...(prev.images || []), ...newImages] }));
+    if (!files || files.length === 0) return;
+
+    const userId = userProfile?.id;
+    if (!userId) {
+      alert('Please create a profile before uploading images.');
+      return;
+    }
+
+    setIsUploadingImages(true);
+
+    try {
+      const compressionOptions = {
+        maxSizeMB: 0.2,           // Target ~200KB
+        maxWidthOrHeight: 1920,   // Max dimension
+        useWebWorker: true,
+        fileType: 'image/jpeg' as const,
+      };
+
+      const uploadedUrls: string[] = [];
+
+      for (const file of Array.from(files)) {
+        console.log(`[Image] Compressing ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)...`);
+
+        // Compress the image
+        const compressedFile = await imageCompression(file, compressionOptions);
+        console.log(`[Image] Compressed to ${(compressedFile.size / 1024).toFixed(1)}KB`);
+
+        // Upload to Supabase Storage
+        const publicUrl = await uploadMedia(userId, compressedFile);
+        if (publicUrl) {
+          uploadedUrls.push(publicUrl);
+        } else {
+          console.error(`[Image] Failed to upload ${file.name}`);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          images: [...(prev.images || []), ...uploadedUrls]
+        }));
+      }
+    } catch (error) {
+      console.error('[Image] Upload failed:', error);
+      alert('Failed to upload images. Please try again.');
+    } finally {
+      setIsUploadingImages(false);
+      // Reset the input so the same file can be selected again
+      e.target.value = '';
     }
   };
 
-  const removeImage = (index: number) => {
+  const removeImage = async (index: number) => {
+    const images = formData.images || [];
+    const imageUrl = images[index];
+
+    // Remove from formData immediately for responsive UI
     setFormData(prev => {
       const newImages = [...(prev.images || [])];
-      URL.revokeObjectURL(newImages[index]);
       newImages.splice(index, 1);
       return { ...prev, images: newImages };
     });
+
+    // If it's a Supabase URL, delete from storage
+    if (imageUrl && imageUrl.includes('supabase')) {
+      await deleteMedia(imageUrl);
+    } else if (imageUrl && imageUrl.startsWith('blob:')) {
+      // Revoke blob URL for local files
+      URL.revokeObjectURL(imageUrl);
+    }
   };
 
   return (
@@ -719,8 +779,17 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
           <div>
             <label className="block text-sm font-medium text-theme-secondary mb-2">
               Media
+              {isUploadingImages && (
+                <span className="ml-2 inline-flex items-center text-primary-500">
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Uploading...
+                </span>
+              )}
             </label>
-            <div className="border-2 border-dashed border-theme rounded-lg p-6 text-center">
+            <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isUploadingImages
+                ? 'border-primary-500 bg-primary-500/5'
+                : 'border-theme hover:border-primary-400'
+              }`}>
               <input
                 type="file"
                 multiple
@@ -728,22 +797,37 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 onChange={handleImageUpload}
                 className="hidden"
                 id="media-upload"
+                disabled={isUploadingImages}
               />
               <label
                 htmlFor="media-upload"
-                className="cursor-pointer"
+                className={`cursor-pointer ${isUploadingImages ? 'pointer-events-none' : ''}`}
               >
-                <div className="text-gray-400">
-                  <svg className="mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <p className="mt-2 text-sm text-theme-tertiary">
-                  Click to upload images
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  PNG, JPG, GIF up to 10MB each
-                </p>
+                {isUploadingImages ? (
+                  <div className="flex flex-col items-center">
+                    <Loader2 className="h-12 w-12 text-primary-500 animate-spin" />
+                    <p className="mt-2 text-sm text-primary-500 font-medium">
+                      Compressing & uploading...
+                    </p>
+                    <p className="text-xs text-theme-tertiary">
+                      Images are automatically resized for optimal storage
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-gray-400">
+                      <svg className="mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <p className="mt-2 text-sm text-theme-tertiary">
+                      Click to upload images
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Images are compressed to ~200KB automatically
+                    </p>
+                  </>
+                )}
               </label>
             </div>
             {formData.images && formData.images.length > 0 && (

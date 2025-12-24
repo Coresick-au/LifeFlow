@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import imageCompression from 'browser-image-compression';
 import { useTimelineStore } from '../store/timelineStore';
+import { uploadMedia, deleteMedia } from '../services/supabaseService';
 import { format, isValid } from 'date-fns';
-import { Home, Calendar, DollarSign, MapPin, Bed, Bath, Square, Camera, X, Save, ChevronDown, Building2, PiggyBank, Palmtree, Users } from 'lucide-react';
+import { Home, Calendar, DollarSign, MapPin, Bed, Bath, Square, Camera, X, Save, ChevronDown, Building2, PiggyBank, Palmtree, Users, Trash2, Upload, Link, Loader2 } from 'lucide-react';
 
 interface HouseTrackerFormProps {
   onClose: () => void;
@@ -40,8 +42,10 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
   });
   const [newPerson, setNewPerson] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [showExistingDropdown, setShowExistingDropdown] = useState(false);
   const [showPeopleDropdown, setShowPeopleDropdown] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Extract unique people from relationships and all story.people
   const existingPeople = useMemo(() => {
@@ -152,19 +156,65 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
     }
   };
 
-  const addPhoto = () => {
-    // In a real app, this would open a file picker or camera
-    const url = prompt('Enter photo URL:');
-    if (url) {
-      setFormData({ ...formData, photos: [...formData.photos, url] });
+  // Handle file upload with compression
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const userId = stories[0]?.id ? stories[0].id.split('-')[0] : 'anonymous';
+    setIsUploadingPhoto(true);
+
+    try {
+      const compressionOptions = {
+        maxSizeMB: 0.2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: 'image/jpeg' as const,
+      };
+
+      for (const file of Array.from(files)) {
+        console.log(`[Image] Compressing ${file.name}...`);
+        const compressedFile = await imageCompression(file, compressionOptions);
+        console.log(`[Image] Compressed to ${(compressedFile.size / 1024).toFixed(1)}KB`);
+
+        const publicUrl = await uploadMedia(userId, compressedFile);
+        if (publicUrl) {
+          setFormData(prev => ({
+            ...prev,
+            photos: [...prev.photos, publicUrl]
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('[Image] Upload failed:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
     }
   };
 
-  const removePhoto = (index: number) => {
-    setFormData({
-      ...formData,
-      photos: formData.photos.filter((_, i) => i !== index)
-    });
+  // Add photo via URL
+  const addPhotoUrl = () => {
+    const url = prompt('Enter photo URL:');
+    if (url && url.trim()) {
+      setFormData(prev => ({ ...prev, photos: [...prev.photos, url.trim()] }));
+    }
+  };
+
+  const removePhoto = async (index: number) => {
+    const photoUrl = formData.photos[index];
+
+    // Remove from state immediately
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }));
+
+    // Delete from Supabase if it's a Supabase URL
+    if (photoUrl && photoUrl.includes('supabase')) {
+      await deleteMedia(photoUrl);
+    }
   };
 
   return (
@@ -549,28 +599,81 @@ export const HouseTrackerForm: React.FC<HouseTrackerFormProps> = ({ onClose, edi
           <div>
             <label className="block text-sm font-medium text-theme-secondary mb-2">
               Photos
+              {isUploadingPhoto && (
+                <span className="ml-2 inline-flex items-center text-primary-500">
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Uploading...
+                </span>
+              )}
             </label>
             <div className="space-y-2">
               {formData.photos.map((photo, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 bg-theme-tertiary rounded">
-                  <Camera className="w-4 h-4 text-gray-400" />
-                  <span className="flex-1 text-sm text-theme-tertiary">{photo}</span>
+                <div key={index} className="flex items-start gap-3 p-3 bg-theme-tertiary rounded-lg border border-theme group hover:border-primary-500/50 transition-colors">
+                  {/* Show thumbnail if it's an image URL */}
+                  {(photo.match(/\.(jpg|jpeg|png|gif|webp)/i) || photo.includes('supabase')) ? (
+                    <img
+                      src={photo}
+                      alt={`Photo ${index + 1}`}
+                      className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="mt-1">
+                      <Camera className="w-4 h-4 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-theme-tertiary break-all leading-relaxed line-clamp-2">
+                      {photo}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => removePhoto(index)}
-                    className="text-red-500 hover:text-red-700"
+                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
+                    title="Remove photo"
                   >
-                    <X className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={addPhoto}
-                className="w-full py-2 border-2 border-dashed border-theme rounded-lg text-slate-500 dark:text-slate-400 hover:border-gray-400 hover:text-theme-tertiary transition-colors"
-              >
-                Add Photo
-              </button>
+
+              {/* Upload buttons */}
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isUploadingPhoto}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  className="flex-1 py-2 border-2 border-dashed border-theme rounded-lg text-slate-500 dark:text-slate-400 hover:border-primary-500 hover:text-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isUploadingPhoto ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  Upload Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={addPhotoUrl}
+                  disabled={isUploadingPhoto}
+                  className="px-4 py-2 border-2 border-dashed border-theme rounded-lg text-slate-500 dark:text-slate-400 hover:border-primary-500 hover:text-primary-500 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Link className="w-4 h-4" />
+                  Add URL
+                </button>
+              </div>
             </div>
           </div>
 

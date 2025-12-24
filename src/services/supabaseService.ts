@@ -955,6 +955,74 @@ export async function deletePreference(prefId: string): Promise<boolean> {
 }
 
 // ==========================================
+// MEDIA STORAGE
+// ==========================================
+
+/**
+ * Upload a file to Supabase Storage
+ * Returns the public URL or null on failure
+ */
+export async function uploadMedia(userId: string, file: File): Promise<string | null> {
+    if (!supabase) {
+        console.warn('[Supabase Storage] Cannot upload - Supabase not configured');
+        return null;
+    }
+
+    // Generate unique filename with timestamp
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    console.log('[Supabase Storage] Uploading file:', fileName, 'Size:', (file.size / 1024).toFixed(1), 'KB');
+
+    const { data, error } = await supabase.storage
+        .from('media')
+        .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+        });
+
+    if (error) {
+        console.error('[Supabase Storage] Upload error:', error);
+        return null;
+    }
+
+    const { data: urlData } = supabase.storage
+        .from('media')
+        .getPublicUrl(data.path);
+
+    console.log('[Supabase Storage] Upload successful:', urlData.publicUrl);
+    return urlData.publicUrl;
+}
+
+/**
+ * Delete a file from Supabase Storage
+ * Accepts either a full URL or just the path
+ */
+export async function deleteMedia(filePathOrUrl: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    // Extract path from full URL if needed
+    let filePath = filePathOrUrl;
+    const urlMatch = filePathOrUrl.match(/\/media\/(.+)$/);
+    if (urlMatch) {
+        filePath = urlMatch[1];
+    }
+
+    console.log('[Supabase Storage] Deleting file:', filePath);
+
+    const { error } = await supabase.storage
+        .from('media')
+        .remove([filePath]);
+
+    if (error) {
+        console.error('[Supabase Storage] Delete error:', error);
+        return false;
+    }
+
+    return true;
+}
+
+// ==========================================
 // SYNC STATUS
 // ==========================================
 
