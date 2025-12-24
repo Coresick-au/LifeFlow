@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { format, isValid } from 'date-fns';
-import { Briefcase, Calendar, MapPin, DollarSign, Building, X, Save, TrendingUp } from 'lucide-react';
+import { Briefcase, Calendar, MapPin, DollarSign, Building, X, Save, TrendingUp, Users } from 'lucide-react';
 
 interface JobTrackerFormProps {
   onClose: () => void;
@@ -16,11 +16,12 @@ interface JobTrackerFormProps {
     description: string;
     date: Date;
     type: 'started' | 'promotion' | 'ended' | 'achievement' | 'memory';
+    people?: string[];
   };
 }
 
 export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editData }) => {
-  const { addStory, updateStory } = useTimelineStore();
+  const { addStory, updateStory, stories, relationships } = useTimelineStore();
   const [formData, setFormData] = useState({
     company: editData?.company || '',
     position: editData?.position || '',
@@ -30,10 +31,27 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
     salary: editData?.salary || undefined,
     description: editData?.description || '',
     date: editData?.date || new Date(),
-    type: editData?.type || 'started' as 'started' | 'promotion' | 'ended' | 'achievement' | 'memory'
+    type: editData?.type || 'started' as 'started' | 'promotion' | 'ended' | 'achievement' | 'memory',
+    people: editData?.people || []
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isCurrentJob, setIsCurrentJob] = useState(!editData?.endDate);
+  const [newPerson, setNewPerson] = useState('');
+  const [showPeopleDropdown, setShowPeopleDropdown] = useState(false);
+
+  // Extract unique people from relationships and all story.people
+  const existingPeople = useMemo(() => {
+    const peopleSet = new Set<string>();
+    relationships.forEach(rel => {
+      if (rel.fullName) peopleSet.add(rel.fullName);
+    });
+    stories.forEach(story => {
+      story.people?.forEach(person => {
+        if (person?.trim()) peopleSet.add(person.trim());
+      });
+    });
+    return Array.from(peopleSet).sort();
+  }, [relationships, stories]);
 
   // Safe date formatting helper
   const safeFormatDate = (date: Date | undefined): string => {
@@ -62,7 +80,7 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
         date: formData.date,
         endDate: formData.type === 'started' ? (isCurrentJob ? undefined : formData.endDate) : undefined,
         tags: ['job', 'career', formData.type, formData.company.toLowerCase()],
-        people: [],
+        people: formData.people,
         importance: 'high' as const,
         location: formData.location,
         metadata: {
@@ -126,8 +144,8 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                   type="button"
                   onClick={() => setFormData({ ...formData, type })}
                   className={`px-4 py-2 rounded-lg capitalize transition-colors ${formData.type === type
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
                     }`}
                 >
                   {type}
@@ -202,7 +220,11 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                   <input
                     type="date"
                     value={safeFormatDate(formData.startDate)}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value ? new Date(e.target.value) : new Date() })}
+                    onChange={(e) => {
+                      const newDate = e.target.value ? new Date(e.target.value) : new Date();
+                      // Sync both startDate AND the main story date
+                      setFormData({ ...formData, startDate: newDate, date: newDate });
+                    }}
                     className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -277,6 +299,111 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
               </div>
             </div>
           )}
+
+          {/* People/Connections */}
+          <div>
+            <label className="block text-sm font-medium text-theme-secondary mb-2">
+              Colleagues & Mentors (for connections)
+            </label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={newPerson}
+                    onChange={(e) => {
+                      setNewPerson(e.target.value);
+                      setShowPeopleDropdown(e.target.value.length > 0);
+                    }}
+                    onFocus={() => setShowPeopleDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowPeopleDropdown(false), 200)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newPerson.trim() && !formData.people.includes(newPerson.trim())) {
+                          setFormData({ ...formData, people: [...formData.people, newPerson.trim()] });
+                          setNewPerson('');
+                          setShowPeopleDropdown(false);
+                        }
+                      }
+                    }}
+                    className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Search or add a person..."
+                  />
+
+                  {/* Autocomplete Dropdown */}
+                  {showPeopleDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-theme-primary border border-theme rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {existingPeople
+                        .filter(person =>
+                          person.toLowerCase().includes(newPerson.toLowerCase()) &&
+                          !formData.people.includes(person)
+                        )
+                        .slice(0, 8)
+                        .map((person) => (
+                          <button
+                            key={person}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, people: [...formData.people, person] });
+                              setNewPerson('');
+                              setShowPeopleDropdown(false);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-theme-primary hover:bg-theme-tertiary transition-colors flex items-center gap-2"
+                          >
+                            <Users className="w-4 h-4 text-primary-500" />
+                            {person}
+                          </button>
+                        ))
+                      }
+                      {newPerson.trim() && !existingPeople.includes(newPerson.trim()) && !formData.people.includes(newPerson.trim()) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, people: [...formData.people, newPerson.trim()] });
+                            setNewPerson('');
+                            setShowPeopleDropdown(false);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-primary-500 hover:bg-theme-tertiary transition-colors flex items-center gap-2 border-t border-theme"
+                        >
+                          <Users className="w-4 h-4" />
+                          Create new: "{newPerson.trim()}"
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newPerson.trim() && !formData.people.includes(newPerson.trim())) {
+                      setFormData({ ...formData, people: [...formData.people, newPerson.trim()] });
+                      setNewPerson('');
+                    }
+                  }}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+              {formData.people.map((person, index) => (
+                <div key={index} className="flex items-center gap-2 p-2 bg-theme-tertiary rounded">
+                  <Users className="w-4 h-4 text-primary-500" />
+                  <span className="flex-1 text-sm text-theme-tertiary">{person}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, people: formData.people.filter((_, i) => i !== index) });
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Description */}
           <div>

@@ -182,9 +182,18 @@ export const GanttTimeline: React.FC = () => {
 
       // Filter by user selection
       if (visibleCategories.has(category)) {
-        const s = new Date(story.date);
-        const e = story.endDate ? new Date(story.endDate) : s;
-        addBar(story.id, story.title, s, e, category);
+        // Check for dates in metadata as fallback (jobs store startDate/endDate in metadata)
+        const metaStartDate = story.metadata?.startDate;
+        const metaEndDate = story.metadata?.endDate;
+
+        // Use metadata dates if available, otherwise fall back to story dates
+        const startDate = metaStartDate ? new Date(metaStartDate as string) : new Date(story.date);
+        const endDate = story.endDate ? new Date(story.endDate)
+          : metaEndDate ? new Date(metaEndDate as string)
+            : (category === 'job' || category === 'home') ? new Date() // Ongoing job/home = bar to now
+              : startDate; // Point event
+
+        addBar(story.id, story.title, startDate, endDate, category);
       }
     });
 

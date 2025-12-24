@@ -3,6 +3,10 @@ import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
 import { format } from 'date-fns';
 import { StoryViewer } from './StoryViewer';
+import { RelationshipTrackerForm } from './RelationshipTrackerForm';
+import { HouseTrackerForm } from './HouseTrackerForm';
+import { JobTrackerForm } from './JobTrackerForm';
+import { ChildTrackerForm } from './ChildTrackerForm';
 import {
   Edit,
   Trash2,
@@ -111,13 +115,31 @@ const CompactTimelineCard = ({ story, onClick, isLocked }: { story: Story; onCli
         className={`group flex items-center gap-4 p-2 h-14 bg-theme-primary border border-theme hover:border-primary-500 rounded-lg cursor-pointer transition-all overflow-hidden ${isLocked ? 'opacity-50' : ''}`}
       >
         {/* Date Anchor - Fixed Width */}
-        <div className="flex-shrink-0 w-12 text-center border-r border-theme pr-3">
-          <span className="text-[10px] font-bold text-theme-tertiary uppercase">
-            {format(new Date(story.date), 'MMM')}
-          </span>
-          <div className="text-sm font-bold text-theme-primary leading-none">
-            {format(new Date(story.date), 'dd')}
-          </div>
+        <div className="flex-shrink-0 w-20 text-center border-r border-theme pr-3">
+          {story.endDate || story.metadata?.endDate ? (
+            <>
+              <span className="text-[9px] font-bold text-theme-tertiary">
+                {format(new Date(story.date), 'MMM yyyy')}
+              </span>
+              <div className="text-[8px] text-theme-tertiary">to</div>
+              <span className="text-[9px] font-bold text-theme-tertiary">
+                {story.endDate
+                  ? format(new Date(story.endDate), 'MMM yyyy')
+                  : story.metadata?.endDate
+                    ? format(new Date(story.metadata.endDate as string), 'MMM yyyy')
+                    : 'Present'}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] font-bold text-theme-tertiary uppercase">
+                {format(new Date(story.date), 'MMM')}
+              </span>
+              <div className="text-sm font-bold text-theme-primary leading-none">
+                {format(new Date(story.date), 'dd')}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Category Icon */}
@@ -147,9 +169,26 @@ const CompactTimelineCard = ({ story, onClick, isLocked }: { story: Story; onCli
 };
 
 export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: () => void }> = ({ searchResults, onAddStory }) => {
-  const { stories, userProfile, deleteStory, setCurrentView, activeStoryId, setActiveStory } = useTimelineStore();
+  const { stories, userProfile, deleteStory, updateStory, setCurrentView, activeStoryId, setActiveStory, relationships } = useTimelineStore();
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
+
+  // Specialized form modals state
+  const [showRelationshipForm, setShowRelationshipForm] = useState(false);
+  const [showHouseForm, setShowHouseForm] = useState(false);
+  const [showJobForm, setShowJobForm] = useState(false);
+  const [showChildForm, setShowChildForm] = useState(false);
+  const [editingStory, setEditingStory] = useState<Story | null>(null);
+
+  // Helper to detect story type from tags
+  const getStoryType = (story: Story): 'relationship' | 'home' | 'job' | 'child' | 'generic' => {
+    const tags = story.tags.map(t => t.toLowerCase());
+    if (tags.some(t => ['relationship', 'connection', 'partner', 'dating', 'love'].includes(t))) return 'relationship';
+    if (tags.some(t => ['home', 'house', 'property', 'purchase', 'sale', 'renovation'].includes(t))) return 'home';
+    if (tags.some(t => ['career', 'job', 'work', 'employment'].includes(t))) return 'job';
+    if (tags.some(t => ['child', 'kid', 'son', 'daughter', 'baby'].includes(t))) return 'child';
+    return 'generic';
+  };
 
   // Get the active story for the viewer
   const activeStory = useMemo(() => {
@@ -185,8 +224,63 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
       ? [...stories, birthStory]
       : stories;
 
+  // Synthesize END events for stories with endDate (jobs, relationships, homes)
+  const synthesizedEndEvents: Story[] = useMemo(() => {
+    const endEvents: Story[] = [];
+
+    baseStories.forEach(story => {
+      // Get end date from story.endDate or metadata.endDate
+      const endDate = story.endDate || (story.metadata?.endDate as string);
+      if (!endDate) return;
+
+      // Check if this is a job, relationship, or home event
+      const tags = story.tags.map(t => t.toLowerCase());
+      const isJob = tags.some(t => ['career', 'work', 'job', 'started'].includes(t));
+      const isRelationship = tags.some(t => ['relationship', 'connection', 'partner', 'dating'].includes(t));
+      const isHome = tags.some(t => ['home', 'house', 'property'].includes(t));
+
+      if (!isJob && !isRelationship && !isHome) return;
+
+      // Create synthesized end event
+      const endEventDate = new Date(endDate);
+      const personOrCompany = isRelationship
+        ? story.people[0]
+        : isJob
+          ? (story.metadata?.company as string || story.title.match(/at\s+(.+)$/i)?.[1] || 'company')
+          : (story.metadata?.address as string || story.location || 'property');
+
+      const endTitle = isRelationship
+        ? `Ended relationship with ${personOrCompany}`
+        : isJob
+          ? `Left ${personOrCompany}`
+          : `Sold/left ${personOrCompany}`;
+
+      endEvents.push({
+        id: `${story.id}-end-synthetic`,
+        title: endTitle,
+        content: `${story.title} ended.`,
+        type: 'short',
+        date: endEventDate,
+        fuzzyDate: story.fuzzyDate,
+        tags: [...story.tags.filter(t => !['started', 'purchase'].includes(t.toLowerCase())), 'end', 'ended'],
+        people: story.people,
+        importance: story.importance,
+        location: story.location,
+        images: [],
+        metadata: { ...story.metadata, isSynthesized: true, originalStoryId: story.id },
+        createdAt: story.createdAt,
+        updatedAt: story.updatedAt,
+      });
+    });
+
+    return endEvents;
+  }, [baseStories]);
+
+  // Combine base stories with synthesized end events
+  const allStories = [...baseStories, ...synthesizedEndEvents];
+
   // Sort stories by date (newest first)
-  const sortedStories = [...baseStories].sort((a, b) =>
+  const sortedStories = [...allStories].sort((a, b) =>
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
@@ -234,7 +328,35 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
   };
 
   const handleEditStory = (story: Story) => {
-    setCurrentView({ type: 'edit-story', storyId: story.id });
+    const storyType = getStoryType(story);
+    setEditingStory(story);
+
+    switch (storyType) {
+      case 'relationship':
+        setShowRelationshipForm(true);
+        break;
+      case 'home':
+        setShowHouseForm(true);
+        break;
+      case 'job':
+        setShowJobForm(true);
+        break;
+      case 'child':
+        setShowChildForm(true);
+        break;
+      default:
+        // Fallback to generic story editor
+        setCurrentView({ type: 'edit-story', storyId: story.id });
+    }
+  };
+
+  // Close specialized form modals
+  const handleCloseSpecializedForm = () => {
+    setShowRelationshipForm(false);
+    setShowHouseForm(false);
+    setShowJobForm(false);
+    setShowChildForm(false);
+    setEditingStory(null);
   };
 
   const handleDeleteStory = (id: string) => {
@@ -591,8 +713,164 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
           story={activeStory}
           onClose={() => setActiveStory(null)}
           onEdit={(id) => {
-            setActiveStory(null);
-            setCurrentView({ type: 'edit-story', storyId: id });
+            const story = stories.find(s => s.id === id);
+            if (story) {
+              setActiveStory(null);
+              handleEditStory(story);
+            }
+          }}
+        />
+      )}
+
+      {/* Specialized Form Modals */}
+      {showRelationshipForm && editingStory && (() => {
+        // Try to find the actual relationship from the relationships store
+        const personName = editingStory.people[0];
+        const actualRelationship = relationships.find(rel =>
+          rel.fullName === personName ||
+          `${rel.firstName} ${rel.lastName}`.trim() === personName
+        );
+
+        // Determine isCurrent - check metadata first, then story.endDate
+        const isCurrent = editingStory.metadata?.isCurrent !== undefined
+          ? Boolean(editingStory.metadata.isCurrent)
+          : !editingStory.endDate && !editingStory.metadata?.endDate;
+
+        // Get end date from story.endDate or metadata.endDate
+        const endDate = editingStory.endDate
+          ? new Date(editingStory.endDate)
+          : editingStory.metadata?.endDate
+            ? new Date(editingStory.metadata.endDate as string)
+            : undefined;
+
+        return (
+          <RelationshipTrackerForm
+            onClose={handleCloseSpecializedForm}
+            onSubmit={async (data) => {
+              // Update the story with relationship data
+              await updateStory(editingStory.id, {
+                title: `Relationship with ${data.firstName} ${data.lastName}`.trim(),
+                content: data.notes,
+                date: data.startDate,
+                endDate: data.isCurrent ? undefined : data.endDate,
+                people: [`${data.firstName} ${data.lastName}`.trim()],
+                tags: ['relationship', 'connection', data.relationshipType.toLowerCase()],
+                metadata: {
+                  ...editingStory.metadata,
+                  relationshipType: data.relationshipType,
+                  isCurrent: data.isCurrent,
+                  endDate: data.isCurrent ? undefined : data.endDate,
+                }
+              });
+              handleCloseSpecializedForm();
+            }}
+            onDelete={async () => {
+              await deleteStory(editingStory.id);
+              handleCloseSpecializedForm();
+            }}
+            initialData={{
+              id: actualRelationship?.id || editingStory.id,
+              firstName: actualRelationship?.firstName || editingStory.people[0]?.split(' ')[0] || '',
+              lastName: actualRelationship?.lastName || editingStory.people[0]?.split(' ').slice(1).join(' ') || '',
+              fullName: actualRelationship?.fullName || editingStory.people[0] || '',
+              relationshipType: actualRelationship?.relationshipType || editingStory.metadata?.relationshipType as string ||
+                editingStory.tags.find(t => ['friend', 'partner', 'dating', 'married', 'colleague', 'family'].includes(t.toLowerCase())) || 'Friend',
+              startDate: actualRelationship?.startDate ? new Date(actualRelationship.startDate) : new Date(editingStory.date),
+              endDate: actualRelationship?.endDate ? new Date(actualRelationship.endDate) : endDate,
+              isCurrent: actualRelationship?.isCurrent !== undefined ? actualRelationship.isCurrent : isCurrent,
+              notes: actualRelationship?.notes || editingStory.content,
+              interactionCount: actualRelationship?.interactionCount || 0,
+              createdAt: editingStory.createdAt,
+              updatedAt: editingStory.updatedAt,
+            }}
+          />
+        );
+      })()}
+
+      {showHouseForm && editingStory && (
+        <HouseTrackerForm
+          onClose={handleCloseSpecializedForm}
+          editData={{
+            id: editingStory.id,
+            address: editingStory.metadata?.address as string || editingStory.location || '',
+            purchasePrice: editingStory.metadata?.purchasePrice as number,
+            salePrice: editingStory.metadata?.salePrice as number,
+            bedrooms: editingStory.metadata?.bedrooms as number,
+            bathrooms: editingStory.metadata?.bathrooms as number,
+            squareFootage: editingStory.metadata?.squareFootage as number,
+            photos: editingStory.images,
+            description: editingStory.content,
+            date: new Date(editingStory.date),
+            propertyType: editingStory.metadata?.propertyType as 'residence' | 'investment' | 'holiday',
+            type: editingStory.tags.includes('purchase') ? 'purchase'
+              : editingStory.tags.includes('sale') ? 'sale'
+                : editingStory.tags.includes('renovation') ? 'renovation'
+                  : 'memory',
+          }}
+        />
+      )}
+
+      {showJobForm && editingStory && (() => {
+        // Helper to extract company from title like "Started X at Company" or "Promoted to X at Company"
+        const extractCompanyFromTitle = (title: string): string => {
+          const atMatch = title.match(/at\s+(.+)$/i);
+          return atMatch ? atMatch[1].trim() : '';
+        };
+
+        // Helper to extract position from title
+        const extractPositionFromTitle = (title: string): string => {
+          // "Started POSITION at Company" or "Promoted to POSITION at Company"
+          const startedMatch = title.match(/^Started\s+(.+?)\s+at\s+/i);
+          const promotedMatch = title.match(/^Promoted to\s+(.+?)\s+at\s+/i);
+          return startedMatch?.[1] || promotedMatch?.[1] || '';
+        };
+
+        // Get company from metadata first, then try extracting from title, then from tags
+        const company = (editingStory.metadata?.company as string) ||
+          extractCompanyFromTitle(editingStory.title) ||
+          editingStory.tags.find(t => !['job', 'career', 'started', 'promotion', 'ended', 'achievement', 'memory', 'work', 'employment'].includes(t.toLowerCase())) || '';
+
+        // Get position from metadata first, then try extracting from title
+        const position = (editingStory.metadata?.position as string) ||
+          extractPositionFromTitle(editingStory.title) ||
+          editingStory.title;
+
+        return (
+          <JobTrackerForm
+            onClose={handleCloseSpecializedForm}
+            editData={{
+              id: editingStory.id,
+              company,
+              position,
+              location: (editingStory.metadata?.location as string) || editingStory.location || '',
+              startDate: editingStory.metadata?.startDate ? new Date(editingStory.metadata.startDate as string) : new Date(editingStory.date),
+              endDate: editingStory.endDate ? new Date(editingStory.endDate) : undefined,
+              salary: editingStory.metadata?.salary as number,
+              description: editingStory.content,
+              date: new Date(editingStory.date),
+              type: editingStory.tags.includes('started') ? 'started'
+                : editingStory.tags.includes('promotion') ? 'promotion'
+                  : editingStory.tags.includes('ended') ? 'ended'
+                    : 'memory',
+            }}
+          />
+        );
+      })()}
+
+      {showChildForm && editingStory && (
+        <ChildTrackerForm
+          onClose={handleCloseSpecializedForm}
+          editData={{
+            id: editingStory.id,
+            childName: editingStory.people[0] || '',
+            birthDate: editingStory.metadata?.birthDate ? new Date(editingStory.metadata.birthDate as string) : new Date(editingStory.date),
+            birthLocation: (editingStory.metadata?.birthLocation as string) || editingStory.location || '',
+            parents: editingStory.metadata?.parents as string[] || [],
+            description: editingStory.content,
+            date: new Date(editingStory.date),
+            type: editingStory.tags.includes('birth') ? 'birth'
+              : editingStory.tags.includes('achievement') ? 'achievement'
+                : 'milestone',
           }}
         />
       )}

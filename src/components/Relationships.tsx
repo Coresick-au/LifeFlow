@@ -20,8 +20,14 @@ export const Relationships: React.FC = () => {
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Relationship | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>('recent');
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>('current');
+  const [sortBy, setSortBy] = useState<SortOption>(() => {
+    const saved = localStorage.getItem('connections-sortBy');
+    return (saved as SortOption) || 'recent';
+  });
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>(() => {
+    const saved = localStorage.getItem('connections-filterStatus');
+    return (saved as StatusFilter) || 'all';
+  });
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -60,6 +66,12 @@ export const Relationships: React.FC = () => {
         return sorted;
     }
   }, [relationships, sortBy, filterStatus]);
+
+  // Persist filter settings to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('connections-sortBy', sortBy);
+    localStorage.setItem('connections-filterStatus', filterStatus);
+  }, [sortBy, filterStatus]);
 
 
 

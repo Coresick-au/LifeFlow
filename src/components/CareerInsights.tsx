@@ -17,10 +17,10 @@ interface CareerInsightsProps {
 export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) => {
   const insights = React.useMemo(() => {
     const insightsList: CareerInsight[] = [];
-    
+
     // Group events by company to analyze tenure
     const companyEvents = new Map<string, CareerEvent[]>();
-    
+
     careerEvents.forEach(event => {
       if (event.company && event.type === 'position') {
         if (!companyEvents.has(event.company)) {
@@ -34,20 +34,25 @@ export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) 
     companyEvents.forEach((events, company) => {
       // Sort events by date
       events.sort((a, b) => a.date.getTime() - b.date.getTime());
-      
+
       // Check tenure at current/most recent position
       const currentEvent = events[events.length - 1];
       if (currentEvent) {
+        // CRITICAL FIX: Skip jobs that have ended - loyalty tax only applies to ACTIVE roles
+        if (currentEvent.endDate) {
+          return; // This job is history, no loyalty tax accruing
+        }
+
         const tenureInYears = calculateTenure(currentEvent);
-        
+
         // Check for loyalty penalty (>3 years without promotion)
         if (tenureInYears > 3) {
-          const hasPromotion = careerEvents.some(event => 
-            event.company === company && 
+          const hasPromotion = careerEvents.some(event =>
+            event.company === company &&
             event.type === 'promotion' &&
             event.date > currentEvent.date
           );
-          
+
           if (!hasPromotion) {
             insightsList.push({
               id: `loyalty-penalty-${company}`,
@@ -65,7 +70,7 @@ export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) 
     const skillTags = new Set<string>();
     const projectTags = new Set<string>();
     const achievementTags = new Set<string>();
-    
+
     careerEvents.forEach(event => {
       if (event.type === 'skill') {
         skillTags.add(event.title);
@@ -94,7 +99,7 @@ export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) 
         const monthsSince = (new Date().getTime() - e.date.getTime()) / (1000 * 60 * 60 * 24 * 30);
         return monthsSince <= 12;
       });
-    
+
     if (recentSkills.length === 0 && careerEvents.length > 0) {
       insightsList.push({
         id: 'skill-gap',
@@ -127,13 +132,12 @@ export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) 
       {insights.map(insight => (
         <div
           key={insight.id}
-          className={`p-4 rounded-lg border-l-4 ${
-            insight.type === 'warning' 
+          className={`p-4 rounded-lg border-l-4 ${insight.type === 'warning'
               ? 'bg-amber-500/20 dark:bg-amber-900/20 border-amber-400'
               : insight.type === 'opportunity'
-              ? 'bg-purple-500/20 dark:bg-purple-900/20 border-purple-400'
-              : 'bg-blue-500/20 dark:bg-blue-900/20 border-blue-400'
-          }`}
+                ? 'bg-purple-500/20 dark:bg-purple-900/20 border-purple-400'
+                : 'bg-blue-500/20 dark:bg-blue-900/20 border-blue-400'
+            }`}
         >
           <div className="flex items-start gap-3">
             {insight.icon}

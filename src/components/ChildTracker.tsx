@@ -88,15 +88,7 @@ export const ChildTracker: React.FC = () => {
       }
     });
 
-    // If no children found, create a default profile
-    if (childrenMap.size === 0) {
-      childrenMap.set('My Child', {
-        name: 'My Child',
-        birthDate: new Date('2020-01-01'),
-        age: calculateAge(new Date('2020-01-01')),
-      });
-    }
-
+    // No placeholder - let the empty state UI handle this
     return { children: Array.from(childrenMap.values()), stories: childStories };
   }, [stories]);
 

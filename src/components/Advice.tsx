@@ -150,8 +150,8 @@ export const AdvicePanel: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto">
             <div className="mb-8">
-                <h2 className="text-3xl font-bold text-theme-primary mb-2">Advice</h2>
-                <p className="text-theme-tertiary">Collect wisdom and insights to guide your journey</p>
+                <h2 className="text-3xl font-bold text-theme-primary mb-2">Words of Wisdom</h2>
+                <p className="text-theme-tertiary">Advice and insights I'd share with others</p>
             </div>
 
             {/* Add Advice Button */}
@@ -265,8 +265,8 @@ export const AdvicePanel: React.FC = () => {
                 <button
                     onClick={() => setFilterStatus('active')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'active'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
                         }`}
                 >
                     Active ({(advice || []).filter(a => !a.isActioned).length})
@@ -274,8 +274,8 @@ export const AdvicePanel: React.FC = () => {
                 <button
                     onClick={() => setFilterStatus('applied')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'applied'
-                            ? 'bg-green-600 text-white'
-                            : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
                         }`}
                 >
                     Applied ({(advice || []).filter(a => a.isActioned).length})
@@ -283,8 +283,8 @@ export const AdvicePanel: React.FC = () => {
                 <button
                     onClick={() => setFilterStatus('all')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterStatus === 'all'
-                            ? 'bg-gray-600 text-white'
-                            : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
                         }`}
                 >
                     All

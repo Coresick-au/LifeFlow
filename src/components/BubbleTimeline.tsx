@@ -69,7 +69,7 @@ export const BubbleTimeline: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { stories, relationships } = useTimelineStore();
-  const [viewMode, setViewMode] = useState<'bubble' | 'graph'>('bubble');
+  const [viewMode, setViewMode] = useState<'bubble' | 'graph'>('graph');
   const [hoveredNode, setHoveredNode] = useState<BubbleNode | null>(null);
   const [containerHeight, setContainerHeight] = useState(600);
 
@@ -305,16 +305,6 @@ export const BubbleTimeline: React.FC = () => {
           {/* View Switcher */}
           <div className="flex bg-theme-tertiary p-1 rounded-lg">
             <button
-              onClick={() => setViewMode('bubble')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'bubble'
-                ? 'bg-theme-primary text-theme-accent shadow-sm'
-                : 'text-theme-secondary hover:text-theme-primary'
-                }`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              Bubble
-            </button>
-            <button
               onClick={() => setViewMode('graph')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'graph'
                 ? 'bg-theme-primary text-theme-accent shadow-sm'
@@ -323,6 +313,16 @@ export const BubbleTimeline: React.FC = () => {
             >
               <Network className="w-4 h-4" />
               Obsidian
+            </button>
+            <button
+              onClick={() => setViewMode('bubble')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'bubble'
+                ? 'bg-theme-primary text-theme-accent shadow-sm'
+                : 'text-theme-secondary hover:text-theme-primary'
+                }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Bubble
             </button>
           </div>
         </div>

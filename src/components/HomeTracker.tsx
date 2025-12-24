@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { format, differenceInYears, differenceInDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Story } from '../types';
-import { Home, Wrench, Calendar, DollarSign, MapPin, Plus, Edit2, PiggyBank, Palmtree } from 'lucide-react';
+import { Home, Wrench, Calendar, DollarSign, MapPin, Plus, Edit2, PiggyBank, Palmtree, Trash2 } from 'lucide-react';
 import { HouseTrackerForm } from './HouseTrackerForm';
 
 interface HomeEvent {
@@ -32,7 +32,7 @@ interface HomeStats {
 }
 
 export const HomeTracker: React.FC = () => {
-  const { stories, setCurrentView } = useTimelineStore();
+  const { stories, setCurrentView, deleteStory } = useTimelineStore();
   const [selectedHome, setSelectedHome] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<HomeEvent | null>(null);
@@ -41,6 +41,17 @@ export const HomeTracker: React.FC = () => {
   const handleEdit = (event: HomeEvent) => {
     setEditingEvent(event);
     setShowForm(true);
+  };
+
+  // Handle delete click
+  const handleDelete = async (event: HomeEvent) => {
+    if (window.confirm(`Are you sure you want to delete "${event.title}"? This cannot be undone.`)) {
+      try {
+        await deleteStory(event.id);
+      } catch (error) {
+        console.error('Failed to delete home event:', error);
+      }
+    }
   };
 
   // Handle form close
@@ -190,20 +201,32 @@ export const HomeTracker: React.FC = () => {
       .sort((a, b) => b.year - a.year);
   }, [filteredEvents]);
 
-  // Get event icon
+  // Get event icon - combines property type and event type for clarity
   const getEventIcon = (type: HomeEvent['type'], propertyType?: HomeEvent['propertyType']) => {
+    // Investment properties
     if (propertyType === 'investment') {
-      return <PiggyBank className="w-4 h-4 text-blue-500" />;
+      switch (type) {
+        case 'purchase': return <span className="text-base">💰</span>; // Investment purchase
+        case 'sale': return <span className="text-base">📈</span>; // Investment sale (profit)
+        default: return <PiggyBank className="w-4 h-4 text-blue-500" />;
+      }
     }
+    // Holiday properties
     if (propertyType === 'holiday') {
-      return <Palmtree className="w-4 h-4 text-purple-500" />;
+      switch (type) {
+        case 'purchase': return <span className="text-base">🏖️</span>; // Holiday home purchase
+        case 'sale': return <span className="text-base">🌴</span>; // Holiday home sale
+        default: return <Palmtree className="w-4 h-4 text-purple-500" />;
+      }
     }
+    // Residence (default) - show event type
     switch (type) {
-      case 'purchase': return <Home className="w-4 h-4 text-green-600" />;
-      case 'sale': return <DollarSign className="w-4 h-4 text-red-500" />;
-      case 'renovation': return <Wrench className="w-4 h-4 text-blue-600" />;
+      case 'purchase': return <span className="text-base">🏠</span>; // Home purchase
+      case 'sale': return <span className="text-base">🏷️</span>; // Home sale
+      case 'renovation': return <span className="text-base">🔨</span>; // Renovation
       case 'maintenance': return <Wrench className="w-4 h-4 text-orange-600" />;
-      case 'improvement': return <Plus className="w-4 h-4 text-purple-600" />;
+      case 'improvement': return <span className="text-base">✨</span>; // Improvement
+      case 'memory': return <span className="text-base">📸</span>; // Memory
       default: return <Home className="w-4 h-4 text-theme-tertiary" />;
     }
   };
@@ -395,7 +418,7 @@ export const HomeTracker: React.FC = () => {
                   <div key={event.id} className="bg-theme-tertiary rounded-lg p-4 hover:shadow-md transition-shadow group">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        {getEventIcon(event.type)}
+                        {getEventIcon(event.type, event.propertyType)}
                         <h5 className="font-medium text-theme-primary">{event.title}</h5>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -413,6 +436,13 @@ export const HomeTracker: React.FC = () => {
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4 text-theme-secondary" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(event)}
+                          className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
                       </div>
                     </div>
@@ -441,6 +471,22 @@ export const HomeTracker: React.FC = () => {
                         {event.bedrooms && <span>{event.bedrooms} bed</span>}
                         {event.bathrooms && <span>{event.bathrooms} bath</span>}
                         {event.squareFootage && <span>{event.squareFootage.toLocaleString()} sqft</span>}
+                      </div>
+                    )}
+
+                    {/* Price Information */}
+                    {(event.purchasePrice || event.salePrice) && (
+                      <div className="flex gap-4 text-xs mt-2">
+                        {event.purchasePrice && (
+                          <span className="text-emerald-500 font-medium">
+                            Purchased: ${Number(event.purchasePrice).toLocaleString()}
+                          </span>
+                        )}
+                        {event.salePrice && (
+                          <span className="text-orange-500 font-medium">
+                            Sold: ${Number(event.salePrice).toLocaleString()}
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -491,11 +537,13 @@ export const HomeTracker: React.FC = () => {
             photos: editingEvent.images,
             description: editingEvent.description,
             date: editingEvent.date,
+            propertyType: editingEvent.propertyType,
             type: editingEvent.type === 'purchase' ? 'purchase'
-              : editingEvent.type === 'renovation' ? 'renovation'
-                : editingEvent.type === 'maintenance' ? 'renovation'
-                  : editingEvent.type === 'improvement' ? 'renovation'
-                    : 'memory',
+              : editingEvent.type === 'sale' ? 'sale'
+                : editingEvent.type === 'renovation' ? 'renovation'
+                  : editingEvent.type === 'maintenance' ? 'renovation'
+                    : editingEvent.type === 'improvement' ? 'renovation'
+                      : 'memory',
           } : undefined}
         />
       )}
