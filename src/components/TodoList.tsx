@@ -3,6 +3,7 @@ import { format, isAfter, isBefore, addDays } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { TodoItem } from '../types';
 import { Plus, Check, Archive, Trash2, Edit2, X, Calendar, Flag, Clock, AlertCircle, CheckSquare } from 'lucide-react';
+import { ThemedDatePicker } from './ThemedDatePicker';
 
 const priorityColors = {
   high: 'bg-red-500/20 text-red-400 border-red-200',
@@ -33,19 +34,19 @@ export const TodoList: React.FC = () => {
   // Filter todos
   const filteredTodos = useMemo(() => {
     let filtered = todos;
-    
+
     if (filterStatus !== 'all') {
       filtered = filtered.filter(t => t.status === filterStatus);
     }
-    
+
     if (searchTerm) {
-      filtered = filtered.filter(t => 
+      filtered = filtered.filter(t =>
         t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
-    
+
     return filtered;
   }, [todos, filterStatus, searchTerm]);
 
@@ -108,12 +109,12 @@ export const TodoList: React.FC = () => {
 
   const getDueDateStatus = (dueDate?: Date) => {
     if (!dueDate) return null;
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const due = new Date(dueDate);
     due.setHours(0, 0, 0, 0);
-    
+
     if (isBefore(due, today)) {
       return { status: 'overdue', color: 'text-red-600', label: 'Overdue' };
     } else if (due.getTime() === today.getTime()) {
@@ -127,11 +128,10 @@ export const TodoList: React.FC = () => {
   const TodoItem = ({ todo, showStatus }: { todo: TodoItem; showStatus?: boolean }) => {
     const PriorityIcon = priorityIcons[todo.priority];
     const dueDateStatus = getDueDateStatus(todo.dueDate);
-    
+
     return (
-      <div className={`p-4 bg-theme-primary rounded-lg shadow-sm border border-theme hover:shadow-md transition-all ${
-        todo.status === 'completed' ? 'opacity-75' : ''
-      }`}>
+      <div className={`p-4 bg-theme-primary rounded-lg shadow-sm border border-theme hover:shadow-md transition-all ${todo.status === 'completed' ? 'opacity-75' : ''
+        }`}>
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-3 flex-1">
             {todo.status === 'active' && (
@@ -150,11 +150,10 @@ export const TodoList: React.FC = () => {
             {todo.status === 'archived' && (
               <Archive className="w-5 h-5 text-gray-400" />
             )}
-            
+
             <div className="flex-1">
-              <h4 className={`font-medium text-theme-primary ${
-                todo.status === 'completed' ? 'line-through' : ''
-              }`}>
+              <h4 className={`font-medium text-theme-primary ${todo.status === 'completed' ? 'line-through' : ''
+                }`}>
                 {todo.title}
               </h4>
               {todo.description && (
@@ -162,7 +161,7 @@ export const TodoList: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-1">
             {todo.status === 'active' && (
               <>
@@ -188,13 +187,13 @@ export const TodoList: React.FC = () => {
             </button>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3 mt-3 text-xs">
           <span className={`px-2 py-1 rounded-full border ${priorityColors[todo.priority]} flex items-center gap-1`}>
             <PriorityIcon className="w-3 h-3" />
             {todo.priority}
           </span>
-          
+
           {todo.dueDate && (
             <span className={`flex items-center gap-1 ${dueDateStatus?.color || 'text-slate-500 dark:text-slate-400'}`}>
               <Calendar className="w-3 h-3" />
@@ -202,24 +201,24 @@ export const TodoList: React.FC = () => {
               {dueDateStatus && <span className="font-medium">({dueDateStatus.label})</span>}
             </span>
           )}
-          
+
           <span className="text-slate-500 dark:text-slate-400">
             Created {format(new Date(todo.createdAt), 'MMM d')}
           </span>
-          
+
           {todo.completedAt && (
             <span className="text-green-600">
               Completed {format(new Date(todo.completedAt), 'MMM d')}
             </span>
           )}
-          
+
           {todo.archivedAt && (
             <span className="text-yellow-600">
               Archived {format(new Date(todo.archivedAt), 'MMM d')}
             </span>
           )}
         </div>
-        
+
         {todo.tags && todo.tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1">
             {todo.tags.map((tag) => (
@@ -298,17 +297,13 @@ export const TodoList: React.FC = () => {
                   <option value="high">High</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-theme-secondary mb-2">Due Date</label>
-                <input
-                  type="date"
-                  value={formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    dueDate: e.target.value ? new Date(e.target.value) : undefined 
-                  })}
-                  className="w-full px-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                <ThemedDatePicker
+                  selected={formData.dueDate}
+                  onChange={(date) => setFormData({ ...formData, dueDate: date || undefined })}
+                  placeholder="Select due date"
                 />
               </div>
             </div>

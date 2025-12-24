@@ -70,6 +70,7 @@ export interface UserProfile {
   hometown?: string;
   bio?: string;
   avatar?: string;
+  birthPhoto?: string; // Baby photo for the "I Was Born" timeline card
   family?: FamilyMember[];
   bloodType?: string;
 }

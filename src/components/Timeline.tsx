@@ -7,6 +7,8 @@ import { RelationshipTrackerForm } from './RelationshipTrackerForm';
 import { HouseTrackerForm } from './HouseTrackerForm';
 import { JobTrackerForm } from './JobTrackerForm';
 import { ChildTrackerForm } from './ChildTrackerForm';
+import imageCompression from 'browser-image-compression';
+import { uploadMedia, deleteMedia } from '../services/supabaseService';
 import {
   Edit,
   Trash2,
@@ -169,15 +171,28 @@ const CompactTimelineCard = ({ story, onClick, isLocked }: { story: Story; onCli
 };
 
 export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: () => void }> = ({ searchResults, onAddStory }) => {
-  const { stories, userProfile, deleteStory, updateStory, setCurrentView, activeStoryId, setActiveStory, relationships } = useTimelineStore();
+  const { stories, userProfile, deleteStory, updateStory, setCurrentView, activeStoryId, setActiveStory, relationships, setUserProfile } = useTimelineStore();
   const [filterTags, setFilterTags] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
+
+  // Persist view mode in localStorage
+  const [viewMode, setViewMode] = useState<'compact' | 'expanded'>(() => {
+    const saved = localStorage.getItem('timeline-view-mode');
+    return (saved === 'compact' || saved === 'expanded') ? saved : 'compact';
+  });
+
+  // Save view mode to localStorage when it changes
+  const handleViewModeChange = (mode: 'compact' | 'expanded') => {
+    setViewMode(mode);
+    localStorage.setItem('timeline-view-mode', mode);
+  };
 
   // Specialized form modals state
   const [showRelationshipForm, setShowRelationshipForm] = useState(false);
   const [showHouseForm, setShowHouseForm] = useState(false);
   const [showJobForm, setShowJobForm] = useState(false);
   const [showChildForm, setShowChildForm] = useState(false);
+  const [showBirthPhotoModal, setShowBirthPhotoModal] = useState(false);
+  const [isUploadingBirthPhoto, setIsUploadingBirthPhoto] = useState(false);
   const [editingStory, setEditingStory] = useState<Story | null>(null);
 
   // Helper to detect story type from tags
@@ -190,11 +205,34 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
     return 'generic';
   };
 
-  // Get the active story for the viewer
+  // Get the active story for the viewer (including synthetic birth story)
   const activeStory = useMemo(() => {
     if (!activeStoryId) return null;
-    return stories.find(s => s.id === activeStoryId) || null;
-  }, [activeStoryId, stories]);
+    // Check regular stories first
+    const foundStory = stories.find(s => s.id === activeStoryId);
+    if (foundStory) return foundStory;
+    // Check if it's the birth story
+    if (activeStoryId === 'birth-event-synthetic' && userProfile?.birthDate) {
+      return {
+        id: 'birth-event-synthetic',
+        title: 'I Was Born! 🎉',
+        content: userProfile.birthLocation
+          ? `The beginning of my life story, born in ${userProfile.birthLocation}.`
+          : 'The beginning of my life story.',
+        type: 'short' as const,
+        date: new Date(userProfile.birthDate),
+        fuzzyDate: false,
+        tags: ['birth', 'milestone', 'beginning'],
+        people: [],
+        importance: 'high' as const,
+        location: userProfile.birthLocation || '',
+        images: userProfile.birthPhoto ? [userProfile.birthPhoto] : [],
+        createdAt: new Date(userProfile.birthDate),
+        updatedAt: new Date(userProfile.birthDate),
+      };
+    }
+    return null;
+  }, [activeStoryId, stories, userProfile]);
 
   console.log('Timeline render - stories:', stories.length, 'userProfile:', userProfile ? 'exists' : 'null');
 
@@ -212,7 +250,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
     people: [],
     importance: 'high',
     location: userProfile.birthLocation || '',
-    images: [],
+    images: userProfile.birthPhoto ? [userProfile.birthPhoto] : [],
     createdAt: new Date(userProfile.birthDate),
     updatedAt: new Date(userProfile.birthDate),
   } : null;
@@ -365,6 +403,41 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
     }
   };
 
+  // Birth photo upload handler
+  const handleBirthPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userProfile) return;
+
+    setIsUploadingBirthPhoto(true);
+    try {
+      // Compress image
+      const options = {
+        maxSizeMB: 0.2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, options);
+
+      // Upload to Supabase
+      const url = await uploadMedia(userProfile.id, compressedFile);
+
+      if (url) {
+        // Delete old photo if exists
+        if (userProfile.birthPhoto) {
+          await deleteMedia(userProfile.birthPhoto);
+        }
+        // Update profile with new birth photo
+        setUserProfile({ ...userProfile, birthPhoto: url });
+        setShowBirthPhotoModal(false);
+      }
+    } catch (error) {
+      console.error('Error uploading birth photo:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setIsUploadingBirthPhoto(false);
+    }
+  };
+
   const handleTagClick = (tag: string) => {
     setFilterTags(prev =>
       prev.includes(tag)
@@ -434,7 +507,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
             {/* View Mode Toggle */}
             <div className="flex gap-1 bg-theme-tertiary rounded-lg p-0.5">
               <button
-                onClick={() => setViewMode('compact')}
+                onClick={() => handleViewModeChange('compact')}
                 className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'compact'
                   ? 'bg-theme-primary text-theme-primary shadow-sm'
                   : 'text-theme-tertiary hover:text-theme-secondary'
@@ -444,7 +517,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                 Compact
               </button>
               <button
-                onClick={() => setViewMode('expanded')}
+                onClick={() => handleViewModeChange('expanded')}
                 className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'expanded'
                   ? 'bg-theme-primary text-theme-primary shadow-sm'
                   : 'text-theme-tertiary hover:text-theme-secondary'
@@ -634,8 +707,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                                 key={i}
                                 src={img}
                                 alt={`Memory ${i + 1}`}
-                                className="w-full h-32 object-cover rounded-lg border border-theme hover:opacity-90 transition-opacity cursor-pointer"
-                                onClick={() => window.open(img, '_blank')}
+                                className="w-full h-32 object-cover rounded-lg border border-theme"
                               />
                             ))}
                             {story.images.length > 4 && (
@@ -666,27 +738,42 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                           </div>
                         )}
 
-                        {/* Actions - hide for locked stories and synthetic birth story */}
-                        {!isLocked && story.id !== 'birth-event-synthetic' && (
+                        {/* Actions - hide for locked stories, show special edit for birth story */}
+                        {!isLocked && (
                           <div className="flex space-x-2 mt-4 pt-4 border-t border-theme">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditStory(story);
-                              }}
-                              className="text-theme-secondary hover:text-theme-primary"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteStory(story.id);
-                              }}
-                              className="text-theme-secondary hover:text-red-500"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {story.id === 'birth-event-synthetic' ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowBirthPhotoModal(true);
+                                }}
+                                className="text-theme-secondary hover:text-theme-primary flex items-center gap-1 text-sm"
+                              >
+                                <Camera className="w-4 h-4" />
+                                <span>{userProfile?.birthPhoto ? 'Change Photo' : 'Add Baby Photo'}</span>
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditStory(story);
+                                  }}
+                                  className="text-theme-secondary hover:text-theme-primary"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteStory(story.id);
+                                  }}
+                                  className="text-theme-secondary hover:text-red-500"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -712,7 +799,7 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
         <StoryViewer
           story={activeStory}
           onClose={() => setActiveStory(null)}
-          onEdit={(id) => {
+          onEdit={activeStory.id === 'birth-event-synthetic' ? undefined : (id) => {
             const story = stories.find(s => s.id === id);
             if (story) {
               setActiveStory(null);
@@ -873,6 +960,65 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
                 : 'milestone',
           }}
         />
+      )}
+
+      {/* Birth Photo Upload Modal */}
+      {showBirthPhotoModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowBirthPhotoModal(false)}
+        >
+          <div
+            className="bg-theme-primary rounded-lg shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-theme-primary mb-4">
+              🍼 Add Baby Photo
+            </h3>
+            <p className="text-theme-secondary mb-4">
+              Add a photo of you as a baby to your "I Was Born" timeline card.
+            </p>
+
+            {/* Current Photo Preview */}
+            {userProfile?.birthPhoto && (
+              <div className="mb-4">
+                <p className="text-sm text-theme-tertiary mb-2">Current photo:</p>
+                <img
+                  src={userProfile.birthPhoto}
+                  alt="Baby photo"
+                  className="w-32 h-32 object-cover rounded-lg border border-theme"
+                />
+              </div>
+            )}
+
+            {/* Upload Button */}
+            <div className="flex gap-3">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleBirthPhotoUpload}
+                className="hidden"
+                id="birth-photo-upload"
+                disabled={isUploadingBirthPhoto}
+              />
+              <label
+                htmlFor="birth-photo-upload"
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-dashed border-theme cursor-pointer hover:bg-theme-tertiary transition-colors ${isUploadingBirthPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Camera className="w-5 h-5 text-theme-secondary" />
+                <span className="text-theme-secondary">
+                  {isUploadingBirthPhoto ? 'Uploading...' : userProfile?.birthPhoto ? 'Change Photo' : 'Choose Photo'}
+                </span>
+              </label>
+              <button
+                onClick={() => setShowBirthPhotoModal(false)}
+                className="px-4 py-2 text-theme-secondary hover:text-theme-primary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

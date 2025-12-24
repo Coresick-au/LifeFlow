@@ -3,6 +3,7 @@ import { format, intervalToDuration, addYears, addMonths, isValid } from 'date-f
 import { Calendar, Clock, X, Save, Share2, Trash2, UserCheck, UserX } from 'lucide-react';
 import { Relationship } from '../types';
 import { useTimelineStore } from '../store/timelineStore';
+import { ThemedDatePicker } from './ThemedDatePicker';
 
 // --- Integrated Milestone Constants ---
 const MILESTONE_TYPES = [
@@ -57,7 +58,10 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
     const [selectedMilestone, setSelectedMilestone] = useState<string>('started-dating');
 
     // New State: Decouple the "Phase/Event" end from the "Person" end
-    const [eventHasEnded, setEventHasEnded] = useState(!!initialData?.endDate);
+    // Sync with initialData.isCurrent as well as endDate
+    const [eventHasEnded, setEventHasEnded] = useState(
+        !!initialData?.endDate || initialData?.isCurrent === false
+    );
 
     const [startDateMode, setStartDateMode] = useState<'date' | 'age'>('date');
     const [endDateMode, setEndDateMode] = useState<'date' | 'age' | 'duration'>('date');
@@ -73,7 +77,7 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
 
     // Sync eventHasEnded with initial data if editing
     useEffect(() => {
-        if (initialData?.endDate) {
+        if (initialData?.endDate || initialData?.isCurrent === false) {
             setEventHasEnded(true);
         }
     }, [initialData]);
@@ -140,7 +144,8 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         await onSubmit(personDataToSave);
 
         // 2. Timeline Logic (For the Gantt Chart / Timeline)
-        if (addToTimeline) {
+        // ONLY create a new story for NEW relationships, not edits
+        if (addToTimeline && !initialData) {
             const fullName = `${formData.firstName} ${formData.lastName}`.trim();
             const milestone = MILESTONE_TYPES.find(m => m.value === selectedMilestone);
 
@@ -321,15 +326,11 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                 </div>
 
                                 {startDateMode === 'date' ? (
-                                    <div className="relative group">
-                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-primary-500 transition-colors" />
-                                        <input
-                                            type="date"
-                                            value={safeFormatDate(formData.startDate)}
-                                            onChange={(e) => setFormData({ ...formData, startDate: e.target.value ? new Date(e.target.value) : new Date() })}
-                                            className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
-                                        />
-                                    </div>
+                                    <ThemedDatePicker
+                                        selected={formData.startDate}
+                                        onChange={(date) => setFormData({ ...formData, startDate: date || new Date() })}
+                                        placeholder="Select start date"
+                                    />
                                 ) : (
                                     <div className="space-y-1">
                                         <input
@@ -423,11 +424,11 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                                                 </div>
                                             </div>
                                         ) : (
-                                            <input
-                                                type="date"
-                                                value={safeFormatDate(formData.endDate)}
-                                                onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
-                                                className="w-full px-2 py-1.5 text-sm border border-theme rounded-md bg-theme-primary text-theme-primary"
+                                            <ThemedDatePicker
+                                                selected={formData.endDate}
+                                                onChange={(date) => setFormData({ ...formData, endDate: date || undefined })}
+                                                placeholder="Select end date"
+                                                minDate={formData.startDate}
                                             />
                                         )}
                                         {formData.endDate && endDateMode !== 'date' && (

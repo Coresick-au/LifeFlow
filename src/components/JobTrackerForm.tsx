@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { format, isValid } from 'date-fns';
 import { Briefcase, Calendar, MapPin, DollarSign, Building, X, Save, TrendingUp, Users } from 'lucide-react';
+import { ThemedDatePicker } from './ThemedDatePicker';
 
 interface JobTrackerFormProps {
   onClose: () => void;
@@ -215,19 +216,14 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                 <label className="block text-sm font-medium text-theme-secondary mb-2">
                   Start Date
                 </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="date"
-                    value={safeFormatDate(formData.startDate)}
-                    onChange={(e) => {
-                      const newDate = e.target.value ? new Date(e.target.value) : new Date();
-                      // Sync both startDate AND the main story date
-                      setFormData({ ...formData, startDate: newDate, date: newDate });
-                    }}
-                    className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
+                <ThemedDatePicker
+                  selected={formData.startDate}
+                  onChange={(date) => {
+                    const newDate = date || new Date();
+                    setFormData({ ...formData, startDate: newDate, date: newDate });
+                  }}
+                  placeholder="Select start date"
+                />
               </div>
 
               <div>
@@ -246,15 +242,12 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                   </label>
                 </div>
                 {!isCurrentJob && (
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="date"
-                      value={safeFormatDate(formData.endDate)}
-                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
-                      className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
+                  <ThemedDatePicker
+                    selected={formData.endDate}
+                    onChange={(date) => setFormData({ ...formData, endDate: date || undefined })}
+                    placeholder="Select end date"
+                    minDate={formData.startDate}
+                  />
                 )}
               </div>
             </>
@@ -266,15 +259,11 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
               <label className="block text-sm font-medium text-theme-secondary mb-2">
                 Event Date
               </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="date"
-                  value={safeFormatDate(formData.date)}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value ? new Date(e.target.value) : new Date() })}
-                  className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
+              <ThemedDatePicker
+                selected={formData.date}
+                onChange={(date) => setFormData({ ...formData, date: date || new Date() })}
+                placeholder="Select event date"
+              />
             </div>
           )}
 

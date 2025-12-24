@@ -15,6 +15,8 @@ export interface CareerEvent {
   type: 'position' | 'promotion' | 'achievement' | 'skill' | 'project';
   description: string;
   company?: string;
+  position?: string;
+  location?: string;
 }
 
 export const JobTracker: React.FC = () => {
@@ -62,19 +64,41 @@ export const JobTracker: React.FC = () => {
         type = 'project';
       }
 
-      // Extract company from location or content
-      const company = story.location ||
+      // Use metadata for company and position if available, fallback to old extraction
+      const metadata = story.metadata || {};
+      const company = (metadata.company as string) || story.location ||
         (story.content.match(/at ([A-Z][a-zA-Z\s&]+)/)?.[1] || undefined);
+      const position = (metadata.position as string) || undefined;
+      const storyLocation = (metadata.location as string) || story.location || undefined;
+      const endDate = story.endDate ? new Date(story.endDate) : undefined;
 
+      // Add the start event
       events.push({
         id: story.id,
         title: story.title,
         date: new Date(story.date),
-        endDate: story.endDate ? new Date(story.endDate) : undefined,
+        endDate: endDate,
         type,
         description: story.content,
         company,
+        position,
+        location: storyLocation,
       });
+
+      // If job has an end date, also add a synthesized "ended" event
+      if (endDate && type === 'position') {
+        events.push({
+          id: `${story.id}-ended`,
+          title: `Left ${company || position || 'role'}`,
+          date: endDate,
+          endDate: undefined,
+          type: 'position', // Use 'position' type but will display differently
+          description: `Ended role: ${position || story.title}`,
+          company,
+          position,
+          location: storyLocation,
+        });
+      }
     });
 
     return events.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -319,8 +343,8 @@ export const JobTracker: React.FC = () => {
           editData={editingEvent ? {
             id: editingEvent.id,
             company: editingEvent.company || '',
-            position: editingEvent.title,
-            location: '',
+            position: editingEvent.position || editingEvent.title,
+            location: editingEvent.location || '',
             startDate: editingEvent.date,
             endDate: editingEvent.endDate,
             description: editingEvent.description,

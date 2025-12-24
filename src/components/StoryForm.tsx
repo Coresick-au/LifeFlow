@@ -5,6 +5,7 @@ import { uploadMedia, deleteMedia } from '../services/supabaseService';
 import { Story } from '../types';
 import { format, addDays } from 'date-fns';
 import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save, Trash2, Loader2 } from 'lucide-react';
+import { ThemedDatePicker } from './ThemedDatePicker';
 
 
 const importanceOptions = [
@@ -444,16 +445,11 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 {/* Conditional input based on mode */}
                 {inputMode === 'date' ? (
                   <>
-                    <input
-                      type="date"
+                    <ThemedDatePicker
                       id="date"
-                      value={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? format(formData.date, 'yyyy-MM-dd') : ''}
-                      onChange={(e) => {
-                        const dateValue = e.target.value ? new Date(e.target.value) : new Date();
-                        setFormData({ ...formData, date: dateValue });
-                      }}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
-                      required
+                      selected={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? formData.date : null}
+                      onChange={(date) => setFormData({ ...formData, date: date || new Date() })}
+                      placeholder="Select date"
                     />
                     {/* Quick date buttons */}
                     <div className="flex gap-2 mt-2">
@@ -521,13 +517,12 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                 </label>
                 {/* Spacer to match left column's toggle buttons */}
                 <div className="h-[36px] mb-3"></div>
-                <input
-                  type="date"
+                <ThemedDatePicker
                   id="endDate"
-                  value={formData.endDate instanceof Date && !isNaN(formData.endDate.getTime()) ? format(formData.endDate, 'yyyy-MM-dd') : ''}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
-                  min={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? format(formData.date, 'yyyy-MM-dd') : ''}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
+                  selected={formData.endDate instanceof Date && !isNaN(formData.endDate.getTime()) ? formData.endDate : null}
+                  onChange={(date) => setFormData({ ...formData, endDate: date || undefined })}
+                  placeholder="Select end date"
+                  minDate={formData.date instanceof Date ? formData.date : undefined}
                 />
               </div>
             </div>
@@ -787,8 +782,8 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
               )}
             </label>
             <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isUploadingImages
-                ? 'border-primary-500 bg-primary-500/5'
-                : 'border-theme hover:border-primary-400'
+              ? 'border-primary-500 bg-primary-500/5'
+              : 'border-theme hover:border-primary-400'
               }`}>
               <input
                 type="file"
@@ -892,15 +887,11 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                     <label className="block text-sm font-medium text-theme-secondary mb-2">
                       Do not open until
                     </label>
-                    <input
-                      type="date"
-                      value={formData.lockedUntil ? format(formData.lockedUntil, 'yyyy-MM-dd') : ''}
-                      onChange={(e) => {
-                        const date = e.target.value ? new Date(e.target.value) : undefined;
-                        setFormData({ ...formData, lockedUntil: date });
-                      }}
-                      min={format(new Date(), 'yyyy-MM-dd')}
-                      className="w-full px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    <ThemedDatePicker
+                      selected={formData.lockedUntil instanceof Date ? formData.lockedUntil : null}
+                      onChange={(date) => setFormData({ ...formData, lockedUntil: date || undefined })}
+                      placeholder="Select unlock date"
+                      minDate={new Date()}
                     />
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                       This story will be blurred and locked until the selected date

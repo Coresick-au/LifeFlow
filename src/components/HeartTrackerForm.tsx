@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { format, isValid } from 'date-fns';
 import { Heart, Calendar, MapPin, User, X, Save, Sparkles, Trash2 } from 'lucide-react';
+import { ThemedDatePicker } from './ThemedDatePicker';
 
 interface HeartTrackerFormProps {
     onClose: () => void;
@@ -242,15 +243,11 @@ export const HeartTrackerForm: React.FC<HeartTrackerFormProps> = ({ onClose, edi
 
                         {/* Conditional input based on mode */}
                         {inputMode === 'date' ? (
-                            <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="date"
-                                    value={safeFormatDate(formData.startDate)}
-                                    onChange={(e) => setFormData({ ...formData, startDate: new Date(e.target.value) })}
-                                    className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-pink-500"
-                                />
-                            </div>
+                            <ThemedDatePicker
+                                selected={formData.startDate}
+                                onChange={(date) => setFormData({ ...formData, startDate: date || new Date() })}
+                                placeholder="Select date"
+                            />
                         ) : (
                             <div className="space-y-2">
                                 <input
@@ -330,15 +327,12 @@ export const HeartTrackerForm: React.FC<HeartTrackerFormProps> = ({ onClose, edi
 
                                     {/* Conditional end date input */}
                                     {endInputMode === 'date' ? (
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                            <input
-                                                type="date"
-                                                value={safeFormatDate(formData.endDate)}
-                                                onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
-                                                className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-pink-500"
-                                            />
-                                        </div>
+                                        <ThemedDatePicker
+                                            selected={formData.endDate}
+                                            onChange={(date) => setFormData({ ...formData, endDate: date || undefined })}
+                                            placeholder="Select end date"
+                                            minDate={formData.startDate}
+                                        />
                                     ) : (
                                         <div className="space-y-2">
                                             <input

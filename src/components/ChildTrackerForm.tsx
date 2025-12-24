@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { format } from 'date-fns';
 import { Baby, Calendar, MapPin, Users, Camera, X, Save, Heart } from 'lucide-react';
+import { ThemedDatePicker } from './ThemedDatePicker';
 
 interface ChildTrackerFormProps {
   onClose: () => void;
@@ -42,13 +43,13 @@ export const ChildTrackerForm: React.FC<ChildTrackerFormProps> = ({ onClose, edi
     setIsSaving(true);
     try {
       const storyData = {
-        title: formData.type === 'birth' 
+        title: formData.type === 'birth'
           ? `Birth of ${formData.childName}`
           : formData.type === 'milestone'
-          ? `${formData.childName}'s ${formData.milestoneType || 'Milestone'}`
-          : formData.type === 'achievement'
-          ? `${formData.childName}'s Achievement`
-          : `Memory of ${formData.childName}`,
+            ? `${formData.childName}'s ${formData.milestoneType || 'Milestone'}`
+            : formData.type === 'achievement'
+              ? `${formData.childName}'s Achievement`
+              : `Memory of ${formData.childName}`,
         content: formData.description,
         type: 'long' as const,
         date: formData.date,
@@ -72,7 +73,7 @@ export const ChildTrackerForm: React.FC<ChildTrackerFormProps> = ({ onClose, edi
       } else {
         await addStory(storyData);
       }
-      
+
       onClose();
     } catch (error) {
       console.error('Failed to save child event:', error);
@@ -83,18 +84,18 @@ export const ChildTrackerForm: React.FC<ChildTrackerFormProps> = ({ onClose, edi
 
   const addParent = () => {
     if (newParent.trim() && !formData.parents.includes(newParent.trim())) {
-      setFormData({ 
-        ...formData, 
-        parents: [...formData.parents, newParent.trim()] 
+      setFormData({
+        ...formData,
+        parents: [...formData.parents, newParent.trim()]
       });
       setNewParent('');
     }
   };
 
   const removeParent = (parent: string) => {
-    setFormData({ 
-      ...formData, 
-      parents: formData.parents.filter(p => p !== parent) 
+    setFormData({
+      ...formData,
+      parents: formData.parents.filter(p => p !== parent)
     });
   };
 
@@ -137,11 +138,10 @@ export const ChildTrackerForm: React.FC<ChildTrackerFormProps> = ({ onClose, edi
                   key={type}
                   type="button"
                   onClick={() => setFormData({ ...formData, type })}
-                  className={`px-4 py-2 rounded-lg capitalize transition-colors ${
-                    formData.type === type
+                  className={`px-4 py-2 rounded-lg capitalize transition-colors ${formData.type === type
                       ? 'bg-primary-600 text-white'
                       : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-                  }`}
+                    }`}
                 >
                   {type}
                 </button>
@@ -173,17 +173,13 @@ export const ChildTrackerForm: React.FC<ChildTrackerFormProps> = ({ onClose, edi
               <label className="block text-sm font-medium text-theme-secondary mb-2">
                 Birth Date
               </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="date"
-                  value={format(formData.birthDate, 'yyyy-MM-dd')}
-                  onChange={(e) => setFormData({ ...formData, birthDate: new Date(e.target.value) })}
-                  className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
+              <ThemedDatePicker
+                selected={formData.birthDate}
+                onChange={(date) => setFormData({ ...formData, birthDate: date || new Date() })}
+                placeholder="Select birth date"
+              />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-theme-secondary mb-2">
                 Birth Location
@@ -206,15 +202,11 @@ export const ChildTrackerForm: React.FC<ChildTrackerFormProps> = ({ onClose, edi
             <label className="block text-sm font-medium text-theme-secondary mb-2">
               Event Date
             </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="date"
-                value={format(formData.date, 'yyyy-MM-dd')}
-                onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value) })}
-                className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
+            <ThemedDatePicker
+              selected={formData.date}
+              onChange={(date) => setFormData({ ...formData, date: date || new Date() })}
+              placeholder="Select event date"
+            />
           </div>
 
           {/* Milestone Type */}
@@ -294,9 +286,9 @@ export const ChildTrackerForm: React.FC<ChildTrackerFormProps> = ({ onClose, edi
               />
             </div>
             {formData.babyPhoto && (
-              <img 
-                src={formData.babyPhoto} 
-                alt="Baby" 
+              <img
+                src={formData.babyPhoto}
+                alt="Baby"
                 className="mt-2 w-32 h-32 object-cover rounded-lg"
                 onError={(e) => { e.currentTarget.src = ''; }}
               />
