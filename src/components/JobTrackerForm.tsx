@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { Briefcase, Calendar, MapPin, DollarSign, Building, X, Save, TrendingUp } from 'lucide-react';
 
 interface JobTrackerFormProps {
@@ -35,6 +35,12 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
   const [isSaving, setIsSaving] = useState(false);
   const [isCurrentJob, setIsCurrentJob] = useState(!editData?.endDate);
 
+  // Safe date formatting helper
+  const safeFormatDate = (date: Date | undefined): string => {
+    if (!date || !isValid(date)) return '';
+    return format(date, 'yyyy-MM-dd');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.company.trim() || !formData.position.trim()) return;
@@ -42,15 +48,15 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
     setIsSaving(true);
     try {
       const storyData = {
-        title: formData.type === 'started' 
+        title: formData.type === 'started'
           ? `Started ${formData.position} at ${formData.company}`
           : formData.type === 'promotion'
-          ? `Promoted to ${formData.position} at ${formData.company}`
-          : formData.type === 'ended'
-          ? `Left ${formData.company}`
-          : formData.type === 'achievement'
-          ? `Achievement at ${formData.company}`
-          : `Memory of ${formData.company}`,
+            ? `Promoted to ${formData.position} at ${formData.company}`
+            : formData.type === 'ended'
+              ? `Left ${formData.company}`
+              : formData.type === 'achievement'
+                ? `Achievement at ${formData.company}`
+                : `Memory of ${formData.company}`,
         content: formData.description,
         type: 'long' as const,
         date: formData.date,
@@ -75,7 +81,7 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
       } else {
         await addStory(storyData);
       }
-      
+
       onClose();
     } catch (error) {
       console.error('Failed to save job event:', error);
@@ -119,11 +125,10 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                   key={type}
                   type="button"
                   onClick={() => setFormData({ ...formData, type })}
-                  className={`px-4 py-2 rounded-lg capitalize transition-colors ${
-                    formData.type === type
+                  className={`px-4 py-2 rounded-lg capitalize transition-colors ${formData.type === type
                       ? 'bg-primary-600 text-white'
                       : 'bg-theme-tertiary text-theme-secondary hover:opacity-80'
-                  }`}
+                    }`}
                 >
                   {type}
                 </button>
@@ -149,7 +154,7 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                 />
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-theme-secondary mb-2">
                 Position *
@@ -196,8 +201,8 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="date"
-                    value={format(formData.startDate, 'yyyy-MM-dd')}
-                    onChange={(e) => setFormData({ ...formData, startDate: new Date(e.target.value) })}
+                    value={safeFormatDate(formData.startDate)}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value ? new Date(e.target.value) : new Date() })}
                     className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -223,7 +228,7 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       type="date"
-                      value={formData.endDate ? format(formData.endDate, 'yyyy-MM-dd') : ''}
+                      value={safeFormatDate(formData.endDate)}
                       onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
                       className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
@@ -243,8 +248,8 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="date"
-                  value={format(formData.date, 'yyyy-MM-dd')}
-                  onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value) })}
+                  value={safeFormatDate(formData.date)}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value ? new Date(e.target.value) : new Date() })}
                   className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -262,9 +267,9 @@ export const JobTrackerForm: React.FC<JobTrackerFormProps> = ({ onClose, editDat
                 <input
                   type="number"
                   value={formData.salary || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    salary: e.target.value ? Number(e.target.value) : undefined 
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    salary: e.target.value ? Number(e.target.value) : undefined
                   })}
                   className="w-full pl-10 pr-3 py-2 border border-theme rounded-lg bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Annual salary"
