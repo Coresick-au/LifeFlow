@@ -68,25 +68,45 @@ const getStoryEmoji = (story: Story): string => {
 export const BubbleTimeline: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { stories } = useTimelineStore();
+  const { stories, relationships } = useTimelineStore();
   const [viewMode, setViewMode] = useState<'bubble' | 'graph'>('bubble');
   const [hoveredNode, setHoveredNode] = useState<BubbleNode | null>(null);
+  const [containerHeight, setContainerHeight] = useState(600);
 
   // 1. Process Data into Nodes
   const data = useMemo(() => {
-    // A. Calculate Connections (Links) for Graph View
+    // Build a map of durations from relationships data
+    const personDurations: Map<string, number> = new Map();
+    relationships.forEach(rel => {
+      if (rel.startDate) {
+        const endDate = rel.endDate ? new Date(rel.endDate) : new Date();
+        const days = differenceInDays(endDate, new Date(rel.startDate));
+        personDurations.set(rel.fullName.toLowerCase(), Math.max(1, days));
+      }
+    });
+
     // Connect stories that share people or specific tags
     const nodes: BubbleNode[] = stories.map(story => {
       // Size Calculation: Based on Duration
       let durationDays = 1; // Default min size
+
+      // First check if story has endDate directly
       if (story.endDate) {
         durationDays = differenceInDays(new Date(story.endDate), new Date(story.date));
         if (durationDays < 1) durationDays = 1;
+      } else if (story.tags.includes('relationship') && story.people.length > 0) {
+        // For relationship events, look up duration from relationships data
+        for (const person of story.people) {
+          const duration = personDurations.get(person.toLowerCase());
+          if (duration && duration > durationDays) {
+            durationDays = duration;
+          }
+        }
       }
 
-      // Scale: Logarithmic or Square Root is usually best for areas
-      // Base size 15, max size cap at 60
-      const radius = Math.min(60, 15 + Math.sqrt(durationDays) * 1.5);
+      // Scale: Logarithmic for better visual distribution
+      // 1 day = 15px, 365 days (1yr) ~= 44px, 3650 days (10yr) ~= 105px (capped at 80)
+      const radius = Math.min(80, 15 + Math.sqrt(durationDays) * 1.0);
 
       const category = story.tags.find(t => CATEGORY_COLORS[t]) || 'other';
       const color = CATEGORY_COLORS[category] || CATEGORY_COLORS.other;
@@ -120,14 +140,15 @@ export const BubbleTimeline: React.FC = () => {
     }
 
     return { nodes, links };
-  }, [stories]);
+  }, [stories, relationships]);
 
   // 2. Render Simulation
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
 
     const width = containerRef.current.clientWidth;
-    const height = 600;
+    const height = containerRef.current.clientHeight || 600;
+    setContainerHeight(height);
 
     // Clear previous
     d3.select(svgRef.current).selectAll("*").remove();
@@ -234,7 +255,7 @@ export const BubbleTimeline: React.FC = () => {
   }, [data, viewMode]);
 
   return (
-    <div className="bg-theme-primary rounded-lg shadow-lg flex flex-col h-[700px] border border-theme">
+    <div className="bg-theme-primary rounded-lg shadow-lg flex flex-col border border-theme" style={{ height: 'calc(100vh - 180px)', minHeight: '500px' }}>
       {/* Header / Controls */}
       <div className="p-4 border-b border-theme flex justify-between items-center bg-theme-secondary/30">
         <div className="flex items-center gap-4">
@@ -247,8 +268,8 @@ export const BubbleTimeline: React.FC = () => {
             <button
               onClick={() => setViewMode('bubble')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'bubble'
-                  ? 'bg-theme-primary text-theme-accent shadow-sm'
-                  : 'text-theme-secondary hover:text-theme-primary'
+                ? 'bg-theme-primary text-theme-accent shadow-sm'
+                : 'text-theme-secondary hover:text-theme-primary'
                 }`}
             >
               <LayoutGrid className="w-4 h-4" />
@@ -257,8 +278,8 @@ export const BubbleTimeline: React.FC = () => {
             <button
               onClick={() => setViewMode('graph')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'graph'
-                  ? 'bg-theme-primary text-theme-accent shadow-sm'
-                  : 'text-theme-secondary hover:text-theme-primary'
+                ? 'bg-theme-primary text-theme-accent shadow-sm'
+                : 'text-theme-secondary hover:text-theme-primary'
                 }`}
             >
               <Network className="w-4 h-4" />
