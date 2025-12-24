@@ -43,13 +43,27 @@ const getImportanceStars = (importance: Story['importance']) => {
 const getCategoryIcon = (tags: string[]) => {
   const lowerTags = tags.map(t => t.toLowerCase());
 
+  // Relationship events - check for start/end tags first for more specific icons
+  if (lowerTags.includes('relationship') || lowerTags.includes('connection')) {
+    if (lowerTags.includes('end')) {
+      // Broken heart for ended relationships
+      return <Heart className="w-5 h-5 text-gray-400" style={{ opacity: 0.6 }} />;
+    }
+    if (lowerTags.includes('start')) {
+      // Filled heart for new relationships
+      return <Heart className="w-5 h-5 text-red-500 fill-red-500" />;
+    }
+    // Default relationship icon
+    return <Heart className="w-5 h-5 text-red-500" />;
+  }
+
   if (lowerTags.some(t => ['travel', 'vacation', 'trip', 'holiday'].includes(t))) {
     return <Plane className="w-5 h-5 text-blue-500" />;
   }
   if (lowerTags.some(t => ['career', 'work', 'job', 'professional'].includes(t))) {
     return <Briefcase className="w-5 h-5 text-slate-600 dark:text-slate-400" />;
   }
-  if (lowerTags.some(t => ['family', 'love', 'relationship', 'partner'].includes(t))) {
+  if (lowerTags.some(t => ['family', 'love', 'partner'].includes(t))) {
     return <Heart className="w-5 h-5 text-red-500" />;
   }
   if (lowerTags.some(t => ['education', 'school', 'university', 'learning', 'graduation'].includes(t))) {
