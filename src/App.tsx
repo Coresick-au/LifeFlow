@@ -238,9 +238,10 @@ export const App: React.FC = () => {
     'add-story': 'flow', 'edit-story': 'flow', 'on-this-day': 'flow',
     'life-dashboard': 'visualize', bubble: 'visualize', 'event-heatmap': 'visualize',
     'gantt-timeline': 'visualize', 'location-map': 'visualize', 'wealth-tracker': 'visualize',
+    'relationship-tracker': 'visualize', // MOVED: Heart is now under Visualize
     profile: 'me', settings: 'me', relationships: 'me', experimental: 'me',
     'job-tracker': 'me', 'child-tracker': 'me', 'home-tracker': 'me',
-    'likes-dislikes': 'me', 'relationship-tracker': 'me',
+    'likes-dislikes': 'me',
   };
 
   const PILLAR_DEFAULTS: Record<string, string> = {
@@ -266,11 +267,11 @@ export const App: React.FC = () => {
     { type: 'gantt-timeline', pillar: 'visualize', icon: BarChart3, label: 'Gantt' },
     { type: 'location-map', pillar: 'visualize', icon: MapPin, label: 'Map' },
     { type: 'wealth-tracker', pillar: 'visualize', icon: PiggyBank, label: 'Wealth' },
-    // ME Pillar (reordered: trackers first, then prefs, profile/settings last)
+    { type: 'relationship-tracker', pillar: 'visualize', icon: Heart, label: 'Heart' }, // MOVED HERE
+    // ME Pillar
     { type: 'job-tracker', pillar: 'me', icon: TrendingUp, label: 'Career' },
     { type: 'child-tracker', pillar: 'me', icon: Users, label: 'Children' },
     { type: 'home-tracker', pillar: 'me', icon: Home, label: 'Home' },
-    { type: 'relationship-tracker', pillar: 'me', icon: Heart, label: 'Heart' },
     { type: 'relationships', pillar: 'me', icon: Users, label: 'Connections' },
     { type: 'likes-dislikes', pillar: 'me', icon: Smile, label: 'Preferences' },
     { type: 'experimental', pillar: 'me', icon: AlertTriangle, label: 'Experimental' },

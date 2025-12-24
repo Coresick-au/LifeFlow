@@ -109,11 +109,11 @@ export const Navigation: React.FC<NavigationProps> = ({
       'gantt-timeline': 'text-blue-600',
       'location-map': 'text-emerald-500',
       'wealth-tracker': 'text-green-600',
+      'relationship-tracker': 'text-pink-500', // Moved to Visualize group
       // Me pillar
       'job-tracker': 'text-blue-500',
       'child-tracker': 'text-green-500',
       'home-tracker': 'text-amber-500',
-      'relationship-tracker': 'text-pink-500',
       'relationships': 'text-violet-500',
       'likes-dislikes': 'text-rose-500',
       'experimental': 'text-red-500',
@@ -140,11 +140,11 @@ export const Navigation: React.FC<NavigationProps> = ({
       'gantt-timeline': 'bg-blue-600',
       'location-map': 'bg-emerald-500',
       'wealth-tracker': 'bg-green-600',
+      'relationship-tracker': 'bg-pink-500', // Moved to Visualize group
       // Me pillar
       'job-tracker': 'bg-blue-500',
       'child-tracker': 'bg-green-500',
       'home-tracker': 'bg-amber-500',
-      'relationship-tracker': 'bg-pink-500',
       'relationships': 'bg-violet-500',
       'likes-dislikes': 'bg-rose-500',
       'experimental': 'bg-red-500',
