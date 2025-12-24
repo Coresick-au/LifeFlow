@@ -137,9 +137,12 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         e.preventDefault();
 
         // 1. Connection Logic (For the "Friends/Connections" List)
+        // CRITICAL FIX: If eventHasEnded is true OR isCurrent is false, save the endDate
+        const shouldHaveEndDate = eventHasEnded || !formData.isCurrent;
         const personDataToSave = {
             ...formData,
-            endDate: formData.isCurrent ? undefined : formData.endDate
+            isCurrent: formData.isCurrent,
+            endDate: shouldHaveEndDate ? (formData.endDate || new Date()) : undefined
         };
         await onSubmit(personDataToSave);
 
@@ -213,7 +216,13 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setFormData({ ...formData, isCurrent: false });
+                                    // Set isCurrent to false and mark event as ended
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        isCurrent: false,
+                                        // Set default endDate to today if not already set
+                                        endDate: prev.endDate || new Date()
+                                    }));
                                     setEventHasEnded(true);
                                 }}
                                 className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${!formData.isCurrent

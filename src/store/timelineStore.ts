@@ -1037,20 +1037,27 @@ export const useTimelineStore = create<TimelineStore>()(
         try {
           const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
-          if (user && navigator.onLine) {
-            await supabaseService.updateRelationship(id, updates);
-          }
-
-          const updatedRelationship = {
+          // Ensure dates are properly converted
+          const processedUpdates = {
             ...updates,
             updatedAt: new Date(),
+            // Explicitly handle Date fields - convert to Date objects or null
+            startDate: updates.startDate ? new Date(updates.startDate) : updates.startDate,
+            // For endDate: if isCurrent is true, set to undefined; otherwise preserve the date
+            endDate: updates.isCurrent === true
+              ? undefined
+              : (updates.endDate ? new Date(updates.endDate) : updates.endDate),
           };
 
-          await db.table('relationships').update(id, updatedRelationship);
+          if (user && navigator.onLine) {
+            await supabaseService.updateRelationship(id, processedUpdates as Partial<Relationship>);
+          }
+
+          await db.table('relationships').update(id, processedUpdates);
 
           set((state: TimelineStore) => ({
             relationships: state.relationships.map((relationship: Relationship) =>
-              relationship.id === id ? { ...relationship, ...updatedRelationship } : relationship
+              relationship.id === id ? { ...relationship, ...processedUpdates } as Relationship : relationship
             ),
             isSaving: false,
           }));

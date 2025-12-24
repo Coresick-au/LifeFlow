@@ -8,7 +8,7 @@ import { AgeOverview, ActivityMetrics, Achievements, LifeCalendar, FamilyCircle 
 import { ThemedDatePicker } from './ThemedDatePicker';
 
 export const UserProfile: React.FC = () => {
-  const { userProfile, setUserProfile, stories, relationships, setCurrentView, isLoading, exportData, importData } = useTimelineStore();
+  const { userProfile, setUserProfile, stories, relationships, addRelationship, setCurrentView, isLoading, exportData, importData } = useTimelineStore();
   const [formData, setFormData] = useState<Partial<UserProfileType>>({
     name: userProfile?.name || '',
     birthDate: userProfile?.birthDate ? new Date(userProfile.birthDate) : new Date(),
@@ -185,6 +185,37 @@ export const UserProfile: React.FC = () => {
     };
 
     await setUserProfile(profile);
+
+    // 2. Sync Family Members to Relationships
+    if (formData.family) {
+      for (const member of formData.family) {
+        if (!member.name) continue;
+
+        // Check if this person already exists in relationships
+        const exists = relationships.some(r =>
+          r.fullName.toLowerCase() === member.name.toLowerCase() ||
+          `${r.firstName} ${r.lastName}`.toLowerCase().trim() === member.name.toLowerCase()
+        );
+
+        if (!exists) {
+          const nameParts = member.name.trim().split(' ');
+          const firstName = nameParts[0];
+          const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+          await addRelationship({
+            firstName,
+            lastName,
+            fullName: member.name,
+            relationshipType: member.role,
+            startDate: member.birthDate ? new Date(member.birthDate) : new Date(),
+            isCurrent: member.isLiving,
+            notes: `Family member (${member.role}) added from profile`,
+            trackNurturing: true
+          });
+        }
+      }
+    }
+
     setIsSaving(false);
   };
 
