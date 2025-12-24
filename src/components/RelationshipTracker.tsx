@@ -8,7 +8,7 @@ interface RelationshipEvent {
   person: string;
   title: string;
   date: Date;
-  type: 'milestone' | 'memory' | 'note' | 'gift' | 'conversation';
+  type: 'milestone' | 'memory' | 'note' | 'gift' | 'conversation' | 'start' | 'end';
   description: string;
   relationshipType: string;
 }
@@ -44,9 +44,13 @@ export const RelationshipTracker: React.FC = () => {
 
       const connection = relationships.find(r => r.fullName.toLowerCase() === personName.toLowerCase());
 
-      // Determine event type
+      // Determine event type - check for start/end first
       let type: RelationshipEvent['type'] = 'memory';
-      if (story.tags.some(t => ['milestone', 'anniversary', 'wedding', 'engaged'].includes(t.toLowerCase()))) {
+      if (story.tags.some(t => t.toLowerCase() === 'start')) {
+        type = 'start';
+      } else if (story.tags.some(t => t.toLowerCase() === 'end')) {
+        type = 'end';
+      } else if (story.tags.some(t => ['milestone', 'anniversary', 'wedding', 'engaged'].includes(t.toLowerCase()))) {
         type = 'milestone';
       } else if (story.tags.some(t => ['gift', 'present'].includes(t.toLowerCase()))) {
         type = 'gift';
@@ -103,6 +107,8 @@ export const RelationshipTracker: React.FC = () => {
 
   const getEventIcon = (type: RelationshipEvent['type']) => {
     switch (type) {
+      case 'start': return <Heart className="w-4 h-4 text-red-500 fill-red-500" />;
+      case 'end': return <Heart className="w-4 h-4 text-gray-400" style={{ opacity: 0.6 }} />;
       case 'milestone': return <Heart className="w-4 h-4 text-red-500" />;
       case 'gift': return <Gift className="w-4 h-4 text-purple-500" />;
       case 'conversation': return <MessageCircle className="w-4 h-4 text-blue-500" />;
