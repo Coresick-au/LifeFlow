@@ -40,7 +40,7 @@ const categoryColors: Record<string, string> = {
 type ViewMode = '1y' | '5y' | '10y' | 'all';
 
 export const GanttTimeline: React.FC = () => {
-  const { stories } = useTimelineStore();
+  const { stories, relationships } = useTimelineStore();
 
   // State for time navigation
   const [viewMode, setViewMode] = useState<ViewMode>('1y');
@@ -115,7 +115,7 @@ export const GanttTimeline: React.FC = () => {
     const categories: Record<string, Lane> = {};
 
     // Helper to add bar
-    const addBar = (story: typeof stories[0], category: string) => {
+    const addBar = (id: string, title: string, startDate: Date, endDate: Date, category: string) => {
       // Map Tags to standard categories if needed
       if (!categories[category]) {
         categories[category] = {
@@ -126,18 +126,35 @@ export const GanttTimeline: React.FC = () => {
         };
       }
 
-      const s = new Date(story.date);
-      const e = story.endDate ? new Date(story.endDate) : s;
-
       categories[category].bars.push({
-        id: story.id,
-        title: story.title,
-        startDate: s,
-        endDate: e,
+        id,
+        title,
+        startDate,
+        endDate,
         category,
         color: categoryColors[category] || categoryColors.other,
       });
     };
+
+    // Track which relationships we've already added (by person name)
+    const addedRelationships = new Set<string>();
+
+    // First, add bars from relationships store (these have proper start/end dates)
+    if (visibleCategories.has('relationship')) {
+      relationships.forEach(rel => {
+        if (!rel.startDate) return;
+
+        const startDate = new Date(rel.startDate);
+        const endDate = rel.endDate ? new Date(rel.endDate) : new Date(); // ongoing = to now
+
+        // Check overlap with view window
+        if (startDate <= viewEnd && endDate >= viewStart) {
+          const title = `${rel.fullName} (${rel.relationshipType})`;
+          addBar(`rel-${rel.id}`, title, startDate, endDate, 'relationship');
+          addedRelationships.add(rel.fullName.toLowerCase());
+        }
+      });
+    }
 
     visibleStories.forEach(story => {
       // Determine Category
@@ -145,13 +162,21 @@ export const GanttTimeline: React.FC = () => {
       const tags = story.tags.map((t: string) => t.toLowerCase());
 
       if (tags.some((t: string) => ['career', 'work', 'job'].includes(t))) category = 'job';
-      else if (tags.some((t: string) => ['home', 'house'].includes(t))) category = 'home';
-      else if (tags.some((t: string) => ['relationship', 'partner', 'dating', 'love'].includes(t))) category = 'relationship';
+      else if (tags.some((t: string) => ['home', 'house', 'property'].includes(t))) category = 'home';
+      else if (tags.some((t: string) => ['relationship', 'partner', 'dating', 'love', 'connection'].includes(t))) category = 'relationship';
       else if (story.tags.length > 0) category = story.tags[0]; // Fallback to first tag
+
+      // Skip relationship stories if we already have the person from relationships store
+      if (category === 'relationship') {
+        const personInStory = story.people.find(p => addedRelationships.has(p.toLowerCase()));
+        if (personInStory) return; // Already added from relationships
+      }
 
       // Filter by user selection
       if (visibleCategories.has(category)) {
-        addBar(story, category);
+        const s = new Date(story.date);
+        const e = story.endDate ? new Date(story.endDate) : s;
+        addBar(story.id, story.title, s, e, category);
       }
     });
 
@@ -161,7 +186,7 @@ export const GanttTimeline: React.FC = () => {
     });
 
     return Object.values(categories);
-  }, [stories, viewStart, viewEnd, visibleCategories]);
+  }, [stories, relationships, viewStart, viewEnd, visibleCategories]);
 
   // 4. Calculate Positioning (Percentage CSS)
   const getBarStyle = (bar: TimelineBar) => {
@@ -241,8 +266,8 @@ export const GanttTimeline: React.FC = () => {
             key={cat}
             onClick={() => toggleCategory(cat)}
             className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all border ${visibleCategories.has(cat)
-                ? 'bg-theme-primary border-theme shadow-sm opacity-100'
-                : 'bg-transparent border-transparent opacity-50 grayscale hover:grayscale-0'
+              ? 'bg-theme-primary border-theme shadow-sm opacity-100'
+              : 'bg-transparent border-transparent opacity-50 grayscale hover:grayscale-0'
               }`}
           >
             <span className={`w-2 h-2 rounded-full ${color}`} />
