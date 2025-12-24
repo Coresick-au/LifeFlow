@@ -1,16 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { format, differenceInMonths, addMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isWithinInterval, startOfYear, endOfYear, differenceInDays } from 'date-fns';
+import { format, addMonths, startOfYear, endOfYear, differenceInDays, addYears, getYear, min, max, startOfMonth } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
-import { Story } from '../types';
 import {
   ChevronLeft,
   ChevronRight,
-  Filter,
-  Download,
-  Search,
-  ZoomIn,
-  ZoomOut,
-  Maximize2
+  Maximize
 } from 'lucide-react';
 
 interface TimelineBar {
@@ -29,6 +23,7 @@ interface Lane {
   bars: TimelineBar[];
 }
 
+// Color palette matching your app theme
 const categoryColors: Record<string, string> = {
   career: 'bg-blue-500',
   health: 'bg-green-500',
@@ -36,61 +31,92 @@ const categoryColors: Record<string, string> = {
   family: 'bg-pink-500',
   education: 'bg-yellow-500',
   personal: 'bg-teal-500',
-  relationship: 'bg-rose-500', // Added specific color for relationships
+  relationship: 'bg-rose-500',
   other: 'bg-orange-500',
   job: 'bg-blue-600',
   home: 'bg-green-600',
 };
 
+type ViewMode = '1y' | '5y' | '10y' | 'all';
+
 export const GanttTimeline: React.FC = () => {
   const { stories } = useTimelineStore();
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  // Added 'relationship' to default visible categories
+
+  // State for time navigation
+  const [viewMode, setViewMode] = useState<ViewMode>('1y');
+  const [baseDate, setBaseDate] = useState(new Date()); // The starting point of the view
+
   const [visibleCategories, setVisibleCategories] = useState<Set<string>>(
     new Set(['career', 'travel', 'family', 'home', 'job', 'relationship'])
   );
 
-  const toggleCategory = (category: string) => {
-    const newVisible = new Set(visibleCategories);
-    if (newVisible.has(category)) {
-      newVisible.delete(category);
-    } else {
-      newVisible.add(category);
+  // 1. Calculate View Range (Start/End) based on mode
+  const { viewStart, viewEnd, tickType } = useMemo(() => {
+    let start = startOfYear(baseDate);
+    let end = endOfYear(baseDate);
+    let tick = 'month';
+
+    if (viewMode === '1y') {
+      start = startOfYear(baseDate);
+      end = endOfYear(baseDate);
+      tick = 'month';
+    } else if (viewMode === '5y') {
+      start = startOfYear(baseDate);
+      end = endOfYear(addYears(baseDate, 4)); // 5 years total
+      tick = 'year';
+    } else if (viewMode === '10y') {
+      start = startOfYear(baseDate);
+      end = endOfYear(addYears(baseDate, 9)); // 10 years total
+      tick = 'year';
+    } else if (viewMode === 'all') {
+      // Find min/max of ALL stories
+      if (stories.length > 0) {
+        const dates = stories.map(s => new Date(s.date));
+        const endDates = stories.filter(s => s.endDate).map(s => new Date(s.endDate!));
+        start = startOfYear(min(dates));
+        end = endOfYear(max([...dates, ...endDates, new Date()])); // Include today/future
+      }
+      tick = 'year';
     }
-    setVisibleCategories(newVisible);
-  };
 
-  // Group stories into lanes by category
+    return { viewStart: start, viewEnd: end, tickType: tick };
+  }, [viewMode, baseDate, stories]);
+
+  // 2. Generate Ticks (Columns)
+  const ticks = useMemo(() => {
+    const t: Date[] = [];
+    if (tickType === 'month') {
+      let current = startOfMonth(viewStart);
+      while (current <= viewEnd) {
+        t.push(current);
+        current = addMonths(current, 1);
+      }
+    } else {
+      // Years
+      let current = startOfYear(viewStart);
+      while (current <= viewEnd) {
+        t.push(current);
+        current = addYears(current, 1);
+      }
+    }
+    return t;
+  }, [viewStart, viewEnd, tickType]);
+
+  // 3. Process Stories into Lanes
   const lanes = useMemo(() => {
-    const yearStart = startOfYear(new Date(selectedYear, 0, 1));
-    const yearEnd = endOfYear(new Date(selectedYear, 0, 1));
-
-    // Filter stories for the selected year
-    const yearStories = stories.filter(story => {
-      const storyDate = new Date(story.date);
-      // For active stories or those missing end dates, assume they end at the story date or today if implied active
-      // But for the year overlap check, we just need to see if the range touches the year
-      const storyEnd = story.endDate ? new Date(story.endDate) : storyDate;
-      return storyDate <= yearEnd && storyEnd >= yearStart;
+    // Filter stories that overlap with the current View Window
+    const visibleStories = stories.filter(story => {
+      const sDate = new Date(story.date);
+      const eDate = story.endDate ? new Date(story.endDate) : sDate;
+      // Check overlap
+      return sDate <= viewEnd && eDate >= viewStart;
     });
 
-    // Group by category
     const categories: Record<string, Lane> = {};
 
-    // 1. Process Duration Stories (Ranges)
-    // CRITICAL FIX: Added 'relationship', 'partner', 'dating' to the filter
-    const durationStories = yearStories.filter(story =>
-      story.tags.some(t => ['career', 'work', 'job', 'home', 'house', 'relationship', 'partner', 'dating'].includes(t.toLowerCase())) &&
-      story.endDate
-    );
-
-    durationStories.forEach(story => {
-      // Determine category based on tags
-      let category = 'other';
-      if (story.tags.some(t => ['career', 'work', 'job'].includes(t.toLowerCase()))) category = 'job';
-      else if (story.tags.some(t => ['home', 'house'].includes(t.toLowerCase()))) category = 'home';
-      else if (story.tags.some(t => ['relationship', 'partner', 'dating'].includes(t.toLowerCase()))) category = 'relationship';
-
+    // Helper to add bar
+    const addBar = (story: typeof stories[0], category: string) => {
+      // Map Tags to standard categories if needed
       if (!categories[category]) {
         categories[category] = {
           id: category,
@@ -100,195 +126,183 @@ export const GanttTimeline: React.FC = () => {
         };
       }
 
-      const startDate = new Date(story.date);
-      const endDate = new Date(story.endDate!);
+      const s = new Date(story.date);
+      const e = story.endDate ? new Date(story.endDate) : s;
 
       categories[category].bars.push({
         id: story.id,
         title: story.title,
-        startDate,
-        endDate,
+        startDate: s,
+        endDate: e,
         category,
         color: categoryColors[category] || categoryColors.other,
       });
-    });
+    };
 
-    // 2. Process Regular Stories (Points / Events without End Date)
-    // We exclude stories we already processed as duration stories
-    const durationIds = new Set(durationStories.map(s => s.id));
-    const regularStories = yearStories.filter(story => !durationIds.has(story.id));
+    visibleStories.forEach(story => {
+      // Determine Category
+      let category = 'other';
+      const tags = story.tags.map((t: string) => t.toLowerCase());
 
-    regularStories.forEach(story => {
-      // Default categorization for points
-      const category = story.tags[0] || 'other';
-      // Map common tags to our keys
-      let mappedCategory = category.toLowerCase();
-      if (['partner', 'dating', 'love'].includes(mappedCategory)) mappedCategory = 'relationship';
+      if (tags.some((t: string) => ['career', 'work', 'job'].includes(t))) category = 'job';
+      else if (tags.some((t: string) => ['home', 'house'].includes(t))) category = 'home';
+      else if (tags.some((t: string) => ['relationship', 'partner', 'dating', 'love'].includes(t))) category = 'relationship';
+      else if (story.tags.length > 0) category = story.tags[0]; // Fallback to first tag
 
-      const startDate = new Date(story.date);
-      const endDate = story.endDate ? new Date(story.endDate) : startDate;
-
-      const color = categoryColors[mappedCategory] || categoryColors.other;
-
-      if (!categories[mappedCategory]) {
-        categories[mappedCategory] = {
-          id: mappedCategory,
-          name: mappedCategory.charAt(0).toUpperCase() + mappedCategory.slice(1),
-          color: color,
-          bars: [],
-        };
+      // Filter by user selection
+      if (visibleCategories.has(category)) {
+        addBar(story, category);
       }
-
-      categories[mappedCategory].bars.push({
-        id: story.id,
-        title: story.title,
-        startDate,
-        endDate,
-        category: mappedCategory,
-        color: color,
-      });
     });
 
-    // Sort bars within each lane by start date
+    // Sort bars by date
     Object.values(categories).forEach(lane => {
       lane.bars.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
     });
 
-    return Object.values(categories).filter(lane =>
-      visibleCategories.has(lane.id)
-    );
-  }, [stories, selectedYear, visibleCategories]);
+    return Object.values(categories);
+  }, [stories, viewStart, viewEnd, visibleCategories]);
 
-  // Generate months for the timeline header
-  const months = useMemo(() => {
-    const yearStart = startOfYear(new Date(selectedYear, 0, 1));
-    const months = [];
-    for (let i = 0; i < 12; i++) {
-      months.push(addMonths(yearStart, i));
-    }
-    return months;
-  }, [selectedYear]);
-
-  // Calculate bar position and width
+  // 4. Calculate Positioning (Percentage CSS)
   const getBarStyle = (bar: TimelineBar) => {
-    const yearStart = startOfYear(new Date(selectedYear, 0, 1));
-    const yearEnd = endOfYear(new Date(selectedYear, 0, 1));
-    const yearDays = differenceInDays(yearEnd, yearStart) + 1;
+    const totalDuration = differenceInDays(viewEnd, viewStart);
+    if (totalDuration === 0) return { left: '0%', width: '0%' };
 
-    // Clamp dates to year boundaries
-    const clampedStart = bar.startDate < yearStart ? yearStart : bar.startDate;
-    const clampedEnd = bar.endDate > yearEnd ? yearEnd : bar.endDate;
+    // Clamp dates to view window for rendering
+    const visibleStart = bar.startDate < viewStart ? viewStart : bar.startDate;
+    const visibleEnd = bar.endDate > viewEnd ? viewEnd : bar.endDate;
 
-    const startOffset = differenceInDays(clampedStart, yearStart);
-    // Ensure at least 1 day width for visibility
-    const duration = Math.max(1, differenceInDays(clampedEnd, clampedStart));
+    // Calc offset and width
+    const startOffset = differenceInDays(visibleStart, viewStart);
+    const duration = differenceInDays(visibleEnd, visibleStart);
 
-    const left = (startOffset / yearDays) * 100;
-    const width = (duration / yearDays) * 100;
+    // Guard against negative widths or off-screen
+    const left = Math.max(0, (startOffset / totalDuration) * 100);
+    const width = Math.max(0.5, (duration / totalDuration) * 100); // Min width 0.5%
 
     return {
       left: `${left}%`,
       width: `${width}%`,
-      minWidth: '4px', // Increased minimum width for visibility
     };
   };
 
-  const yearOptions = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+  const handlePrev = () => {
+    if (viewMode === '1y') setBaseDate(addYears(baseDate, -1));
+    if (viewMode === '5y') setBaseDate(addYears(baseDate, -5));
+    if (viewMode === '10y') setBaseDate(addYears(baseDate, -10));
+  };
+
+  const handleNext = () => {
+    if (viewMode === '1y') setBaseDate(addYears(baseDate, 1));
+    if (viewMode === '5y') setBaseDate(addYears(baseDate, 5));
+    if (viewMode === '10y') setBaseDate(addYears(baseDate, 10));
+  };
+
+  const toggleCategory = (cat: string) => {
+    const next = new Set(visibleCategories);
+    if (next.has(cat)) next.delete(cat);
+    else next.add(cat);
+    setVisibleCategories(next);
+  }
 
   return (
-    <div className="bg-theme-primary rounded-lg shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-theme-primary">Gantt Timeline</h2>
+    <div className="bg-theme-primary rounded-lg shadow-lg p-6 flex flex-col h-full border border-theme">
+      {/* Header Controls */}
+      <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
+        <h2 className="text-2xl font-bold text-theme-primary flex items-center gap-2">
+          <Maximize className="w-6 h-6" />
+          Gantt Timeline
+        </h2>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 bg-theme-tertiary p-1 rounded-lg">
+          <button onClick={() => setViewMode('1y')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === '1y' ? 'bg-theme-primary shadow text-theme-accent' : 'text-theme-secondary hover:text-theme-primary'}`}>1 Year</button>
+          <button onClick={() => setViewMode('5y')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === '5y' ? 'bg-theme-primary shadow text-theme-accent' : 'text-theme-secondary hover:text-theme-primary'}`}>5 Years</button>
+          <button onClick={() => setViewMode('10y')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === '10y' ? 'bg-theme-primary shadow text-theme-accent' : 'text-theme-secondary hover:text-theme-primary'}`}>10 Years</button>
+          <button onClick={() => setViewMode('all')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'all' ? 'bg-theme-primary shadow text-theme-accent' : 'text-theme-secondary hover:text-theme-primary'}`}>All Time</button>
+        </div>
+
+        {viewMode !== 'all' && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelectedYear(selectedYear - 1)}
-              className="p-2 bg-theme-tertiary hover:bg-theme-secondary text-theme-primary rounded-md transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-sm font-medium text-theme-secondary w-16 text-center">
-              {selectedYear}
+            <button onClick={handlePrev} className="p-2 hover:bg-theme-tertiary rounded-full transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+            <span className="font-mono font-medium text-lg min-w-[100px] text-center">
+              {getYear(viewStart)}
+              {viewMode !== '1y' && ` - ${getYear(viewEnd)}`}
             </span>
-            <button
-              onClick={() => setSelectedYear(selectedYear + 1)}
-              className="p-2 bg-theme-tertiary hover:bg-theme-secondary text-theme-primary rounded-md transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            <button onClick={handleNext} className="p-2 hover:bg-theme-tertiary rounded-full transition-colors"><ChevronRight className="w-5 h-5" /></button>
           </div>
+        )}
+      </div>
 
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="px-3 py-2 border border-theme rounded-md bg-theme-primary text-theme-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+      {/* Filter Toggles */}
+      <div className="flex flex-wrap gap-2 mb-6 p-4 bg-theme-tertiary/30 rounded-lg border border-theme/50">
+        <span className="text-xs font-bold uppercase tracking-wider text-theme-secondary flex items-center mr-2">Filters:</span>
+        {Object.entries(categoryColors).map(([cat, color]) => (
+          <button
+            key={cat}
+            onClick={() => toggleCategory(cat)}
+            className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all border ${visibleCategories.has(cat)
+                ? 'bg-theme-primary border-theme shadow-sm opacity-100'
+                : 'bg-transparent border-transparent opacity-50 grayscale hover:grayscale-0'
+              }`}
           >
-            {yearOptions.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-        </div>
+            <span className={`w-2 h-2 rounded-full ${color}`} />
+            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+          </button>
+        ))}
       </div>
 
-      <div className="mb-6 p-4 bg-theme-tertiary rounded-lg">
-        <div className="text-sm font-medium text-theme-secondary mb-3">Filter Categories:</div>
-        <div className="flex flex-wrap gap-3">
-          {Object.entries(categoryColors).map(([category, color]) => (
-            <label
-              key={category}
-              className="flex items-center gap-2 cursor-pointer px-3 py-2 bg-theme-primary rounded-md hover:opacity-80 transition-opacity"
-            >
-              <input
-                type="checkbox"
-                checked={visibleCategories.has(category)}
-                onChange={() => toggleCategory(category)}
-                className="w-4 h-4 text-primary-600 border-theme rounded focus:ring-2 focus:ring-primary-500"
-              />
-              <div className={`w-3 h-3 rounded ${color}`}></div>
-              <span className="text-sm text-theme-primary capitalize">{category}</span>
-            </label>
-          ))}
-        </div>
-      </div>
+      {/* Chart Area */}
+      <div className="flex-1 overflow-x-auto custom-scrollbar relative">
+        <div className="min-w-[800px] relative">
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
-          <div className="flex border-b-2 border-theme pb-2 mb-4">
-            <div className="w-32 flex-shrink-0"></div>
-            <div className="flex-1 flex">
-              {months.map(month => (
-                <div
-                  key={month.toISOString()}
-                  className="flex-1 text-center text-sm font-medium text-theme-secondary border-l border-theme first:border-l-0"
-                >
-                  {format(month, 'MMM')}
+          {/* Ticks / Columns */}
+          <div className="flex border-b border-theme sticky top-0 bg-theme-primary z-20">
+            <div className="w-32 flex-shrink-0 bg-theme-primary border-r border-theme z-30">
+              {/* Lane Headers Column */}
+            </div>
+            <div className="flex-1 flex relative">
+              {ticks.map((tick, i) => (
+                <div key={i} className="flex-1 border-r border-theme/30 px-1 py-2 text-center">
+                  <span className="text-xs font-medium text-theme-secondary block truncate">
+                    {tickType === 'month' ? format(tick, 'MMM') : format(tick, 'yyyy')}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="space-y-4">
+          {/* Grid Background Lines (Optional visual aid) */}
+          <div className="absolute inset-0 top-[33px] left-32 flex pointer-events-none z-0">
+            {ticks.map((_, i) => (
+              <div key={i} className="flex-1 border-r border-theme/10 h-full" />
+            ))}
+          </div>
+
+          {/* Lanes & Bars */}
+          <div className="divide-y divide-theme/30 relative z-10">
             {lanes.map(lane => (
-              <div key={lane.id} className="flex items-center group">
-                <div className="w-32 flex-shrink-0 pr-4">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${lane.color}`}></div>
-                    <span className="text-sm font-medium text-theme-secondary">{lane.name}</span>
-                  </div>
+              <div key={lane.id} className="flex group hover:bg-theme-tertiary/20 transition-colors">
+                {/* Lane Label */}
+                <div className="w-32 flex-shrink-0 p-3 border-r border-theme flex items-center gap-2 bg-theme-primary sticky left-0 z-20">
+                  <div className={`w-3 h-3 rounded-full ${lane.color}`} />
+                  <span className="text-sm font-medium text-theme-primary truncate" title={lane.name}>{lane.name}</span>
                 </div>
 
-                <div className="flex-1 relative h-8 bg-theme-tertiary/50 rounded hover:bg-theme-tertiary transition-colors">
+                {/* Bar Track */}
+                <div className="flex-1 relative h-12">
                   {lane.bars.map(bar => {
                     const style = getBarStyle(bar);
+                    // Don't render if completely off screen (width 0)
+                    if (style.width === '0%') return null;
+
                     return (
                       <div
                         key={bar.id}
-                        className={`absolute top-1 h-6 ${bar.color} rounded shadow-sm cursor-pointer hover:opacity-90 hover:scale-[1.01] transition-all flex items-center px-2 z-10`}
+                        className={`absolute top-3 h-6 rounded shadow-sm hover:shadow-md cursor-pointer transition-all hover:scale-[1.01] hover:brightness-110 flex items-center px-2 ${bar.color} overflow-hidden whitespace-nowrap`}
                         style={style}
-                        title={`${bar.title}\n${format(bar.startDate, 'MMM d, yyyy')} - ${format(bar.endDate, 'MMM d, yyyy')}`}
+                        title={`${bar.title} (${format(bar.startDate, 'MMM yyyy')} - ${format(bar.endDate, 'MMM yyyy')})`}
                       >
-                        <span className="text-white text-xs font-medium truncate drop-shadow-md">
+                        <span className="text-[10px] md:text-xs font-bold text-white drop-shadow-sm truncate">
                           {bar.title}
                         </span>
                       </div>
@@ -297,13 +311,13 @@ export const GanttTimeline: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
 
-          {lanes.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-slate-500 dark:text-slate-400">No events found for {selectedYear}</p>
-            </div>
-          )}
+            {lanes.length === 0 && (
+              <div className="py-12 text-center text-theme-secondary italic">
+                No events found in this time range. Try switching to "All Time" or adjusting filters.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
