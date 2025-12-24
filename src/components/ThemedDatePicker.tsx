@@ -4,17 +4,17 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { Calendar } from 'lucide-react';
 
 interface ThemedDatePickerProps {
-    selected: Date | null | undefined;
-    onChange: (date: Date | null) => void;
-    placeholder?: string;
-    minDate?: Date;
-    maxDate?: Date;
-    disabled?: boolean;
-    showMonthYearPicker?: boolean;
-    showYearPicker?: boolean;
-    dateFormat?: string;
-    className?: string;
-    id?: string;
+  selected: Date | null | undefined;
+  onChange: (date: Date | null) => void;
+  placeholder?: string;
+  minDate?: Date;
+  maxDate?: Date;
+  disabled?: boolean;
+  showMonthYearPicker?: boolean;
+  showYearPicker?: boolean;
+  dateFormat?: string;
+  className?: string;
+  id?: string;
 }
 
 /**
@@ -22,44 +22,44 @@ interface ThemedDatePickerProps {
  * Replaces native <input type="date"> for better UX
  */
 export const ThemedDatePicker: React.FC<ThemedDatePickerProps> = ({
-    selected,
-    onChange,
-    placeholder = 'Select date',
-    minDate,
-    maxDate,
-    disabled = false,
-    showMonthYearPicker = false,
-    showYearPicker = false,
-    dateFormat = 'dd/MM/yyyy',
-    className = '',
-    id,
+  selected,
+  onChange,
+  placeholder = 'Select date',
+  minDate,
+  maxDate,
+  disabled = false,
+  showMonthYearPicker = false,
+  showYearPicker = false,
+  dateFormat = 'dd/MM/yyyy',
+  className = '',
+  id,
 }) => {
-    return (
-        <div className="relative">
-            <DatePicker
-                id={id}
-                selected={selected}
-                onChange={onChange}
-                placeholderText={placeholder}
-                minDate={minDate}
-                maxDate={maxDate}
-                disabled={disabled}
-                showMonthYearPicker={showMonthYearPicker}
-                showYearPicker={showYearPicker}
-                dateFormat={dateFormat}
-                showYearDropdown
-                scrollableYearDropdown
-                yearDropdownItemNumber={100}
-                className={`w-full px-3 py-2 pl-10 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${className}`}
-                calendarClassName="themed-datepicker-calendar"
-                popperClassName="themed-datepicker-popper"
-                wrapperClassName="w-full"
-                showPopperArrow={false}
-                autoComplete="off"
-            />
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-theme-tertiary pointer-events-none" />
-        </div>
-    );
+  return (
+    <div className="relative">
+      <DatePicker
+        id={id}
+        selected={selected}
+        onChange={onChange}
+        placeholderText={placeholder}
+        minDate={minDate}
+        maxDate={maxDate}
+        disabled={disabled}
+        showMonthYearPicker={showMonthYearPicker}
+        showYearPicker={showYearPicker}
+        dateFormat={dateFormat}
+        showYearDropdown
+        scrollableYearDropdown
+        yearDropdownItemNumber={100}
+        className={`w-full px-3 py-2 pl-10 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${className}`}
+        calendarClassName="themed-datepicker-calendar"
+        popperClassName="themed-datepicker-popper"
+        wrapperClassName="w-full"
+        showPopperArrow={false}
+        autoComplete="off"
+      />
+      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-theme-tertiary pointer-events-none" />
+    </div>
+  );
 };
 
 // Add global styles for the datepicker - this should be imported in App.tsx or index.css
@@ -150,6 +150,20 @@ export const datepickerStyles = `
 
 .themed-datepicker-popper {
   z-index: 100 !important;
+}
+
+/* Year/Month dropdown text and arrows - fixes dark mode visibility */
+.themed-datepicker-calendar .react-datepicker__year-read-view,
+.themed-datepicker-calendar .react-datepicker__month-read-view,
+.themed-datepicker-calendar .react-datepicker__year-read-view--selected-year,
+.themed-datepicker-calendar .react-datepicker__month-read-view--selected-month {
+  color: var(--theme-text-primary) !important;
+}
+
+.themed-datepicker-calendar .react-datepicker__year-read-view--down-arrow,
+.themed-datepicker-calendar .react-datepicker__month-read-view--down-arrow {
+  border-color: var(--theme-text-primary) !important;
+  border-top-color: var(--theme-text-primary) !important;
 }
 `;
 

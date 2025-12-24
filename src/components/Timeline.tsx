@@ -786,14 +786,6 @@ export const Timeline: React.FC<{ searchResults?: Story[] | null; onAddStory?: (
         )}
       </div>
 
-      {/* Floating Add Button */}
-      <button
-        onClick={() => setCurrentView({ type: 'add-story' })}
-        className="fixed bottom-8 right-8 w-14 h-14 text-white rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center btn-primary rounded-theme shadow-theme-lg"
-      >
-        <span className="text-2xl">+</span>
-      </button>
-
       {/* Story Viewer Modal */}
       {activeStory && (
         <StoryViewer

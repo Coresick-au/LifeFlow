@@ -5,15 +5,41 @@ import { Relationship } from '../types';
 import { useTimelineStore } from '../store/timelineStore';
 import { ThemedDatePicker } from './ThemedDatePicker';
 
-// --- Integrated Milestone Constants ---
-const MILESTONE_TYPES = [
-    { value: 'started-dating', label: 'Relationship', emoji: '💑' },
-    { value: 'met', label: 'Met / Friends', emoji: '👋' },
-    { value: 'engaged', label: 'Engaged', emoji: '💍' },
-    { value: 'married', label: 'Married', emoji: '💒' },
-    { value: 'colleague', label: 'Work / Colleague', emoji: '💼' },
-    { value: 'other', label: 'Other', emoji: '🍑' },
+// --- Relationship Categories and Subtypes ---
+const RELATIONSHIP_CATEGORIES = [
+    { value: 'family', label: 'Family', emoji: '👨‍👩‍👧' },
+    { value: 'romantic', label: 'Romantic', emoji: '💑' },
+    { value: 'social', label: 'Social', emoji: '👋' },
+    { value: 'work', label: 'Work', emoji: '💼' },
 ] as const;
+
+const RELATIONSHIP_SUBTYPES: Record<string, Array<{ value: string; label: string; emoji: string }>> = {
+    family: [
+        { value: 'parent', label: 'Parent', emoji: '👨‍👩' },
+        { value: 'sibling', label: 'Sibling', emoji: '👫' },
+        { value: 'child', label: 'Child', emoji: '👶' },
+        { value: 'grandparent', label: 'Grandparent', emoji: '👴' },
+        { value: 'cousin', label: 'Cousin', emoji: '🧑‍🤝‍🧑' },
+        { value: 'aunt-uncle', label: 'Aunt / Uncle', emoji: '🧑' },
+        { value: 'in-law', label: 'In-Law', emoji: '💒' },
+        { value: 'step', label: 'Step-Family', emoji: '👪' },
+    ],
+    romantic: [
+        { value: 'dating', label: 'Dating', emoji: '💑' },
+        { value: 'engaged', label: 'Engaged', emoji: '💍' },
+        { value: 'married', label: 'Married', emoji: '💒' },
+        { value: 'partner', label: 'Partner', emoji: '❤️' },
+    ],
+    social: [
+        { value: 'friend', label: 'Friend', emoji: '👋' },
+        { value: 'acquaintance', label: 'Acquaintance', emoji: '🤝' },
+    ],
+    work: [
+        { value: 'colleague', label: 'Colleague', emoji: '💼' },
+        { value: 'manager', label: 'Manager', emoji: '👔' },
+        { value: 'mentor', label: 'Mentor', emoji: '🎓' },
+    ],
+};
 
 interface RelationshipFormData {
     firstName: string;
@@ -55,7 +81,8 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
     });
 
     const [addToTimeline, setAddToTimeline] = useState(!initialData);
-    const [selectedMilestone, setSelectedMilestone] = useState<string>('started-dating');
+    const [selectedCategory, setSelectedCategory] = useState<string>('social');
+    const [selectedSubtype, setSelectedSubtype] = useState<string>('friend');
 
     // New State: Decouple the "Phase/Event" end from the "Person" end
     // Sync with initialData.isCurrent as well as endDate
@@ -150,29 +177,42 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
         // ONLY create a new story for NEW relationships, not edits
         if (addToTimeline && !initialData) {
             const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-            const milestone = MILESTONE_TYPES.find(m => m.value === selectedMilestone);
+            const subtypes = RELATIONSHIP_SUBTYPES[selectedCategory] || [];
+            const subtype = subtypes.find(s => s.value === selectedSubtype);
 
-            // Construct ONE title for the whole relationship
+            // Construct title based on category and subtype
             let title = `Relationship with ${fullName}`;
-            if (selectedMilestone === 'met') title = `Known ${fullName}`;
-            if (selectedMilestone === 'married') title = `Marriage to ${fullName}`;
-            if (selectedMilestone === 'colleague') title = `Worked with ${fullName}`;
+            if (selectedCategory === 'family') {
+                title = `${subtype?.label || 'Family'}: ${fullName}`;
+            } else if (selectedCategory === 'social') {
+                title = `Known ${fullName}`;
+            } else if (selectedCategory === 'romantic') {
+                if (selectedSubtype === 'married') title = `Marriage to ${fullName}`;
+                else if (selectedSubtype === 'engaged') title = `Engaged to ${fullName}`;
+                else title = `Relationship with ${fullName}`;
+            } else if (selectedCategory === 'work') {
+                title = `Worked with ${fullName}`;
+            }
+
+            // Determine tags based on category
+            const categoryTag = selectedCategory === 'family' ? 'family' : 'relationship';
 
             // Create ONE continuous story
             await addStory({
                 title: title,
-                content: formData.notes || `${milestone?.label} duration with ${fullName}`,
+                content: formData.notes || `${subtype?.label || selectedCategory} connection with ${fullName}`,
                 type: 'long', // CRITICAL: 'long' tells the system this is a span, not a point
                 date: formData.startDate,
                 // If the phase ended, we save the end date.
                 // If it hasn't ended, we leave it undefined (so it shows as "Ongoing" in Gantt)
                 endDate: eventHasEnded ? formData.endDate : undefined,
-                tags: ['relationship', 'connection', selectedMilestone, formData.relationshipType.toLowerCase()],
+                tags: [categoryTag, 'connection', selectedCategory, selectedSubtype, formData.relationshipType.toLowerCase()],
                 people: [fullName],
-                importance: 'high',
+                importance: selectedCategory === 'family' ? 'high' : 'medium',
                 metadata: {
                     generatedFromRelationship: true,
-                    milestoneType: selectedMilestone,
+                    category: selectedCategory,
+                    subtype: selectedSubtype,
                     personName: fullName
                 }
             });
@@ -276,33 +316,60 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                             </div>
                         </label>
 
-                        {/* Event Type Selection */}
-                        {addToTimeline && (
-                            <div className="animate-fade-in pl-7">
-                                <label className="block text-xs font-medium text-theme-secondary mb-2">
-                                    What kind of relationship was this?
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {MILESTONE_TYPES.map((type) => (
-                                        <button
-                                            key={type.value}
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedMilestone(type.value);
-                                                setFormData(prev => ({ ...prev, relationshipType: type.label }));
-                                            }}
-                                            className={`px-3 py-2.5 rounded-lg text-xs flex items-center gap-2 border transition-all ${selectedMilestone === type.value
-                                                ? 'bg-primary-600 text-white border-primary-600 shadow-md transform scale-[1.02]'
-                                                : 'bg-theme-primary text-theme-secondary border-theme hover:border-primary-400 hover:bg-theme-tertiary'
-                                                }`}
-                                        >
-                                            <span className="text-base">{type.emoji}</span>
-                                            <span>{type.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
+                        {/* Category Selection */}
+                        <div className="animate-fade-in">
+                            <label className="block text-xs font-medium text-theme-secondary mb-2">
+                                What category?
+                            </label>
+                            <div className="grid grid-cols-4 gap-2 mb-4">
+                                {RELATIONSHIP_CATEGORIES.map((cat) => (
+                                    <button
+                                        key={cat.value}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedCategory(cat.value);
+                                            // Set default subtype for new category
+                                            const subtypes = RELATIONSHIP_SUBTYPES[cat.value];
+                                            if (subtypes && subtypes.length > 0) {
+                                                setSelectedSubtype(subtypes[0].value);
+                                                setFormData(prev => ({ ...prev, relationshipType: subtypes[0].label }));
+                                            }
+                                        }}
+                                        className={`px-2 py-2.5 rounded-lg text-xs flex flex-col items-center gap-1 border transition-all ${selectedCategory === cat.value
+                                            ? 'bg-primary-600 text-white border-primary-600 shadow-md transform scale-[1.02]'
+                                            : 'bg-theme-primary text-theme-secondary border-theme hover:border-primary-400 hover:bg-theme-tertiary'
+                                            }`}
+                                    >
+                                        <span className="text-lg">{cat.emoji}</span>
+                                        <span>{cat.label}</span>
+                                    </button>
+                                ))}
                             </div>
-                        )}
+
+                            {/* Subtype Selection */}
+                            <label className="block text-xs font-medium text-theme-secondary mb-2">
+                                Specific type?
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {(RELATIONSHIP_SUBTYPES[selectedCategory] || []).map((subtype) => (
+                                    <button
+                                        key={subtype.value}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedSubtype(subtype.value);
+                                            setFormData(prev => ({ ...prev, relationshipType: subtype.label }));
+                                        }}
+                                        className={`px-3 py-2 rounded-lg text-xs flex items-center gap-2 border transition-all ${selectedSubtype === subtype.value
+                                            ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                                            : 'bg-theme-primary text-theme-secondary border-theme hover:border-primary-400 hover:bg-theme-tertiary'
+                                            }`}
+                                    >
+                                        <span className="text-base">{subtype.emoji}</span>
+                                        <span>{subtype.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Dates & Duration */}
@@ -310,7 +377,9 @@ export const RelationshipTrackerForm: React.FC<RelationshipTrackerFormProps> = (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                             {/* Start Date */}
                             <div>
-                                <label className="block text-xs uppercase font-bold mb-1.5 text-theme-secondary">Start Date</label>
+                                <label className="block text-xs uppercase font-bold mb-1.5 text-theme-secondary">
+                                    {selectedCategory === 'family' ? 'Birth Date' : 'Start Date'}
+                                </label>
                                 <div className="flex gap-2 mb-2">
                                     <button
                                         type="button"

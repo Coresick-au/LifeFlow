@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { format, isValid, subYears } from 'date-fns';
 import { useTimelineStore } from '../store/timelineStore';
 import { Relationship } from '../types';
-import { Users, Calendar, MapPin, Plus, X, Edit, Trash2, ChevronDown, User, HelpCircle, Archive } from 'lucide-react';
+import { Users, Calendar, MapPin, Plus, X, Edit, Trash2, ChevronDown, User, HelpCircle, Archive, AlertCircle } from 'lucide-react';
 import { RelationshipTrackerForm } from './RelationshipTrackerForm';
 
 type SortOption = 'name' | 'interactions' | 'recent' | 'relationshipType';
@@ -235,7 +235,14 @@ export const Relationships: React.FC = () => {
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium text-theme-primary">{relationship.fullName}</div>
+                      <div className="font-medium text-theme-primary flex items-center gap-1">
+                        {relationship.fullName}
+                        {relationship.needsDetails && (
+                          <span title="Details needed - click Edit to add more information">
+                            <AlertCircle className="w-4 h-4 text-amber-500" />
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">
                         {relationship.relationshipType} • {relationship.interactionCount} interactions
                         {relationship.isCurrent === false && <span className="ml-2 text-yellow-600">(Ended)</span>}

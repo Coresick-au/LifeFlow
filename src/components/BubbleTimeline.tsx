@@ -5,17 +5,22 @@ import { Story } from '../types';
 import { format, differenceInDays } from 'date-fns';
 import {
   LayoutGrid,
-  Network
+  Network,
+  ArrowLeftRight
 } from 'lucide-react';
 
 interface BubbleNode extends d3.SimulationNodeDatum {
   id: string;
   r: number;
-  story: Story;
+  story?: Story;  // For story nodes
+  relationship?: any;  // For person nodes
+  personName?: string;  // For person nodes
+  isPerson?: boolean;  // Flag to distinguish person nodes
   group: string;
   color: string;
   emoji: string;
   isEnded?: boolean;
+  year?: number;  // Year for label display
 }
 
 interface GraphLink extends d3.SimulationLinkDatum<BubbleNode> {
@@ -24,12 +29,12 @@ interface GraphLink extends d3.SimulationLinkDatum<BubbleNode> {
   value: number;
 }
 
-// Lighter/Brighter colors for better visibility on dark backgrounds
 const CATEGORY_COLORS: Record<string, string> = {
-  relationship: '#f472b6', // Pink-400 (Lighter than red)
+  relationship: '#f472b6', // Pink-400
+  person: '#a78bfa',       // Purple-400 for person nodes
+  family: '#4ade80',       // Green-400 for family
   career: '#60a5fa',       // Blue-400
   travel: '#c084fc',       // Purple-400
-  family: '#4ade80',       // Green-400
   life: '#fbbf24',         // Amber-400
   other: '#94a3b8',        // Slate-400
 };
@@ -58,6 +63,8 @@ const getStoryEmoji = (story: Story): string => {
   // Check tags for other mappings
   if (story.tags.some(t => ['travel', 'trip', 'holiday'].includes(t))) return '✈️';
   if (story.tags.some(t => ['work', 'job', 'career'].includes(t))) return '💼';
+  // Check for sold/sale first, then home
+  if (story.tags.some(t => ['sold', 'sale'].includes(t.toLowerCase()))) return '🏷️';
   if (story.tags.some(t => ['house', 'home', 'move'].includes(t))) return '🏠';
 
   // Fallback to category default
@@ -70,11 +77,59 @@ export const BubbleTimeline: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { stories, relationships } = useTimelineStore();
   const [viewMode, setViewMode] = useState<'bubble' | 'graph'>('graph');
+  const [layoutMode, setLayoutMode] = useState<'clustered' | 'timeline'>('clustered');
   const [hoveredNode, setHoveredNode] = useState<BubbleNode | null>(null);
   const [containerHeight, setContainerHeight] = useState(600);
 
   // 1. Process Data into Nodes
   const data = useMemo(() => {
+    // First, synthesize end events for stories with endDate (jobs, relationships, homes)
+    const synthesizedEndEvents: Story[] = [];
+    stories.forEach(story => {
+      const endDate = story.endDate || (story.metadata?.endDate as string);
+      if (!endDate) return;
+
+      const tags = story.tags.map(t => t.toLowerCase());
+      const isJob = tags.some(t => ['career', 'work', 'job', 'started'].includes(t));
+      const isRelationship = tags.some(t => ['relationship', 'connection', 'partner', 'dating'].includes(t));
+      const isHome = tags.some(t => ['home', 'house', 'property'].includes(t));
+
+      if (!isJob && !isRelationship && !isHome) return;
+
+      const endEventDate = new Date(endDate);
+      const personOrCompany = isRelationship
+        ? story.people[0]
+        : isJob
+          ? (story.metadata?.company as string || story.title.match(/at\s+(.+)$/i)?.[1] || 'company')
+          : (story.metadata?.address as string || story.location || 'property');
+
+      const endTitle = isRelationship
+        ? `Ended relationship with ${personOrCompany}`
+        : isJob
+          ? `Left ${personOrCompany}`
+          : `Sold/left ${personOrCompany}`;
+
+      synthesizedEndEvents.push({
+        id: `${story.id}-end-synthetic`,
+        title: endTitle,
+        content: `${story.title} ended.`,
+        type: 'short',
+        date: endEventDate,
+        fuzzyDate: story.fuzzyDate,
+        tags: [...story.tags.filter(t => !['started', 'purchase'].includes(t.toLowerCase())), 'end', 'ended'],
+        people: story.people,
+        importance: story.importance,
+        location: story.location,
+        images: [],
+        metadata: { ...story.metadata, isSynthesized: true, originalStoryId: story.id },
+        createdAt: story.createdAt,
+        updatedAt: story.updatedAt,
+      });
+    });
+
+    // Combine stories with synthesized end events
+    const allStories = [...stories, ...synthesizedEndEvents];
+
     // Build a map of durations from relationships data
     const personDurations: Map<string, number> = new Map();
     relationships.forEach(rel => {
@@ -113,7 +168,7 @@ export const BubbleTimeline: React.FC = () => {
     });
 
     // Connect stories that share people or specific tags
-    const nodes: BubbleNode[] = stories.map(story => {
+    const storyNodes: BubbleNode[] = allStories.map(story => {
       // Size Calculation: Based on Duration
       let durationDays = 1; // Default min size
 
@@ -157,28 +212,74 @@ export const BubbleTimeline: React.FC = () => {
         group: category,
         color,
         emoji: getStoryEmoji(story),
-        isEnded: story.tags.includes('end')
+        isEnded: story.tags.includes('end'),
+        year: new Date(story.date).getFullYear()
       };
     });
 
+    // Create person nodes from relationships
+    const personNodes: BubbleNode[] = relationships.map(rel => {
+      const isFamily = ['parent', 'sibling', 'child', 'grandparent', 'cousin', 'aunt-uncle', 'in-law', 'step'].includes(
+        rel.relationshipType?.toLowerCase() || ''
+      );
+
+      return {
+        id: `person-${rel.id}`,
+        r: 25, // Fixed size for people
+        relationship: rel,
+        personName: rel.fullName,
+        isPerson: true,
+        group: isFamily ? 'family' : 'person',
+        color: isFamily ? CATEGORY_COLORS.family : CATEGORY_COLORS.person,
+        emoji: isFamily ? '👨‍👩‍👧' : '👤',
+        isEnded: !rel.isCurrent,
+        year: rel.startDate ? new Date(rel.startDate).getFullYear() : undefined
+      };
+    });
+
+    // Combine all nodes
+    const allNodes = [...storyNodes, ...personNodes];
+
     const links: GraphLink[] = [];
 
-    // Simple Link Logic: Link sequential stories or stories with same people
-    // (This creates the "Obsidian" web effect)
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const nodeA = nodes[i];
-        const nodeB = nodes[j];
+    // Link stories to people mentioned in them
+    for (const storyNode of storyNodes) {
+      if (!storyNode.story) continue;
+
+      for (const personNode of personNodes) {
+        if (!personNode.personName) continue;
+
+        // Check if this person is mentioned in the story's people array
+        const personNameLower = personNode.personName.toLowerCase();
+        const storyMentionsPerson = storyNode.story.people.some(p =>
+          p.toLowerCase() === personNameLower ||
+          personNameLower.includes(p.toLowerCase()) ||
+          p.toLowerCase().includes(personNameLower.split(' ')[0]) // Match first name
+        );
+
+        if (storyMentionsPerson) {
+          links.push({ source: storyNode.id, target: personNode.id, value: 2 });
+        }
+      }
+    }
+
+    // Also link stories that share people (existing logic)
+    for (let i = 0; i < storyNodes.length; i++) {
+      for (let j = i + 1; j < storyNodes.length; j++) {
+        const nodeA = storyNodes[i];
+        const nodeB = storyNodes[j];
+
+        if (!nodeA.story || !nodeB.story) continue;
 
         // Link if they share a person
-        const sharedPeople = nodeA.story.people.filter(p => nodeB.story.people.includes(p));
+        const sharedPeople = nodeA.story.people.filter((p: string) => nodeB.story?.people.includes(p));
         if (sharedPeople.length > 0) {
           links.push({ source: nodeA.id, target: nodeB.id, value: 1 });
         }
       }
     }
 
-    return { nodes, links };
+    return { nodes: allNodes, links };
   }, [stories, relationships]);
 
   // 2. Render Simulation
@@ -207,9 +308,27 @@ export const BubbleTimeline: React.FC = () => {
 
     // --- FORCE SIMULATION ---
     const simulation = d3.forceSimulation<BubbleNode>(data.nodes)
-      .force("charge", d3.forceManyBody().strength(viewMode === 'graph' ? -200 : -50)) // Stronger repel in graph mode
-      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("charge", d3.forceManyBody().strength(viewMode === 'graph' ? -500 : -50)) // Strong repel in graph mode for clear separation
       .force("collide", d3.forceCollide<BubbleNode>().radius(d => d.r + 2).iterations(2));
+
+    // Timeline layout: position by year (old left, new right)
+    if (layoutMode === 'timeline') {
+      const years = data.nodes.map(n => n.year).filter((y): y is number => y !== undefined);
+      const minYear = Math.min(...years);
+      const maxYear = Math.max(...years);
+      const yearRange = maxYear - minYear || 1;
+
+      simulation
+        .force("x", d3.forceX<BubbleNode>(d => {
+          if (!d.year) return width / 2;
+          const normalizedYear = (d.year - minYear) / yearRange;
+          return 100 + normalizedYear * (width - 200); // 100px padding on each side
+        }).strength(0.8))
+        .force("y", d3.forceY(height / 2).strength(0.1));
+    } else {
+      // Clustered mode: use center force
+      simulation.force("center", d3.forceCenter(width / 2, height / 2));
+    }
 
     if (viewMode === 'graph') {
       simulation.force("link", d3.forceLink<BubbleNode, GraphLink>(data.links).id(d => d.id).distance(100).strength(0.1));
@@ -257,6 +376,16 @@ export const BubbleTimeline: React.FC = () => {
       .style("pointer-events", "none")
       .style("filter", "drop-shadow(0px 2px 2px rgba(0,0,0,0.3))"); // Shadow for visibility
 
+    // Year Labels (Above bubble)
+    node.append("text")
+      .text(d => d.year ? d.year.toString() : '')
+      .attr("text-anchor", "middle")
+      .attr("dy", d => -(d.r + 8)) // Position above the bubble
+      .style("font-size", "10px")
+      .style("fill", "#94a3b8") // Slate-400
+      .style("font-weight", "500")
+      .style("pointer-events", "none");
+
     // Simulation Tick
     simulation.on("tick", () => {
       if (viewMode === 'graph' && link) {
@@ -291,7 +420,7 @@ export const BubbleTimeline: React.FC = () => {
     return () => {
       simulation.stop();
     };
-  }, [data, viewMode]);
+  }, [data, viewMode, layoutMode]);
 
   return (
     <div className="bg-theme-primary rounded-lg shadow-lg flex flex-col border border-theme" style={{ height: 'calc(100vh - 180px)', minHeight: '500px' }}>
@@ -325,6 +454,21 @@ export const BubbleTimeline: React.FC = () => {
               Bubble
             </button>
           </div>
+
+          {/* Layout Toggle */}
+          <button
+            onClick={() => setLayoutMode(layoutMode === 'clustered' ? 'timeline' : 'clustered')}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${layoutMode === 'timeline'
+              ? 'bg-primary-600 text-white'
+              : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+              }`}
+            title={layoutMode === 'clustered'
+              ? 'Switch to timeline view (old→new left to right)'
+              : 'Switch to clustered/network view'}
+          >
+            <ArrowLeftRight className="w-4 h-4" />
+            {layoutMode === 'timeline' ? 'Timeline' : 'Clustered'}
+          </button>
         </div>
 
         <div className="text-xs text-theme-tertiary hidden sm:block">
@@ -345,11 +489,53 @@ export const BubbleTimeline: React.FC = () => {
                 {hoveredNode.group}
               </span>
             </div>
-            <h3 className="font-bold text-theme-primary mb-1">{hoveredNode.story.title}</h3>
-            <p className="text-xs text-theme-secondary line-clamp-2">{hoveredNode.story.content}</p>
-            <div className="mt-2 text-[10px] text-theme-tertiary font-mono">
-              {format(new Date(hoveredNode.story.date), 'MMM d, yyyy')}
-              {hoveredNode.story.endDate && ` — ${format(new Date(hoveredNode.story.endDate), 'MMM d, yyyy')}`}
+            {hoveredNode.isPerson ? (
+              <>
+                <h3 className="font-bold text-theme-primary mb-1">{hoveredNode.personName}</h3>
+                <p className="text-xs text-theme-secondary">
+                  {hoveredNode.relationship?.relationshipType || 'Connection'}
+                  {hoveredNode.isEnded && ' (No longer in contact)'}
+                </p>
+              </>
+            ) : hoveredNode.story ? (
+              <>
+                <h3 className="font-bold text-theme-primary mb-1">{hoveredNode.story.title}</h3>
+                <p className="text-xs text-theme-secondary line-clamp-2">{hoveredNode.story.content}</p>
+                <div className="mt-2 text-[10px] text-theme-tertiary font-mono">
+                  {format(new Date(hoveredNode.story.date), 'MMM d, yyyy')}
+                  {hoveredNode.story.endDate && ` — ${format(new Date(hoveredNode.story.endDate), 'MMM d, yyyy')}`}
+                </div>
+              </>
+            ) : null}
+          </div>
+        )}
+
+        {/* Mini Legend (Bottom Right) */}
+        {(
+          <div className="absolute bottom-4 right-4 bg-theme-primary/90 backdrop-blur border border-theme p-3 rounded-lg shadow-lg text-xs">
+            <div className="text-theme-tertiary font-medium mb-2 uppercase tracking-wider text-[10px]">Legend</div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-theme-secondary">
+                <span>❤️</span> <span>Relationship</span>
+              </div>
+              <div className="flex items-center gap-2 text-theme-secondary">
+                <span>💔</span> <span>Ended</span>
+              </div>
+              <div className="flex items-center gap-2 text-theme-secondary">
+                <span>🏠</span> <span>Home</span>
+              </div>
+              <div className="flex items-center gap-2 text-theme-secondary">
+                <span>🏷️</span> <span>Sold</span>
+              </div>
+              <div className="flex items-center gap-2 text-theme-secondary">
+                <span>💼</span> <span>Career</span>
+              </div>
+              <div className="flex items-center gap-2 text-theme-secondary">
+                <span>👤</span> <span>Person</span>
+              </div>
+              <div className="flex items-center gap-2 text-theme-secondary">
+                <span>👨‍👩‍👧</span> <span>Family</span>
+              </div>
             </div>
           </div>
         )}

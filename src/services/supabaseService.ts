@@ -28,6 +28,7 @@ export async function getProfile(userId: string): Promise<UserProfile | null> {
         name: data.name,
         birthDate: new Date(data.birth_date),
         birthLocation: data.birth_location,
+        birthPhoto: data.birth_photo,
         location: data.location,
         hometown: data.hometown,
         bio: data.bio,
@@ -59,6 +60,7 @@ export async function upsertProfile(profile: UserProfile): Promise<boolean> {
             ? profile.birthDate.toISOString().split('T')[0]
             : profile.birthDate,
         birth_location: profile.birthLocation,
+        birth_photo: profile.birthPhoto,
         location: profile.location,
         hometown: profile.hometown,
         bio: profile.bio,
@@ -665,6 +667,7 @@ export async function getRelationships(userId: string): Promise<Relationship[]> 
         startDate: r.start_date ? new Date(r.start_date) : new Date(r.created_at),
         endDate: r.end_date ? new Date(r.end_date) : undefined,
         isCurrent: r.is_current ?? true,
+        needsDetails: r.needs_details ?? false,
         createdAt: new Date(r.created_at),
         updatedAt: new Date(r.updated_at),
     }));
@@ -684,6 +687,7 @@ export async function addRelationship(userId: string, rel: Omit<Relationship, 'i
             start_date: rel.startDate instanceof Date ? rel.startDate.toISOString().split('T')[0] : rel.startDate,
             end_date: rel.endDate instanceof Date ? rel.endDate.toISOString().split('T')[0] : rel.endDate,
             is_current: rel.isCurrent,
+            needs_details: rel.needsDetails ?? false,
         })
         .select()
         .single();
@@ -701,6 +705,7 @@ export async function addRelationship(userId: string, rel: Omit<Relationship, 'i
         startDate: data.start_date ? new Date(data.start_date) : new Date(data.created_at),
         endDate: data.end_date ? new Date(data.end_date) : undefined,
         isCurrent: data.is_current ?? true,
+        needsDetails: data.needs_details ?? false,
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
     };
@@ -718,6 +723,7 @@ export async function updateRelationship(relId: string, updates: Partial<Relatio
     if (updates.startDate !== undefined) updateData.start_date = updates.startDate instanceof Date ? updates.startDate.toISOString().split('T')[0] : updates.startDate;
     if (updates.endDate !== undefined) updateData.end_date = updates.endDate instanceof Date ? updates.endDate.toISOString().split('T')[0] : updates.endDate;
     if (updates.isCurrent !== undefined) updateData.is_current = updates.isCurrent;
+    if (updates.needsDetails !== undefined) updateData.needs_details = updates.needsDetails;
 
     const { error } = await supabase
         .from('relationships')

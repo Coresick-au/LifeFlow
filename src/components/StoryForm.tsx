@@ -4,7 +4,7 @@ import { useTimelineStore } from '../store/timelineStore';
 import { uploadMedia, deleteMedia } from '../services/supabaseService';
 import { Story } from '../types';
 import { format, addDays } from 'date-fns';
-import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save, Trash2, Loader2 } from 'lucide-react';
+import { X, Calendar, MapPin, Users, Tag, Star, Lock, Clock, FileText, ChevronDown, Check, Save, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { ThemedDatePicker } from './ThemedDatePicker';
 
 
@@ -15,7 +15,7 @@ const importanceOptions = [
 ];
 
 export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
-  const { addStory, updateStory, deleteStory, setCurrentView, stories, relationships, managedTags, loadRelationships, loadManagedTags, userProfile } = useTimelineStore();
+  const { addStory, updateStory, deleteStory, setCurrentView, stories, relationships, managedTags, loadRelationships, loadManagedTags, userProfile, addRelationship } = useTimelineStore();
   const [personInput, setPersonInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showPersonSuggestions, setShowPersonSuggestions] = useState(false);
@@ -396,135 +396,141 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
           {/* Date Fields */}
           <div className="space-y-4">
             {/* Fuzzy Date Toggle */}
-            <div className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                id="fuzzyDate"
-                checked={formData.fuzzyDate}
-                onChange={(e) => setFormData({ ...formData, fuzzyDate: e.target.checked })}
-                className="w-4 h-4 border rounded focus:ring-2 border-theme"
-                style={{ accentColor: 'var(--theme-accent)' }}
-              />
-              <label htmlFor="fuzzyDate" className="text-sm font-medium text-theme-primary">
-                This is a fuzzy date (approximate time)
-              </label>
+            <div>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="fuzzyDate"
+                  checked={formData.fuzzyDate}
+                  onChange={(e) => setFormData({ ...formData, fuzzyDate: e.target.checked })}
+                  className="w-4 h-4 border rounded focus:ring-2 border-theme"
+                  style={{ accentColor: 'var(--theme-accent)' }}
+                />
+                <label htmlFor="fuzzyDate" className="text-sm font-medium text-theme-primary">
+                  This is a fuzzy date (approximate time)
+                </label>
+              </div>
+              <p className="text-xs text-theme-tertiary mt-1 ml-7">
+                Check this if you don't remember the exact date — it will show as "circa" or "around" this time.
+              </p>
             </div>
 
-            {/* Date and End Date */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-              <div>
-                <label htmlFor="date" className="block text-sm font-medium mb-1 text-theme-primary">
-                  <Calendar className="inline w-4 h-4 mr-1" />
-                  When did this happen?
-                </label>
+            {/* Start Date */}
+            <div>
+              <label htmlFor="date" className="block text-sm font-medium mb-1 text-theme-primary">
+                <Calendar className="inline w-4 h-4 mr-1" />
+                When did this happen?
+              </label>
 
-                {/* Toggle buttons for Date/Age input */}
-                <div className="flex gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => setInputMode('date')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'date'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-                      }`}
-                  >
-                    Exact Date
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInputMode('age')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'age'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
-                      }`}
-                  >
-                    I Was Age...
-                  </button>
-                </div>
+              {/* Toggle buttons for Date/Age input */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setInputMode('date')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'date'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                    }`}
+                >
+                  Exact Date
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMode('age')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${inputMode === 'age'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-theme-tertiary text-theme-secondary hover:text-theme-primary'
+                    }`}
+                >
+                  I Was Age...
+                </button>
+              </div>
 
-                {/* Conditional input based on mode */}
-                {inputMode === 'date' ? (
-                  <>
-                    <ThemedDatePicker
-                      id="date"
-                      selected={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? formData.date : null}
-                      onChange={(date) => setFormData({ ...formData, date: date || new Date() })}
-                      placeholder="Select date"
-                    />
-                    {/* Quick date buttons */}
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => setQuickDate(0)}
-                        className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
-                      >
-                        Today
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuickDate(1)}
-                        className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
-                      >
-                        Yesterday
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuickDate(7)}
-                        className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
-                      >
-                        Last Week
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="150"
-                      step="0.1"
-                      placeholder="Enter your age (e.g., 14.5)"
-                      value={ageValue}
-                      onChange={(e) => {
-                        setAgeValue(e.target.value);
-                        if (e.target.value) {
-                          const calculatedDate = calculateDateFromAge(parseFloat(e.target.value));
-                          setFormData({ ...formData, date: calculatedDate });
-                        }
-                      }}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
-                      required={inputMode === 'age'}
-                    />
-                    {ageValue && formData.date instanceof Date && !isNaN(formData.date.getTime()) && (
-                      <p className="text-xs text-theme-tertiary">
-                        📅 Approximate date: {format(formData.date, 'MMMM yyyy')} (start of the year you turned {ageValue})
-                      </p>
-                    )}
+              {/* Conditional input based on mode */}
+              {inputMode === 'date' ? (
+                <>
+                  <ThemedDatePicker
+                    id="date"
+                    selected={formData.date instanceof Date && !isNaN(formData.date.getTime()) ? formData.date : null}
+                    onChange={(date) => setFormData({ ...formData, date: date || new Date() })}
+                    placeholder="Select date"
+                  />
+                  {/* Quick date buttons */}
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuickDate(0)}
+                      className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickDate(1)}
+                      className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                    >
+                      Yesterday
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickDate(7)}
+                      className="text-xs px-2 py-1 rounded hover:bg-theme-tertiary text-theme-secondary"
+                    >
+                      Last Week
+                    </button>
                   </div>
-                )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="150"
+                    step="0.1"
+                    placeholder="Enter your age (e.g., 14.5)"
+                    value={ageValue}
+                    onChange={(e) => {
+                      setAgeValue(e.target.value);
+                      if (e.target.value) {
+                        const calculatedDate = calculateDateFromAge(parseFloat(e.target.value));
+                        setFormData({ ...formData, date: calculatedDate });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme"
+                    required={inputMode === 'age'}
+                  />
+                  {ageValue && formData.date instanceof Date && !isNaN(formData.date.getTime()) && (
+                    <p className="text-xs text-theme-tertiary">
+                      📅 Approximate date: {format(formData.date, 'MMMM yyyy')} (start of the year you turned {ageValue})
+                    </p>
+                  )}
+                </div>
+              )}
 
-                {/* Age display */}
-                {formData.date instanceof Date && !isNaN(formData.date.getTime()) && calculateAge(format(formData.date, 'yyyy-MM-dd')) !== null && (
-                  <p className="mt-1 text-xs text-theme-tertiary">
-                    You were {calculateAge(format(formData.date, 'yyyy-MM-dd'))} years old
-                  </p>
-                )}
-              </div>
+              {/* Age display */}
+              {formData.date instanceof Date && !isNaN(formData.date.getTime()) && calculateAge(format(formData.date, 'yyyy-MM-dd')) !== null && (
+                <p className="mt-1 text-xs text-theme-tertiary">
+                  You were {calculateAge(format(formData.date, 'yyyy-MM-dd'))} years old
+                </p>
+              )}
+            </div>
 
-              <div>
-                <label htmlFor="endDate" className="block text-sm font-medium mb-1 text-theme-primary">
-                  End Date (optional)
-                </label>
-                {/* Spacer to match left column's toggle buttons */}
-                <div className="h-[36px] mb-3"></div>
-                <ThemedDatePicker
-                  id="endDate"
-                  selected={formData.endDate instanceof Date && !isNaN(formData.endDate.getTime()) ? formData.endDate : null}
-                  onChange={(date) => setFormData({ ...formData, endDate: date || undefined })}
-                  placeholder="Select end date"
-                  minDate={formData.date instanceof Date ? formData.date : undefined}
-                />
-              </div>
+            {/* End Date - now below start date */}
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium mb-1 text-theme-primary">
+                <Calendar className="inline w-4 h-4 mr-1" />
+                End Date (optional)
+              </label>
+              <ThemedDatePicker
+                id="endDate"
+                selected={formData.endDate instanceof Date && !isNaN(formData.endDate.getTime()) ? formData.endDate : null}
+                onChange={(date) => setFormData({ ...formData, endDate: date || undefined })}
+                placeholder="Select end date"
+                minDate={formData.date instanceof Date ? formData.date : undefined}
+              />
+              <p className="text-xs text-theme-tertiary mt-1">
+                For events that span time (jobs, relationships, living somewhere)
+              </p>
             </div>
           </div>
 
@@ -647,12 +653,34 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                   value={peopleSearchTerm}
                   onChange={(e) => setPeopleSearchTerm(e.target.value)}
                   className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 input-field rounded-theme text-sm"
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       const value = peopleSearchTerm.trim();
                       if (value && !(formData.people || []).includes(value)) {
                         setFormData({ ...formData, people: [...(formData.people || []), value] });
+
+                        // Check if person exists in relationships
+                        const exists = relationships.some(r =>
+                          r.fullName.toLowerCase() === value.toLowerCase()
+                        );
+
+                        // Auto-create placeholder connection if not exists
+                        if (!exists) {
+                          const nameParts = value.split(' ');
+                          await addRelationship({
+                            firstName: nameParts[0] || value,
+                            lastName: nameParts.slice(1).join(' ') || '',
+                            fullName: value,
+                            relationshipType: 'Friend',
+                            startDate: new Date(),
+                            isCurrent: true,
+                            notes: '',
+                            trackNurturing: false,
+                            needsDetails: true
+                          });
+                        }
+
                         setPeopleSearchTerm('');
                       }
                     }
@@ -725,7 +753,14 @@ export const StoryForm: React.FC<{ storyId?: string }> = ({ storyId }) => {
                           className="w-full px-3 py-2 text-left hover:bg-theme-tertiary flex items-center justify-between"
                         >
                           <div>
-                            <div className="font-medium">{person.fullName}</div>
+                            <div className="font-medium flex items-center gap-1">
+                              {person.fullName}
+                              {person.needsDetails && (
+                                <span title="Details needed">
+                                  <AlertCircle className="w-3 h-3 text-amber-500" />
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400">{person.relationshipType}</div>
                           </div>
                           {(formData.people || []).includes(person.fullName) && (

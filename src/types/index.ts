@@ -129,6 +129,7 @@ export interface Relationship {
   metDateFuzzy?: boolean; // Is the met date approximate?
   yearsKnown?: number;    // Alternative: estimate how long you've known them
   trackNurturing?: boolean; // Whether to track this relationship for nurture reminders (default: true)
+  needsDetails?: boolean; // Quick-added person that needs more info
   createdAt: Date;
   updatedAt: Date;
 }

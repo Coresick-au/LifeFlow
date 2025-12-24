@@ -156,10 +156,8 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      // Trigger search with the query
-      onViewChange('timeline'); // Navigate to timeline to show results
-      // The actual search will be handled by App component
+    if (searchQuery.trim() && onSearch) {
+      onSearch(searchQuery.trim());
     }
     setShowSearch(false);
     setSearchQuery('');

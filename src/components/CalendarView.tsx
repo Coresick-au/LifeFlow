@@ -760,13 +760,6 @@ export const CalendarView: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Add Button */}
-      <button
-        onClick={() => setCurrentView({ type: 'add-story' })}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 flex items-center justify-center"
-      >
-        <span className="text-2xl">+</span>
-      </button>
     </div>
   );
 };
