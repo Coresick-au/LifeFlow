@@ -102,14 +102,14 @@ export const Navigation: React.FC<NavigationProps> = ({
       'advice': 'text-amber-500',
       'todos': 'text-green-500',
       'on-this-day': 'text-purple-500',
-      // Visualize pillar
+      // Visualise pillar
       'life-dashboard': 'text-cyan-500',
       'bubble': 'text-teal-500',
       'event-heatmap': 'text-orange-500',
       'gantt-timeline': 'text-blue-600',
       'location-map': 'text-emerald-500',
       'wealth-tracker': 'text-green-600',
-      'relationship-tracker': 'text-pink-500', // Moved to Visualize group
+      'relationship-tracker': 'text-pink-500', // Moved to Visualise group
       // Me pillar
       'job-tracker': 'text-blue-500',
       'child-tracker': 'text-green-500',
@@ -133,14 +133,14 @@ export const Navigation: React.FC<NavigationProps> = ({
       'advice': 'bg-amber-500',
       'todos': 'bg-green-500',
       'on-this-day': 'bg-purple-500',
-      // Visualize pillar
+      // Visualise pillar
       'life-dashboard': 'bg-cyan-500',
       'bubble': 'bg-teal-500',
       'event-heatmap': 'bg-orange-500',
       'gantt-timeline': 'bg-blue-600',
       'location-map': 'bg-emerald-500',
       'wealth-tracker': 'bg-green-600',
-      'relationship-tracker': 'bg-pink-500', // Moved to Visualize group
+      'relationship-tracker': 'bg-pink-500', // Moved to Visualise group
       // Me pillar
       'job-tracker': 'bg-blue-500',
       'child-tracker': 'bg-green-500',
@@ -196,7 +196,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
             {/* Pillar Tabs */}
             <div className="hidden md:flex items-center border-l border-theme pl-4 ml-4">
-              {(['flow', 'visualize', 'me'] as const).map((pillar) => (
+              {(['flow', 'visualise', 'me'] as const).map((pillar) => (
                 <button
                   key={pillar}
                   onClick={() => onViewChange(pillarDefaults[pillar])}

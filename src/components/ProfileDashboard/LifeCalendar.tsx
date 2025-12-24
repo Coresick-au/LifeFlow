@@ -8,7 +8,7 @@ interface LifeCalendarProps {
 
 /**
  * LifeCalendar Component
- * Visualizes life as a grid of weeks (90 years × 52 weeks = 4,680 squares).
+ * Visualises life as a grid of weeks (90 years × 52 weeks = 4,680 squares).
  * Filled squares represent weeks already lived.
  * Especially useful for users with aphantasia - provides concrete, spatial life map.
  */
@@ -89,10 +89,10 @@ export const LifeCalendar: React.FC<LifeCalendarProps> = ({
                     <div
                         key={decade.age}
                         className={`w-6 h-6 rounded text-xs flex items-center justify-center font-medium transition-colors ${decade.isCurrent
-                                ? 'bg-blue-500 text-white ring-2 ring-blue-300'
-                                : decade.isLived
-                                    ? 'bg-green-500/30 text-green-600'
-                                    : 'bg-theme-tertiary text-theme-tertiary'
+                            ? 'bg-blue-500 text-white ring-2 ring-blue-300'
+                            : decade.isLived
+                                ? 'bg-green-500/30 text-green-600'
+                                : 'bg-theme-tertiary text-theme-tertiary'
                             }`}
                         title={`Age ${decade.age}`}
                     >

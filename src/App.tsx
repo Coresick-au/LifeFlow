@@ -52,7 +52,7 @@ import type { TimelineView } from './types';
 
 export const App: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { stories, userProfile, currentView, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile } = useTimelineStore();
+  const { stories, userProfile, currentView, setCurrentView, loadStories, loadThoughts, loadTodos, loadUserProfile, loadRelationships, loadPreferences, loadAdvice, loadManagedTags, loadWealthItems, loadWealthHistory } = useTimelineStore();
   const { theme } = useThemeStore();
   const [searchResults, setSearchResults] = useState<Story[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,8 +85,14 @@ export const App: React.FC = () => {
       loadUserProfile();
       loadThoughts();
       loadTodos();
+      loadRelationships();
+      loadPreferences();
+      loadAdvice();
+      loadManagedTags();
+      loadWealthItems();
+      loadWealthHistory();
     }
-  }, [loadStories, loadUserProfile, loadThoughts, loadTodos, isLoading]);
+  }, [loadStories, loadUserProfile, loadThoughts, loadTodos, loadRelationships, loadPreferences, loadAdvice, loadManagedTags, loadWealthItems, loadWealthHistory, isLoading]);
 
   // Show auth page if not authenticated
   if (authLoading) {
@@ -233,12 +239,12 @@ export const App: React.FC = () => {
   };
 
   // Pillar navigation configuration
-  const PILLAR_MAP: Record<string, 'flow' | 'visualize' | 'me'> = {
+  const PILLAR_MAP: Record<string, 'flow' | 'visualise' | 'me'> = {
     timeline: 'flow', calendar: 'flow', thoughts: 'flow', todos: 'flow', advice: 'flow',
     'add-story': 'flow', 'edit-story': 'flow', 'on-this-day': 'flow',
-    'life-dashboard': 'visualize', bubble: 'visualize', 'event-heatmap': 'visualize',
-    'gantt-timeline': 'visualize', 'location-map': 'visualize', 'wealth-tracker': 'visualize',
-    'relationship-tracker': 'visualize', // MOVED: Heart is now under Visualize
+    'life-dashboard': 'visualise', bubble: 'visualise', 'event-heatmap': 'visualise',
+    'gantt-timeline': 'visualise', 'location-map': 'visualise', 'wealth-tracker': 'visualise',
+    'relationship-tracker': 'visualise', // MOVED: Heart is now under Visualise
     profile: 'me', settings: 'me', relationships: 'me', experimental: 'me',
     'job-tracker': 'me', 'child-tracker': 'me', 'home-tracker': 'me',
     'likes-dislikes': 'me',
@@ -246,7 +252,7 @@ export const App: React.FC = () => {
 
   const PILLAR_DEFAULTS: Record<string, string> = {
     flow: 'timeline',
-    visualize: 'life-dashboard',
+    visualise: 'life-dashboard',
     me: 'profile',
   };
 
@@ -260,14 +266,14 @@ export const App: React.FC = () => {
     { type: 'advice', pillar: 'flow', icon: BookOpen, label: 'Advice' },
     { type: 'todos', pillar: 'flow', icon: CheckSquare, label: 'To-Do List' },
     { type: 'on-this-day', pillar: 'flow', icon: CalendarIcon, label: 'On This Day' },
-    // VISUALIZE Pillar
-    { type: 'life-dashboard', pillar: 'visualize', icon: BarChart3, label: 'Dashboard' },
-    { type: 'bubble', pillar: 'visualize', icon: Circle, label: 'Bubble' },
-    { type: 'event-heatmap', pillar: 'visualize', icon: Brain, label: 'Heatmap' },
-    { type: 'gantt-timeline', pillar: 'visualize', icon: BarChart3, label: 'Gantt' },
-    { type: 'location-map', pillar: 'visualize', icon: MapPin, label: 'Map' },
-    { type: 'wealth-tracker', pillar: 'visualize', icon: PiggyBank, label: 'Wealth' },
-    { type: 'relationship-tracker', pillar: 'visualize', icon: Heart, label: 'Heart' }, // MOVED HERE
+    // VISUALISE Pillar
+    { type: 'life-dashboard', pillar: 'visualise', icon: BarChart3, label: 'Dashboard' },
+    { type: 'bubble', pillar: 'visualise', icon: Circle, label: 'Bubble' },
+    { type: 'event-heatmap', pillar: 'visualise', icon: Brain, label: 'Heatmap' },
+    { type: 'gantt-timeline', pillar: 'visualise', icon: BarChart3, label: 'Gantt' },
+    { type: 'location-map', pillar: 'visualise', icon: MapPin, label: 'Map' },
+    { type: 'wealth-tracker', pillar: 'visualise', icon: PiggyBank, label: 'Wealth' },
+    { type: 'relationship-tracker', pillar: 'visualise', icon: Heart, label: 'Heart' }, // MOVED HERE
     // ME Pillar
     { type: 'job-tracker', pillar: 'me', icon: TrendingUp, label: 'Career' },
     { type: 'child-tracker', pillar: 'me', icon: Users, label: 'Children' },
