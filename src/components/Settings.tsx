@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, X, Tag as TagIcon, Palette, AlertTriangle, Trash2, LogOut, Cloud, CloudOff, User, RefreshCw } from 'lucide-react';
+import { Plus, X, Tag as TagIcon, Palette, AlertTriangle, Trash2, LogOut, Cloud, CloudOff, User, RefreshCw, Check } from 'lucide-react';
 import * as supabaseService from '../services/supabaseService';
 
 export const Settings: React.FC = () => {
@@ -218,23 +218,43 @@ export const Settings: React.FC = () => {
                 <label className="block text-sm font-medium text-theme-secondary mb-1">
                   Color
                 </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="h-10 w-20 border border-theme rounded cursor-pointer"
-                  />
-                  <div className="flex space-x-1">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Predefined Colors */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {predefinedColors.map(color => (
                       <button
                         key={color}
                         type="button"
                         onClick={() => setFormData({ ...formData, color })}
-                        className="w-6 h-6 rounded border-2 border-theme"
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${formData.color === color
+                          ? 'border-slate-500 dark:border-slate-300 scale-110'
+                          : 'border-transparent hover:scale-105'
+                          }`}
                         style={{ backgroundColor: color }}
-                      />
+                        title={color}
+                      >
+                        {formData.color === color && <Check className="w-4 h-4 text-white drop-shadow-md" />}
+                      </button>
                     ))}
+                  </div>
+
+                  <div className="w-px h-8 bg-theme-border mx-1"></div>
+
+                  {/* Custom Color Picker */}
+                  <div className="relative group" title="Custom Color">
+                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-theme cursor-pointer relative flex items-center justify-center">
+                      <div
+                        className="absolute inset-0"
+                        style={{ backgroundColor: formData.color }}
+                      ></div>
+                      <Palette className="w-4 h-4 text-white drop-shadow-md relative z-10 opacity-75 group-hover:opacity-100" />
+                      <input
+                        type="color"
+                        value={formData.color}
+                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -252,7 +272,7 @@ export const Settings: React.FC = () => {
                     setEditingTag(null);
                     setFormData({ name: '', category: 'general', color: '#3B82F6' });
                   }}
-                  className="px-4 py-2 bg-gray-300 text-theme-secondary rounded-md hover:bg-gray-400 transition-colors"
+                  className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-theme-primary rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
