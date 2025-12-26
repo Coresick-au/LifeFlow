@@ -241,18 +241,36 @@ export const Settings: React.FC = () => {
                   <div className="w-px h-8 bg-theme-border mx-1"></div>
 
                   {/* Custom Color Picker */}
-                  <div className="relative group" title="Custom Color">
-                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-theme cursor-pointer relative flex items-center justify-center">
-                      <div
-                        className="absolute inset-0"
-                        style={{ backgroundColor: formData.color }}
-                      ></div>
-                      <Palette className="w-4 h-4 text-white drop-shadow-md relative z-10 opacity-75 group-hover:opacity-100" />
+                  <div className="flex items-center gap-2">
+                    <div className="relative group" title="Pick Custom Color">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden border border-theme cursor-pointer relative flex items-center justify-center shadow-sm hover:ring-2 hover:ring-primary-500 transition-all">
+                        <div
+                          className="absolute inset-0"
+                          style={{ backgroundColor: formData.color }}
+                        ></div>
+                        <Palette className="w-5 h-5 text-white drop-shadow-md relative z-10 opacity-90" />
+                        <input
+                          type="color"
+                          value={formData.color}
+                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-theme-tertiary">#</span>
                       <input
-                        type="color"
-                        value={formData.color}
-                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        type="text"
+                        value={formData.color.replace('#', '')}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (/^[0-9A-Fa-f]{0,6}$/.test(val)) {
+                            setFormData({ ...formData, color: '#' + val });
+                          }
+                        }}
+                        className="w-20 pl-4 pr-2 py-1.5 text-sm border border-theme rounded-md bg-theme-primary text-theme-primary focus:ring-2 focus:ring-primary-500 font-mono uppercase"
+                        placeholder="HEX"
+                        maxLength={6}
                       />
                     </div>
                   </div>
