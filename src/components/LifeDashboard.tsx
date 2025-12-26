@@ -367,7 +367,7 @@ export const LifeDashboard: React.FC = () => {
                       {card.recentItems.map((item, index) => (
                         <div key={index} className="flex justify-between text-sm">
                           <span className="text-theme-primary truncate">{item.title}</span>
-                          <span className="text-slate-500 dark:text-slate-400">{format(item.date, 'MMM d')}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{format(item.date, 'MMM d, yyyy')}</span>
                         </div>
                       ))}
                     </div>

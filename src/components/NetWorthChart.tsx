@@ -1,154 +1,241 @@
-import React, { useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import React, { useMemo, useState } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
-import { format } from 'date-fns';
+import { WealthItem } from '../types';
+import { format, differenceInMonths, addMonths, startOfMonth, isBefore, isAfter } from 'date-fns';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { formatCurrency } from '../utils/format';
+import { Filter } from 'lucide-react';
 
-export function NetWorthChart() {
-    const { wealthItems } = useTimelineStore();
+export const NetWorthChart: React.FC = () => {
+    const { wealthItems, wealthHistory } = useTimelineStore();
+    const [selectedCategories, setSelectedCategories] = useState<string[]>(['real-estate', 'investment', 'superannuation']);
 
-    // Prepare chart data from wealth items history
+    const categories = [
+        { id: 'real-estate', label: 'Property', color: '#10b981' },
+        { id: 'investment', label: 'Investments', color: '#8b5cf6' },
+        { id: 'superannuation', label: 'Super', color: '#f59e0b' },
+        { id: 'cash', label: 'Cash', color: '#3b82f6' },
+        { id: 'vehicle', label: 'Vehicles', color: '#64748b' },
+        { id: 'debt', label: 'Debt', color: '#ef4444' },
+    ];
+
     const chartData = useMemo(() => {
         if (wealthItems.length === 0) return [];
 
-        // Create a map of dates to net worth values
-        const dataPoints = wealthItems.map(item => ({
-            date: new Date(item.lastUpdated),
-            value: item.value,
-            category: item.category,
-            name: item.name,
-        }));
+        // 1. Determine Date Range
+        const now = new Date();
+        const dates = wealthItems
+            .map(i => i.purchaseDate ? new Date(i.purchaseDate) : (i.lastUpdated ? new Date(i.lastUpdated) : now));
 
-        // Sort by date
-        dataPoints.sort((a, b) => a.date.getTime() - b.date.getTime());
+        const historyDates = wealthHistory.map(h => new Date(h.timestamp));
 
-        // Calculate cumulative net worth over time
-        const netWorthOverTime: { date: string; netWorth: number; liquidAssets: number; debt: number }[] = [];
-        let runningNetWorth = 0;
-        let runningLiquid = 0;
-        let runningDebt = 0;
+        let minDate = dates.reduce((min, d) => d < min ? d : min, now);
+        // Also consider history dates
+        if (historyDates.length > 0) {
+            const minHistory = historyDates.reduce((min, d) => d < min ? d : min, now);
+            if (minHistory < minDate) minDate = minHistory;
+        }
 
-        dataPoints.forEach((point, index) => {
-            // Calculate net worth at this point in time
-            if (point.category === 'debt') {
-                runningDebt += Math.abs(point.value);
-                runningNetWorth -= Math.abs(point.value);
-            } else {
-                runningNetWorth += point.value;
-                if (point.category === 'savings' || point.category === 'investment') {
-                    runningLiquid += point.value;
+        minDate = startOfMonth(minDate);
+        const monthsDiff = differenceInMonths(now, minDate);
+
+        const dataPoints = [];
+
+        // 2. Generate Monthly Points
+        for (let i = 0; i <= monthsDiff; i++) {
+            const date = addMonths(minDate, i);
+            const dataPoint: any = {
+                date: date.getTime(),
+                displayDate: format(date, 'MMM yy'),
+                netWorth: 0
+            };
+
+            // Calculate value for each category
+            categories.forEach(cat => {
+                dataPoint[cat.id] = 0;
+            });
+
+            // 3. Sum up items for this date
+            wealthItems.forEach(item => {
+                const purchaseDate = item.purchaseDate ? new Date(item.purchaseDate) : (item.lastUpdated ? new Date(item.lastUpdated) : new Date());
+
+                // Skip if not owned yet
+                if (isBefore(date, startOfMonth(purchaseDate))) return;
+
+                let itemValue = 0;
+
+                // Find history for this item
+                const itemHistory = wealthHistory
+                    .filter(h => h.wealthItemId === item.id)
+                    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+                if (itemHistory.length === 0) {
+                    // No history: Interpolate Purchase -> Current
+                    const totalMonths = differenceInMonths(now, purchaseDate);
+                    const monthsSincePurchase = differenceInMonths(date, purchaseDate);
+
+                    if (totalMonths <= 0) {
+                        itemValue = item.value;
+                    } else {
+                        const startValue = item.purchasePrice || item.value; // Fallback to current if no purchase price
+                        const growth = item.value - startValue;
+                        // Linear interpolation
+                        itemValue = startValue + (growth * (monthsSincePurchase / totalMonths));
+                    }
+                } else {
+                    // Has history: Interpolate between history points
+                    const firstHistory = new Date(itemHistory[0].timestamp);
+                    const lastHistory = new Date(itemHistory[itemHistory.length - 1].timestamp);
+
+                    if (isBefore(date, firstHistory)) {
+                        // Interpolate Purchase -> First History
+                        const totalMonths = differenceInMonths(firstHistory, purchaseDate);
+                        const monthsSincePurchase = differenceInMonths(date, purchaseDate);
+
+                        const startValue = item.purchasePrice || itemHistory[0].newValue;
+                        const endValue = itemHistory[0].newValue;
+
+                        if (totalMonths <= 0) itemValue = startValue;
+                        else itemValue = startValue + ((endValue - startValue) * (monthsSincePurchase / totalMonths));
+
+                    } else if (isAfter(date, lastHistory)) {
+                        // Interpolate Last History -> Current
+                        const totalMonths = differenceInMonths(now, lastHistory);
+                        const monthsSinceLast = differenceInMonths(date, lastHistory);
+
+                        const startValue = itemHistory[itemHistory.length - 1].newValue;
+                        const endValue = item.value;
+
+                        if (totalMonths <= 0) itemValue = endValue;
+                        else itemValue = startValue + ((endValue - startValue) * (monthsSinceLast / totalMonths));
+                    } else {
+                        // Interpolate between history points
+                        // Find closest before and after
+                        let prev = itemHistory[0];
+                        let next = itemHistory[itemHistory.length - 1];
+
+                        for (let j = 0; j < itemHistory.length - 1; j++) {
+                            const d1 = new Date(itemHistory[j].timestamp);
+                            const d2 = new Date(itemHistory[j + 1].timestamp);
+                            if (date >= d1 && date <= d2) {
+                                prev = itemHistory[j];
+                                next = itemHistory[j + 1];
+                                break;
+                            }
+                        }
+
+                        const d1 = new Date(prev.timestamp);
+                        const d2 = new Date(next.timestamp);
+                        const totalTime = d2.getTime() - d1.getTime();
+                        const progress = date.getTime() - d1.getTime();
+
+                        if (totalTime <= 0) itemValue = prev.newValue;
+                        else itemValue = prev.newValue + ((next.newValue - prev.newValue) * (progress / totalTime));
+                    }
                 }
-            }
 
-            netWorthOverTime.push({
-                date: format(point.date, 'MMM yyyy'),
-                netWorth: runningNetWorth,
-                liquidAssets: runningLiquid,
-                debt: runningDebt,
+                // Add to Category Sum
+                if (item.category) {
+                    dataPoint[item.category] += Math.abs(itemValue);
+
+                    if (item.category === 'debt') {
+                        dataPoint.netWorth -= Math.abs(itemValue);
+                    } else {
+                        dataPoint.netWorth += itemValue;
+                    }
+                }
             });
-        });
 
-        // If we have less than 2 data points, create a baseline
-        if (netWorthOverTime.length === 0) {
-            netWorthOverTime.push({
-                date: format(new Date(), 'MMM yyyy'),
-                netWorth: 0,
-                liquidAssets: 0,
-                debt: 0,
-            });
+            dataPoints.push(dataPoint);
         }
 
-        return netWorthOverTime;
-    }, [wealthItems]);
+        return dataPoints;
+    }, [wealthItems, wealthHistory]);
 
-    if (chartData.length === 0) {
-        return (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Net Worth Over Time</h3>
-                <div className="text-center py-12">
-                    <p className="text-gray-500 dark:text-gray-400">
-                        Add wealth items to see your net worth chart
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `$${(value / 1000000).toFixed(1)}M`;
+    const toggleCategory = (id: string) => {
+        if (selectedCategories.includes(id)) {
+            setSelectedCategories(selectedCategories.filter(c => c !== id));
+        } else {
+            setSelectedCategories([...selectedCategories, id]);
         }
-        if (value >= 1000) {
-            return `$${(value / 1000).toFixed(0)}k`;
-        }
-        return `$${value.toFixed(0)}`;
-    };
-
-    const CustomTooltip = ({ active, payload }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-gray-900 dark:bg-gray-700 text-white p-3 rounded-lg shadow-xl border border-gray-700">
-                    <p className="font-semibold mb-2">{payload[0].payload.date}</p>
-                    <p className="text-green-400">Net Worth: ${payload[0].value.toLocaleString()}</p>
-                    {payload[1] && <p className="text-blue-400">Liquid: ${payload[1].value.toLocaleString()}</p>}
-                    {payload[2] && <p className="text-red-400">Debt: ${payload[2].value.toLocaleString()}</p>}
-                </div>
-            );
-        }
-        return null;
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Net Worth Over Time</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                Track your financial progress as you add and update wealth items
-            </p>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Net Worth History</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Asset growth over time (interpolated from purchase date)
+                    </p>
+                </div>
 
-            <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                    <XAxis
-                        dataKey="date"
-                        stroke="#9CA3AF"
-                        style={{ fontSize: '12px' }}
-                    />
-                    <YAxis
-                        tickFormatter={formatCurrency}
-                        stroke="#9CA3AF"
-                        style={{ fontSize: '12px' }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend
-                        wrapperStyle={{ fontSize: '14px', paddingTop: '20px' }}
-                        iconType="line"
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="netWorth"
-                        stroke="#10b981"
-                        strokeWidth={3}
-                        dot={{ fill: '#10b981', r: 4 }}
-                        activeDot={{ r: 6 }}
-                        name="Net Worth"
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="liquidAssets"
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        dot={{ fill: '#3b82f6', r: 3 }}
-                        name="Liquid Assets"
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="debt"
-                        stroke="#ef4444"
-                        strokeWidth={2}
-                        dot={{ fill: '#ef4444', r: 3 }}
-                        name="Total Debt"
-                    />
-                </LineChart>
-            </ResponsiveContainer>
+                <div className="flex flex-wrap gap-2">
+                    {categories.filter(c => c.id !== 'debt').map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => toggleCategory(cat.id)}
+                            className={`px-2 py-1 text-xs font-medium rounded-full border transition-colors flex items-center gap-1 ${selectedCategories.includes(cat.id)
+                                    ? 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600'
+                                    : 'opacity-50 border-transparent hover:opacity-100'
+                                }`}
+                            style={{ color: selectedCategories.includes(cat.id) ? cat.color : undefined }}
+                        >
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }}></span>
+                            {cat.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="h-[350px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                            {categories.map(cat => (
+                                <linearGradient key={cat.id} id={`color-${cat.id}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={cat.color} stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor={cat.color} stopOpacity={0} />
+                                </linearGradient>
+                            ))}
+                        </defs>
+                        <XAxis
+                            dataKey="displayDate"
+                            stroke="#94a3b8"
+                            fontSize={12}
+                            tickMargin={10}
+                            minTickGap={30}
+                        />
+                        <YAxis
+                            stroke="#94a3b8"
+                            fontSize={12}
+                            tickFormatter={(val) => `$${val / 1000}k`}
+                        />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.1} />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                            formatter={(value: any) => [formatCurrency(value), '']}
+                            labelStyle={{ color: '#94a3b8' }}
+                        />
+                        <Legend />
+
+                        {categories.map(cat => (
+                            selectedCategories.includes(cat.id) && (
+                                <Area
+                                    key={cat.id}
+                                    type="monotone"
+                                    dataKey={cat.id}
+                                    name={cat.label}
+                                    stroke={cat.color}
+                                    fillOpacity={1}
+                                    fill={`url(#color-${cat.id})`}
+                                    stackId="1"
+                                />
+                            )
+                        ))}
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
-}
+};

@@ -18,42 +18,45 @@ export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) 
   const insights = React.useMemo(() => {
     const insightsList: CareerInsight[] = [];
 
-    // Group events by company to analyze tenure
-    const companyEvents = new Map<string, CareerEvent[]>();
+    // Group REAL position events by company (exclude synthesized "Left" events)
+    const companyPositions = new Map<string, CareerEvent[]>();
 
     careerEvents.forEach(event => {
-      if (event.company && event.type === 'position') {
-        if (!companyEvents.has(event.company)) {
-          companyEvents.set(event.company, []);
+      // Only consider original position events, not synthesized "Left" events
+      if (event.company && event.type === 'position' && !event.id.endsWith('-ended')) {
+        if (!companyPositions.has(event.company)) {
+          companyPositions.set(event.company, []);
         }
-        companyEvents.get(event.company)?.push(event);
+        companyPositions.get(event.company)?.push(event);
       }
     });
 
-    // Analyze each company for loyalty penalty
-    companyEvents.forEach((events, company) => {
-      // Sort events by date
-      events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    // Analyze each company for loyalty penalty - ONLY for current/active jobs
+    companyPositions.forEach((positions, company) => {
+      // Sort positions by date (most recent last)
+      positions.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-      // Check tenure at current/most recent position
-      const currentEvent = events[events.length - 1];
-      if (currentEvent) {
-        // CRITICAL FIX: Skip jobs that have ended - loyalty tax only applies to ACTIVE roles
-        if (currentEvent.endDate) {
-          return; // This job is history, no loyalty tax accruing
+      // Find the most recent position at this company
+      const latestPosition = positions[positions.length - 1];
+
+      if (latestPosition) {
+        // CRITICAL: Skip if this position has an end date - means you left this job
+        if (latestPosition.endDate) {
+          return; // This job is in the past, no loyalty penalty applies
         }
 
-        const tenureInYears = calculateTenure(currentEvent);
+        // This is a CURRENT/ACTIVE job (no end date)
+        const tenureInYears = calculateTenure(latestPosition);
 
         // Check for loyalty penalty (>3 years without promotion)
         if (tenureInYears > 3) {
-          const hasPromotion = careerEvents.some(event =>
+          const hasPromotionSinceStart = careerEvents.some(event =>
             event.company === company &&
             event.type === 'promotion' &&
-            event.date > currentEvent.date
+            event.date >= latestPosition.date
           );
 
-          if (!hasPromotion) {
+          if (!hasPromotionSinceStart) {
             insightsList.push({
               id: `loyalty-penalty-${company}`,
               type: 'warning',
@@ -133,10 +136,10 @@ export const CareerInsights: React.FC<CareerInsightsProps> = ({ careerEvents }) 
         <div
           key={insight.id}
           className={`p-4 rounded-lg border-l-4 ${insight.type === 'warning'
-              ? 'bg-amber-500/20 dark:bg-amber-900/20 border-amber-400'
-              : insight.type === 'opportunity'
-                ? 'bg-purple-500/20 dark:bg-purple-900/20 border-purple-400'
-                : 'bg-blue-500/20 dark:bg-blue-900/20 border-blue-400'
+            ? 'bg-amber-500/20 dark:bg-amber-900/20 border-amber-400'
+            : insight.type === 'opportunity'
+              ? 'bg-purple-500/20 dark:bg-purple-900/20 border-purple-400'
+              : 'bg-blue-500/20 dark:bg-blue-900/20 border-blue-400'
             }`}
         >
           <div className="flex items-start gap-3">

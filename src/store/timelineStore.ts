@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   TimelineState, Story, UserProfile, TimelineView, Relationship,
   ManagedTag, Thought, TodoItem, Advice, Preference, WealthItem,
-  WealthHistoryEntry
+  WealthHistoryEntry, YearlyIncome
 } from '../types';
 import { Dexie } from 'dexie';
 import * as supabaseService from '../services/supabaseService';
@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabaseClient';
 
 // Initialize IndexedDB
 const db = new Dexie('LifeFlowDB');
-db.version(6).stores({
+db.version(7).stores({
   stories: '++id, title, content, type, date, endDate, fuzzyDate, tags, people, importance, location, images, createdAt, updatedAt',
   thoughts: '++id, content, type, createdAt, tags',
   todos: '++id, title, description, status, priority, createdAt, completedAt, archivedAt, tags, dueDate',
@@ -22,6 +22,7 @@ db.version(6).stores({
   wealthItems: '++id, category, name, value, isLiquid, lastUpdated',
   advice: '++id, content, category, source, createdAt, tags',
   wealthHistory: '++id, wealthItemId, wealthItemName, previousValue, newValue, changeAmount, timestamp, note',
+  yearlyIncomes: '++id, year, employer, baseSalary, totalEarnings, role',
 });
 
 // Export the database instance for use in other modules
@@ -86,6 +87,12 @@ type TimelineStore = TimelineState & {
   getLiquidAssets: () => number;
   getTotalDebt: () => number;
   getSuperannuation: () => number;
+  getRealEstateEquity: () => number;
+  // Yearly Income methods
+  loadYearlyIncomes: () => Promise<void>;
+  addYearlyIncome: (income: Omit<YearlyIncome, 'id'>) => Promise<void>;
+  updateYearlyIncome: (id: string, updates: Partial<YearlyIncome>) => Promise<void>;
+  deleteYearlyIncome: (id: string) => Promise<void>;
   // Seed data
   clearAllData: () => Promise<void>;
   // Advice methods
@@ -119,6 +126,7 @@ export const useTimelineStore = create<TimelineStore>()(
       wealthItems: [],
       wealthHistory: [],
       advice: [],
+      yearlyIncomes: [],
       currentView: initialView,
       activeStoryId: null,
       isLoading: false,
@@ -838,9 +846,11 @@ export const useTimelineStore = create<TimelineStore>()(
         const relationships = await db.table('relationships').toArray();
         const managedTags = await db.table('managedTags').toArray();
         const preferences = await db.table('preferences').toArray();
+        const wealthItems = await db.table('wealthItems').toArray();
+        const yearlyIncomes = await db.table('yearlyIncomes').toArray();
 
         return JSON.stringify({
-          stories, userProfile: userProfile[0], relationships, managedTags, preferences
+          stories, userProfile: userProfile[0], relationships, managedTags, preferences, wealthItems, yearlyIncomes
         }, null, 2);
       },
 
@@ -914,6 +924,12 @@ export const useTimelineStore = create<TimelineStore>()(
             await supabaseService.addWealthItem(user.id, w);
           }
 
+          // 9. Yearly Incomes
+          const localIncomes = await db.table('yearlyIncomes').toArray();
+          for (const y of localIncomes) {
+            await supabaseService.addYearlyIncome(user.id, y);
+          }
+
           console.log('Force Sync Complete.');
           set({ isSaving: false });
           return { success: true, message: `Synced ${storiesSynced} stories and other data to cloud.` };
@@ -952,6 +968,12 @@ export const useTimelineStore = create<TimelineStore>()(
           if (importData.preferences) {
             await db.table('preferences').bulkAdd(importData.preferences);
           }
+          if (importData.wealthItems) {
+            await db.table('wealthItems').bulkAdd(importData.wealthItems);
+          }
+          if (importData.yearlyIncomes) {
+            await db.table('yearlyIncomes').bulkAdd(importData.yearlyIncomes);
+          }
 
           // Reload all data
           await get().loadStories();
@@ -959,6 +981,8 @@ export const useTimelineStore = create<TimelineStore>()(
           await get().loadRelationships();
           await get().loadManagedTags();
           await get().loadPreferences();
+          await get().loadWealthItems();
+          await get().loadYearlyIncomes();
 
         } catch (error) {
           throw new Error('Failed to import data: ' + (error as Error).message);
@@ -1291,8 +1315,28 @@ export const useTimelineStore = create<TimelineStore>()(
 
           await db.table('wealthItems').put(newItem);
 
+          // Create initial history entry
+          const historyEntry: WealthHistoryEntry = {
+            id: crypto.randomUUID(),
+            wealthItemId: newItem.id,
+            wealthItemName: newItem.name,
+            previousValue: 0,
+            newValue: newItem.value,
+            changeAmount: newItem.value, // Initial creation is full value delta
+            timestamp: new Date(),
+            note: 'Initial entry',
+          };
+
+          if (user && navigator.onLine) {
+            await supabaseService.addWealthHistory(user.id, historyEntry);
+          }
+          await db.table('wealthHistory').add(historyEntry);
+
           set((state: TimelineStore) => ({
             wealthItems: [...state.wealthItems, newItem],
+            wealthHistory: [historyEntry, ...state.wealthHistory].sort((a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            ),
             isSaving: false
           }));
         } catch (error) {
@@ -1418,6 +1462,114 @@ export const useTimelineStore = create<TimelineStore>()(
         return get().wealthHistory.filter(h => h.wealthItemId === wealthItemId);
       },
 
+      // Yearly Income methods
+      loadYearlyIncomes: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            const cloudIncomes = await supabaseService.getYearlyIncomes(user.id);
+            if (cloudIncomes) {
+              // Safety Patch
+              const localCount = await db.table('yearlyIncomes').count();
+              if (cloudIncomes.length === 0 && localCount > 0) {
+                console.warn('[Sync Protection] Cloud yearlyIncomes empty, but local has data. Preserving local data.');
+              } else {
+                await db.table('yearlyIncomes').clear();
+                if (cloudIncomes.length > 0) {
+                  await db.table('yearlyIncomes').bulkPut(cloudIncomes);
+                }
+                set({ yearlyIncomes: cloudIncomes, isLoading: false });
+                return;
+              }
+            }
+          }
+
+          const yearlyIncomes = await db.table('yearlyIncomes').toArray();
+          set({ yearlyIncomes, isLoading: false });
+        } catch (error) {
+          console.error('Failed to load yearly incomes:', error);
+          set({ error: 'Failed to load yearly incomes', isLoading: false });
+        }
+      },
+
+      addYearlyIncome: async (incomeData: Omit<YearlyIncome, 'id'>) => {
+        set({ isSaving: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+          let newIncome: YearlyIncome;
+
+          if (user && navigator.onLine) {
+            const cloudIncome = await supabaseService.addYearlyIncome(user.id, incomeData);
+            if (cloudIncome) {
+              newIncome = cloudIncome;
+            } else {
+              throw new Error('Failed to add yearly income to cloud');
+            }
+          } else {
+            newIncome = {
+              ...incomeData,
+              id: crypto.randomUUID(),
+            };
+          }
+
+          await db.table('yearlyIncomes').put(newIncome);
+
+          set((state: TimelineStore) => ({
+            yearlyIncomes: [...state.yearlyIncomes, newIncome].sort((a, b) => b.year - a.year),
+            isSaving: false
+          }));
+        } catch (error) {
+          console.error('Failed to add yearly income:', error);
+          set({ error: 'Failed to add yearly income', isSaving: false });
+        }
+      },
+
+      updateYearlyIncome: async (id: string, updates: Partial<YearlyIncome>) => {
+        set({ isSaving: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.updateYearlyIncome(id, updates);
+          }
+
+          await db.table('yearlyIncomes').update(id, updates);
+
+          set((state: TimelineStore) => ({
+            yearlyIncomes: state.yearlyIncomes.map((income: YearlyIncome) =>
+              income.id === id ? { ...income, ...updates } : income
+            ).sort((a, b) => b.year - a.year),
+            isSaving: false,
+          }));
+        } catch (error) {
+          console.error('Failed to update yearly income:', error);
+          set({ error: 'Failed to update yearly income', isSaving: false });
+        }
+      },
+
+      deleteYearlyIncome: async (id: string) => {
+        set({ isSaving: true, error: null });
+        try {
+          const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+          if (user && navigator.onLine) {
+            await supabaseService.deleteYearlyIncome(id);
+          }
+
+          await db.table('yearlyIncomes').delete(id);
+
+          set((state: TimelineStore) => ({
+            yearlyIncomes: state.yearlyIncomes.filter((income: YearlyIncome) => income.id !== id),
+            isSaving: false,
+          }));
+        } catch (error) {
+          console.error('Failed to delete yearly income:', error);
+          set({ error: 'Failed to delete yearly income', isSaving: false });
+        }
+      },
+
       // Computed wealth getters
       getTotalNetWorth: () => {
         const items = get().wealthItems;
@@ -1449,6 +1601,14 @@ export const useTimelineStore = create<TimelineStore>()(
         return items
           .filter(item => item.category === 'superannuation')
           .reduce((total, item) => total + item.value, 0);
+      },
+
+      getRealEstateEquity: () => {
+        const items = get().wealthItems;
+        const realEstate = items.filter(i => i.category === 'real-estate');
+        const totalValue = realEstate.reduce((sum, item) => sum + item.value, 0);
+        const totalLoans = realEstate.reduce((sum, item) => sum + (item.loanAmount || 0), 0);
+        return totalValue - totalLoans;
       },
     }),
     {

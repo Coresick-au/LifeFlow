@@ -152,11 +152,23 @@ export interface Preference {
 
 export interface WealthItem {
   id: string;
-  category: 'savings' | 'investment' | 'business' | 'superannuation' | 'debt' | 'other';
+  category: 'savings' | 'investment' | 'business' | 'superannuation' | 'debt' | 'real-estate' | 'other';
   name: string;
-  value: number; // Positive for assets, negative for debts
+  value: number; // For real estate, this is the current market value
   isLiquid: boolean;
   lastUpdated: Date;
+  // Advanced fields for detailed tracking
+  loanAmount?: number;     // The debt associated with this specific asset (e.g., mortgage)
+  interestRate?: number;   // Annual interest rate as percentage (e.g., 5.5)
+  repaymentAmount?: number; // Regular repayment amount
+  repaymentFrequency?: 'weekly' | 'fortnightly' | 'monthly';
+  estimatedGrowth?: number; // Expected annual appreciation % (e.g., 3.5)
+  isPrimaryResidence?: boolean; // Tax-free if primary residence
+  purchasePrice?: number;  // Original purchase price
+  purchaseDate?: Date;     // When the asset was purchased
+  propertyType?: 'primary' | 'investment' | 'commercial'; // For real estate categorization
+  // Debt classification for accurate D/V ratios
+  debtType?: 'productive' | 'destructive' | 'neutral'; // productive = mortgages/business loans, destructive = credit cards/personal loans
 }
 
 export interface WealthHistoryEntry {
@@ -170,6 +182,17 @@ export interface WealthHistoryEntry {
   note?: string;
 }
 
+export interface YearlyIncome {
+  id: string;
+  year: number; // Financial year ending (e.g., 2024 for 2023-24)
+  employer: string;
+  baseSalary: number;    // Contracted rate
+  totalEarnings: number; // Actual with OT/Bonuses
+  role: string;
+  isVerifiedByTaxReturn: boolean;
+  superAmount?: number;  // Reportable super
+}
+
 export interface TimelineState {
   stories: Story[];
   thoughts: Thought[];
@@ -177,8 +200,13 @@ export interface TimelineState {
   userProfile: UserProfile | null;
   relationships: Relationship[];
   managedTags: ManagedTag[];
+  yearlyIncomes: YearlyIncome[];
+  wealthItems: WealthItem[];
+  wealthHistory: WealthHistoryEntry[];
+  advice: Advice[];
   currentView: TimelineView;
   activeStoryId: string | null; // Modal pattern: story being viewed
   isLoading: boolean;
   error: string | null;
+  isSaving: boolean; // Add saving state for UI feedback
 }

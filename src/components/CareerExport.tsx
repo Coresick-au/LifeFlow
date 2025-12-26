@@ -12,6 +12,7 @@ export const CareerExport: React.FC<CareerExportProps> = ({ careerEvents }) => {
   const {
     stories,
     userProfile,
+    yearlyIncomes,
     getTotalNetWorth,
     getLiquidAssets,
     getTotalDebt,
@@ -88,6 +89,7 @@ You are a Career Strategist AI. Analyze the following career history to:
 1. Identify market value gaps and loyalty penalties
 2. Translate unusual life skills into professional competencies
 3. Suggest high-impact career pivots based on demonstrated abilities
+4. Analyze earnings gap: If Total Earnings > Base Salary by 50%+, classify as "High-Utilization Specialist" and suggest roles that reward output over hours.
 
 Ask for a resume style (e.g., Harvard, Functional, Combination) before drafting.
 
@@ -128,6 +130,23 @@ Generated: ${format(currentDate, 'MMMM d, yyyy')}
 
 `;
       });
+    }
+
+    if (yearlyIncomes.length > 0) {
+      markdown += `---
+
+## Wage & Earnings Capacity History
+
+`;
+      yearlyIncomes
+        .sort((a, b) => b.year - a.year)
+        .forEach((income) => {
+          const multiplier = income.baseSalary > 0 ? (income.totalEarnings / income.baseSalary).toFixed(2) : '0';
+          markdown += `- **${income.year}**: Contract ${formatFinancialValue(income.baseSalary)} | Actual ${formatFinancialValue(income.totalEarnings)} (Multiplier: ${multiplier}x) - ${income.role}
+`;
+        });
+      markdown += `
+`;
     }
 
     // Add Financial Health section

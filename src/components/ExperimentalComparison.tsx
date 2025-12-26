@@ -29,16 +29,47 @@ export function ExperimentalComparison() {
         loadWealthItems();
     }, [loadWealthItems]);
 
-    // Detect user's location from HouseTracker
+    // Detect user's location from WealthItems (primary residence) or HouseTracker
     const userLocation: LocationKey = useMemo(() => {
+        // First, check wealth items for primary residence
+        const primaryResidence = wealthItems.find(
+            item => item.category === 'real-estate' && item.propertyType === 'primary'
+        );
+
+        if (primaryResidence) {
+            // Try to extract location from the property name
+            return detectLocationFromAddress(primaryResidence.name);
+        }
+
+        // Fallback: check stories for home events (exclude investment properties)
         const homeEvents = stories.filter(s =>
             s.tags.some(tag =>
-                ['home', 'house', 'property'].includes(tag.toLowerCase())
+                ['home', 'house'].includes(tag.toLowerCase())
+            ) && !s.tags.some(tag =>
+                ['investment', 'rental', 'purchased'].includes(tag.toLowerCase())
             )
         );
-        if (homeEvents.length === 0) return 'australia';
 
-        // Get most recent home
+        if (homeEvents.length === 0) {
+            // Last resort: check for any home with "moved" or "living" indicators
+            const livingEvents = stories.filter(s =>
+                s.title.toLowerCase().includes('moved to') ||
+                s.title.toLowerCase().includes('living in') ||
+                s.tags.some(tag => tag.toLowerCase() === 'residence')
+            );
+
+            if (livingEvents.length > 0) {
+                const latestLiving = livingEvents.sort((a, b) =>
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                )[0];
+                const locationText = `${latestLiving.title} ${latestLiving.content || ''}`;
+                return detectLocationFromAddress(locationText);
+            }
+
+            return 'australia';
+        }
+
+        // Get most recent home event
         const latestHome = homeEvents.sort((a, b) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
         )[0];
@@ -46,7 +77,7 @@ export function ExperimentalComparison() {
         // Try to extract location from title or description
         const locationText = `${latestHome.title} ${latestHome.content || ''}`;
         return detectLocationFromAddress(locationText);
-    }, [stories]);
+    }, [stories, wealthItems]);
 
     const netWorth = getTotalNetWorth();
     const userBenchmark = locationBenchmarks[userLocation];

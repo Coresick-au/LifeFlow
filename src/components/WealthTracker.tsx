@@ -1,9 +1,87 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTimelineStore } from '../store/timelineStore';
 import { WealthItem } from '../types';
-import { DollarSign, TrendingUp, Lock, AlertCircle, Plus, Edit2, Trash2, PiggyBank, BarChart3, History } from 'lucide-react';
+import { DollarSign, TrendingUp, Lock, AlertCircle, Plus, Edit2, Trash2, PiggyBank, BarChart3, History, Home, ArrowUpRight, Building2 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
+import { WealthItemCard } from './WealthItemCard';
+import { PropertySimulator } from './PropertySimulator';
+import { ShadowPurchaseCalculator } from './ShadowPurchaseCalculator';
+import { NetWorthChart } from './NetWorthChart';
 
+// DebtAnalytics Component for LVR visualization
+const DebtAnalytics: React.FC<{ items: WealthItem[], formatCurrency: (v: number) => string }> = ({ items, formatCurrency }) => {
+    const propertyItems = items.filter(i => i.loanAmount && i.loanAmount > 0);
+
+    if (propertyItems.length === 0) return null;
+
+    const avgLvr = propertyItems.reduce((acc, i) => acc + ((i.loanAmount || 0) / i.value), 0) / propertyItems.length * 100;
+    const totalEquity = propertyItems.reduce((acc, i) => acc + (i.value - (i.loanAmount || 0)), 0);
+    const annualGrowth = propertyItems.reduce((acc, i) => acc + (i.value * (i.estimatedGrowth || 0) / 100), 0);
+
+    return (
+        <div className="mt-8 p-6 bg-theme-tertiary/20 rounded-2xl border border-theme">
+            <h3 className="text-xl font-bold text-theme-primary mb-6 flex items-center gap-2">
+                <ArrowUpRight className="w-5 h-5 text-theme-accent" />
+                Leverage & Risk Analysis
+            </h3>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* LVR Bar Chart */}
+                <div className="lg:col-span-2 h-64 flex items-end gap-4 px-4 border-b border-l border-theme/50 relative">
+                    {/* 80% threshold line */}
+                    <div
+                        className="absolute left-0 right-4 border-t-2 border-dashed border-rose-500/50"
+                        style={{ bottom: '80%' }}
+                    >
+                        <span className="absolute -top-4 right-0 text-[10px] text-rose-500 font-bold">80% LVR</span>
+                    </div>
+
+                    {propertyItems.map(item => {
+                        const lvr = ((item.loanAmount || 0) / item.value) * 100;
+                        return (
+                            <div key={item.id} className="flex-1 flex flex-col items-center group relative">
+                                <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-theme-primary border border-theme px-2 py-1 rounded text-xs font-bold z-10 whitespace-nowrap shadow-lg">
+                                    {lvr.toFixed(1)}% LVR
+                                </div>
+                                <div
+                                    className={`w-full rounded-t-lg transition-all duration-500 ${lvr > 80 ? 'bg-rose-500/80' : lvr > 60 ? 'bg-amber-500/80' : 'bg-blue-500/80'}`}
+                                    style={{ height: `${Math.min(lvr, 100)}%` }}
+                                />
+                                <span className="text-[9px] font-bold text-theme-secondary mt-2 truncate w-full text-center uppercase tracking-tighter">
+                                    {item.name.length > 12 ? item.name.slice(0, 12) + '...' : item.name}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Global Stats */}
+                <div className="space-y-4">
+                    <div className="p-4 bg-theme-primary border border-theme rounded-xl shadow-sm">
+                        <p className="text-xs text-theme-secondary font-bold uppercase mb-1">Average Portfolio LVR</p>
+                        <p className={`text-3xl font-black ${avgLvr > 80 ? 'text-rose-500' : avgLvr > 60 ? 'text-amber-500' : 'text-theme-primary'}`}>
+                            {avgLvr.toFixed(1)}%
+                        </p>
+                    </div>
+                    <div className="p-4 bg-theme-primary border border-theme rounded-xl shadow-sm">
+                        <p className="text-xs text-theme-secondary font-bold uppercase mb-1">Total Property Equity</p>
+                        <p className="text-2xl font-bold text-emerald-500">
+                            {formatCurrency(totalEquity)}
+                        </p>
+                    </div>
+                    {annualGrowth > 0 && (
+                        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                            <p className="text-xs text-emerald-600 font-bold uppercase mb-1">Est. Annual Growth</p>
+                            <p className="text-xl font-bold text-emerald-500">
+                                +{formatCurrency(annualGrowth)}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 export function WealthTracker() {
     const {
         wealthItems,
@@ -31,6 +109,13 @@ export function WealthTracker() {
         name: '',
         value: '',
         isLiquid: true,
+        loanAmount: '',
+        interestRate: '',
+        repaymentAmount: '',
+        repaymentFrequency: 'monthly' as 'weekly' | 'fortnightly' | 'monthly',
+        estimatedGrowth: '',
+        propertyType: 'primary' as 'primary' | 'investment' | 'commercial',
+        debtType: 'neutral' as 'productive' | 'destructive' | 'neutral',
     });
 
     useEffect(() => {
@@ -38,25 +123,15 @@ export function WealthTracker() {
         loadWealthHistory();
     }, [loadWealthItems, loadWealthHistory]);
 
-    // Calculate real estate equity from HouseTracker
+    // Calculate real estate equity from wealth items
     const getRealEstateEquity = () => {
-        const homeEvents = stories.filter(s =>
-            s.tags.some(tag =>
-                ['home', 'house', 'property', 'renovation'].includes(tag.toLowerCase())
-            )
-        );
-        if (homeEvents.length === 0) return 0;
+        const realEstateItems = wealthItems.filter(item => item.category === 'real-estate');
+        if (realEstateItems.length === 0) return 0;
 
-        // Get most recent home - just verify it exists
-        const [latestHome] = homeEvents.sort((a, b) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-
-        if (!latestHome) return 0;
-
-        // Extract property value from metadata (if exists)
-        // This is a simplified calculation - in reality would need purchase price and current value
-        return 0; // Placeholder - would need proper HouseTracker integration
+        return realEstateItems.reduce((total, item) => {
+            const equity = item.value - (item.loanAmount || 0);
+            return total + equity;
+        }, 0);
     };
 
     // Calculate days since last update
@@ -86,17 +161,38 @@ export function WealthTracker() {
             return;
         }
 
-        const itemData = {
+        const itemData: Partial<WealthItem> = {
             category: formData.category,
             name: formData.name.trim(),
             value: parsedValue,
-            isLiquid: formData.category === 'superannuation' ? false : formData.isLiquid,
+            isLiquid: formData.category === 'superannuation' || formData.category === 'real-estate' ? false : formData.isLiquid,
         };
+
+        // Add loan details if provided (for real-estate or any asset with a loan)
+        if (formData.loanAmount && parseFloat(formData.loanAmount) > 0) {
+            itemData.loanAmount = parseFloat(formData.loanAmount);
+        }
+        if (formData.interestRate && parseFloat(formData.interestRate) > 0) {
+            itemData.interestRate = parseFloat(formData.interestRate);
+        }
+        if (formData.repaymentAmount && parseFloat(formData.repaymentAmount) > 0) {
+            itemData.repaymentAmount = parseFloat(formData.repaymentAmount);
+            itemData.repaymentFrequency = formData.repaymentFrequency;
+        }
+        if (formData.estimatedGrowth && parseFloat(formData.estimatedGrowth) > 0) {
+            itemData.estimatedGrowth = parseFloat(formData.estimatedGrowth);
+        }
+        if (formData.category === 'real-estate') {
+            itemData.propertyType = formData.propertyType;
+        }
+        if (formData.category === 'debt') {
+            itemData.debtType = formData.debtType;
+        }
 
         if (editingItem) {
             await updateWealthItem(editingItem.id, itemData);
         } else {
-            await addWealthItem(itemData);
+            await addWealthItem(itemData as Omit<WealthItem, 'id' | 'lastUpdated'>);
         }
 
         // Reload to ensure state is fresh
@@ -108,6 +204,13 @@ export function WealthTracker() {
             name: '',
             value: '',
             isLiquid: true,
+            loanAmount: '',
+            interestRate: '',
+            repaymentAmount: '',
+            repaymentFrequency: 'monthly',
+            estimatedGrowth: '',
+            propertyType: 'primary',
+            debtType: 'neutral',
         });
         setShowForm(false);
         setEditingItem(null);
@@ -120,6 +223,13 @@ export function WealthTracker() {
             name: item.name,
             value: item.value.toString(),
             isLiquid: item.isLiquid,
+            loanAmount: item.loanAmount?.toString() || '',
+            interestRate: item.interestRate?.toString() || '',
+            repaymentAmount: item.repaymentAmount?.toString() || '',
+            repaymentFrequency: item.repaymentFrequency || 'monthly',
+            estimatedGrowth: item.estimatedGrowth?.toString() || '',
+            propertyType: item.propertyType || 'primary',
+            debtType: item.debtType || 'neutral',
         });
         setShowForm(true);
     };
@@ -144,6 +254,16 @@ export function WealthTracker() {
     const debt = getTotalDebt();
     const super_ = getSuperannuation();
     const realEstate = getRealEstateEquity();
+
+    // Debt breakdown by type
+    const debtBreakdown = useMemo(() => {
+        const debtItems = wealthItems.filter(i => i.category === 'debt');
+        return {
+            productive: debtItems.filter(i => i.debtType === 'productive').reduce((sum, i) => sum + i.value, 0),
+            destructive: debtItems.filter(i => i.debtType === 'destructive').reduce((sum, i) => sum + i.value, 0),
+            neutral: debtItems.filter(i => i.debtType === 'neutral' || !i.debtType).reduce((sum, i) => sum + i.value, 0),
+        };
+    }, [wealthItems]);
 
     return (
         <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-screen">
@@ -218,12 +338,42 @@ export function WealthTracker() {
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                             <h3 className="text-sm font-semibold opacity-90">Total Debt</h3>
-                            <Tooltip content="All money you owe - mortgages, loans, credit cards, etc. Aim to reduce this over time." />
+                            <Tooltip content="Productive debt builds wealth (mortgages). Destructive debt diminishes it (credit cards)." />
                         </div>
                         <AlertCircle className="w-5 h-5 opacity-80" />
                     </div>
                     <p className="text-3xl font-bold">{formatCurrency(debt)}</p>
-                    <p className="text-xs opacity-75 mt-2">Liabilities</p>
+                    {debt > 0 && (
+                        <div className="mt-3 space-y-1.5">
+                            {debtBreakdown.productive > 0 && (
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 bg-green-300 rounded-full"></span>
+                                        Productive
+                                    </span>
+                                    <span className="font-semibold">{formatCurrency(debtBreakdown.productive)}</span>
+                                </div>
+                            )}
+                            {debtBreakdown.destructive > 0 && (
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 bg-red-300 rounded-full"></span>
+                                        Destructive
+                                    </span>
+                                    <span className="font-semibold">{formatCurrency(debtBreakdown.destructive)}</span>
+                                </div>
+                            )}
+                            {debtBreakdown.neutral > 0 && (
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
+                                        Neutral
+                                    </span>
+                                    <span className="font-semibold">{formatCurrency(debtBreakdown.neutral)}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Real Estate Equity Card */}
@@ -231,14 +381,28 @@ export function WealthTracker() {
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                             <h3 className="text-sm font-semibold opacity-90">Real Estate Equity</h3>
-                            <Tooltip content="The portion of your property you truly own (value minus mortgage). Read-only, calculated from Home Tracker." />
+                            <Tooltip content="The portion of your property you truly own (market value minus mortgage). Calculated from your real estate wealth items." />
                         </div>
-                        <Lock className="w-5 h-5 opacity-80" />
+                        <Home className="w-5 h-5 opacity-80" />
                     </div>
                     <p className="text-3xl font-bold">{formatCurrency(realEstate)}</p>
-                    <p className="text-xs opacity-75 mt-2">From Home Tracker (Read-only)</p>
+                    <p className="text-xs opacity-75 mt-2">
+                        {wealthItems.filter(i => i.category === 'real-estate').length} properties
+                    </p>
                 </div>
             </div>
+
+            {/* Net Worth Chart */}
+            <NetWorthChart />
+
+            {/* Debt Analytics / LVR Visualization */}
+            <DebtAnalytics items={wealthItems} formatCurrency={formatCurrency} />
+
+            {/* Property Strategy Simulator */}
+            <PropertySimulator items={wealthItems} formatCurrency={formatCurrency} />
+
+            {/* Shadow Purchase Calculator */}
+            <ShadowPurchaseCalculator wealthItems={wealthItems} formatCurrency={formatCurrency} />
 
             {/* Last Updated Indicator */}
             {daysSinceLastUpdate !== null && (
@@ -291,7 +455,19 @@ export function WealthTracker() {
                     onClick={() => {
                         setShowForm(!showForm);
                         setEditingItem(null);
-                        setFormData({ category: 'savings', name: '', value: '', isLiquid: true });
+                        setFormData({
+                            category: 'savings',
+                            name: '',
+                            value: '',
+                            isLiquid: true,
+                            loanAmount: '',
+                            interestRate: '',
+                            repaymentAmount: '',
+                            repaymentFrequency: 'monthly',
+                            estimatedGrowth: '',
+                            propertyType: 'primary',
+                            debtType: 'neutral',
+                        });
                     }}
                     className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold flex items-center gap-2 transition-colors shadow-lg"
                 >
@@ -321,6 +497,7 @@ export function WealthTracker() {
                                 >
                                     <option value="savings">Savings</option>
                                     <option value="investment">Investment</option>
+                                    <option value="real-estate">Real Estate</option>
                                     <option value="business">Business</option>
                                     <option value="superannuation">Superannuation</option>
                                     <option value="debt">Debt</option>
@@ -337,7 +514,7 @@ export function WealthTracker() {
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="e.g., Commonwealth Bank Savings"
+                                    placeholder={formData.category === 'real-estate' ? 'e.g., 123 Main St, Sydney' : 'e.g., Commonwealth Bank Savings'}
                                     className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                     required
                                 />
@@ -346,13 +523,13 @@ export function WealthTracker() {
                             {/* Value */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                    Value (AUD)
+                                    {formData.category === 'real-estate' ? 'Market Value (AUD)' : 'Value (AUD)'}
                                 </label>
                                 <input
                                     type="number"
                                     value={formData.value}
                                     onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                                    placeholder="25000"
+                                    placeholder={formData.category === 'real-estate' ? '850000' : '25000'}
                                     step="0.01"
                                     className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                     required
@@ -366,18 +543,191 @@ export function WealthTracker() {
                                         type="checkbox"
                                         checked={formData.isLiquid}
                                         onChange={(e) => setFormData({ ...formData, isLiquid: e.target.checked })}
-                                        disabled={formData.category === 'superannuation'}
+                                        disabled={formData.category === 'superannuation' || formData.category === 'real-estate'}
                                         className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                                     />
                                     <span className="ml-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
                                         Liquid Asset
-                                        {formData.category === 'superannuation' && (
-                                            <span className="text-xs text-gray-500 ml-1">(Auto-disabled for super)</span>
+                                        {(formData.category === 'superannuation' || formData.category === 'real-estate') && (
+                                            <span className="text-xs text-gray-500 ml-1">(Auto-disabled)</span>
                                         )}
                                     </span>
                                 </label>
                             </div>
                         </div>
+
+                        {/* Real Estate / Loan Fields */}
+                        {(formData.category === 'real-estate' || formData.category === 'investment') && (
+                            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                                    <Home className="w-4 h-4" />
+                                    Loan & Mortgage Details (Optional)
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {/* Loan Amount */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                            Loan Balance
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.loanAmount}
+                                            onChange={(e) => setFormData({ ...formData, loanAmount: e.target.value })}
+                                            placeholder="500000"
+                                            step="0.01"
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Interest Rate */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                            Interest Rate (%)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.interestRate}
+                                            onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
+                                            placeholder="5.5"
+                                            step="0.01"
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Repayment Amount */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                            Repayment Amount
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.repaymentAmount}
+                                            onChange={(e) => setFormData({ ...formData, repaymentAmount: e.target.value })}
+                                            placeholder="2800"
+                                            step="0.01"
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Repayment Frequency */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                            Repayment Frequency
+                                        </label>
+                                        <select
+                                            value={formData.repaymentFrequency}
+                                            onChange={(e) => setFormData({ ...formData, repaymentFrequency: e.target.value as 'weekly' | 'fortnightly' | 'monthly' })}
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                        >
+                                            <option value="weekly">Weekly</option>
+                                            <option value="fortnightly">Fortnightly</option>
+                                            <option value="monthly">Monthly</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Estimated Growth */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                            Est. Annual Growth (%)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.estimatedGrowth}
+                                            onChange={(e) => setFormData({ ...formData, estimatedGrowth: e.target.value })}
+                                            placeholder="3.5"
+                                            step="0.1"
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Property Type */}
+                                    {formData.category === 'real-estate' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                                Property Type
+                                            </label>
+                                            <select
+                                                value={formData.propertyType}
+                                                onChange={(e) => setFormData({ ...formData, propertyType: e.target.value as 'primary' | 'investment' | 'commercial' })}
+                                                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                            >
+                                                <option value="primary">Primary Residence</option>
+                                                <option value="investment">Investment Property</option>
+                                                <option value="commercial">Commercial</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Debt Type Classification */}
+                        {formData.category === 'debt' && (
+                            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    Debt Classification
+                                </h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                                    Categorize your debt to help analyze productive vs destructive debt ratios.
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <label className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.debtType === 'productive'
+                                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                        : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
+                                        }`}>
+                                        <input
+                                            type="radio"
+                                            name="debtType"
+                                            value="productive"
+                                            checked={formData.debtType === 'productive'}
+                                            onChange={(e) => setFormData({ ...formData, debtType: e.target.value as 'productive' | 'destructive' | 'neutral' })}
+                                            className="sr-only"
+                                        />
+                                        <div className="font-semibold text-green-700 dark:text-green-400 mb-1">Productive</div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            Mortgages, business loans, investment loans (asset-backed debt that builds wealth)
+                                        </p>
+                                    </label>
+
+                                    <label className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.debtType === 'destructive'
+                                        ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                                        : 'border-gray-200 dark:border-gray-700 hover:border-rose-300'
+                                        }`}>
+                                        <input
+                                            type="radio"
+                                            name="debtType"
+                                            value="destructive"
+                                            checked={formData.debtType === 'destructive'}
+                                            onChange={(e) => setFormData({ ...formData, debtType: e.target.value as 'productive' | 'destructive' | 'neutral' })}
+                                            className="sr-only"
+                                        />
+                                        <div className="font-semibold text-rose-700 dark:text-rose-400 mb-1">Destructive</div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            Credit cards, personal loans, BNPL (non-asset-backed, often high interest)
+                                        </p>
+                                    </label>
+
+                                    <label className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.debtType === 'neutral'
+                                        ? 'border-gray-500 bg-gray-50 dark:bg-gray-700/50'
+                                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                                        }`}>
+                                        <input
+                                            type="radio"
+                                            name="debtType"
+                                            value="neutral"
+                                            checked={formData.debtType === 'neutral'}
+                                            onChange={(e) => setFormData({ ...formData, debtType: e.target.value as 'productive' | 'destructive' | 'neutral' })}
+                                            className="sr-only"
+                                        />
+                                        <div className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Neutral</div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            Car loans, HECS/HELP, other moderate-interest debt
+                                        </p>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex gap-3 pt-2">
                             <button
@@ -401,14 +751,15 @@ export function WealthTracker() {
                 </div>
             )}
 
-            {/* Wealth Items List */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            {/* Wealth Items Grid */}
+            <div className="mt-8">
+                <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">Your Wealth Items</h3>
+                    <span className="text-sm text-theme-secondary">{wealthItems.length} items</span>
                 </div>
 
                 {wealthItems.length === 0 ? (
-                    <div className="p-12 text-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
                         <PiggyBank className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
                         <p className="text-gray-500 dark:text-gray-400 text-lg">No wealth items yet</p>
                         <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
@@ -416,76 +767,30 @@ export function WealthTracker() {
                         </p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {wealthItems.map((item) => (
-                            <div
-                                key={item.id}
-                                className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${item.category === 'debt'
-                                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                : item.category === 'superannuation'
-                                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                }`}>
-                                                {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
-                                            </span>
-                                            {!item.isLiquid && (
-                                                <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                                    <Lock className="w-3 h-3" />
-                                                    Locked
-                                                </span>
-                                            )}
-                                        </div>
-                                        <h4 className="font-semibold text-gray-900 dark:text-white text-lg">
-                                            {item.name}
-                                        </h4>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                            Last updated: {new Date(item.lastUpdated).toLocaleDateString('en-AU')}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <span className={`text-2xl font-bold ${item.category === 'debt'
-                                            ? 'text-red-600 dark:text-red-400'
-                                            : 'text-green-600 dark:text-green-400'
-                                            }`}>
-                                            {item.category === 'debt' ? '-' : ''}{formatCurrency(item.value)}
-                                        </span>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => setExpandedHistory(expandedHistory === item.id ? null : item.id)}
-                                                className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${getWealthItemHistory(item.id).length > 0
-                                                    ? 'text-purple-600 dark:text-purple-400'
-                                                    : 'text-gray-400'
-                                                    }`}
-                                                title="View History"
-                                            >
-                                                <History className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleEdit(item)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                                title="Edit"
-                                            >
-                                                <Edit2 className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(item.id)}
-                                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div key={item.id} className="relative">
+                                <WealthItemCard
+                                    item={item}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                    formatCurrency={formatCurrency}
+                                />
+
+                                {/* History Button Overlay */}
+                                {getWealthItemHistory(item.id).length > 0 && (
+                                    <button
+                                        onClick={() => setExpandedHistory(expandedHistory === item.id ? null : item.id)}
+                                        className="absolute top-3 right-3 p-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 rounded-lg transition-colors"
+                                        title="View History"
+                                    >
+                                        <History className="w-4 h-4" />
+                                    </button>
+                                )}
 
                                 {/* Expandable History Section */}
                                 {expandedHistory === item.id && (
-                                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="mt-2 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
                                         <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                                             <History className="w-4 h-4" />
                                             Value History
@@ -495,7 +800,7 @@ export function WealthTracker() {
                                                 No history yet. History is recorded when you update the value.
                                             </p>
                                         ) : (
-                                            <div className="space-y-2">
+                                            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
                                                 {getWealthItemHistory(item.id).slice(0, 10).map((entry) => (
                                                     <div
                                                         key={entry.id}

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { Story, Thought, TodoItem, Relationship, ManagedTag, Advice, UserProfile, Preference, WealthItem, WealthHistoryEntry } from '../types';
+import { Story, Thought, TodoItem, Relationship, ManagedTag, Advice, UserProfile, Preference, WealthItem, WealthHistoryEntry, YearlyIncome } from '../types';
 
 // Sync helper to get current user synchronously from session
 export const getCurrentUserId = (): string | null => {
@@ -1026,6 +1026,96 @@ export async function deleteMedia(filePathOrUrl: string): Promise<boolean> {
     }
 
     return true;
+}
+
+// ==========================================
+// YEARLY INCOME
+// ==========================================
+
+export async function getYearlyIncomes(userId: string): Promise<YearlyIncome[]> {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('yearly_incomes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('year', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map(y => ({
+        id: y.id,
+        year: y.year,
+        employer: y.employer,
+        baseSalary: Number(y.base_salary),
+        totalEarnings: Number(y.total_earnings),
+        role: y.role,
+        isVerifiedByTaxReturn: y.is_verified_by_tax_return,
+        superAmount: y.super_amount ? Number(y.super_amount) : undefined,
+    }));
+}
+
+export async function addYearlyIncome(userId: string, income: Omit<YearlyIncome, 'id'>): Promise<YearlyIncome | null> {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('yearly_incomes')
+        .insert({
+            user_id: userId,
+            year: income.year,
+            employer: income.employer,
+            base_salary: income.baseSalary,
+            total_earnings: income.totalEarnings,
+            role: income.role,
+            is_verified_by_tax_return: income.isVerifiedByTaxReturn,
+            super_amount: income.superAmount,
+        })
+        .select()
+        .single();
+
+    if (error || !data) return null;
+
+    return {
+        id: data.id,
+        year: data.year,
+        employer: data.employer,
+        baseSalary: Number(data.base_salary),
+        totalEarnings: Number(data.total_earnings),
+        role: data.role,
+        isVerifiedByTaxReturn: data.is_verified_by_tax_return,
+        superAmount: data.super_amount ? Number(data.super_amount) : undefined,
+    };
+}
+
+export async function updateYearlyIncome(id: string, updates: Partial<YearlyIncome>): Promise<boolean> {
+    if (!supabase) return false;
+
+    const updateData: Record<string, unknown> = {};
+    if (updates.year !== undefined) updateData.year = updates.year;
+    if (updates.employer !== undefined) updateData.employer = updates.employer;
+    if (updates.baseSalary !== undefined) updateData.base_salary = updates.baseSalary;
+    if (updates.totalEarnings !== undefined) updateData.total_earnings = updates.totalEarnings;
+    if (updates.role !== undefined) updateData.role = updates.role;
+    if (updates.isVerifiedByTaxReturn !== undefined) updateData.is_verified_by_tax_return = updates.isVerifiedByTaxReturn;
+    if (updates.superAmount !== undefined) updateData.super_amount = updates.superAmount;
+
+    const { error } = await supabase
+        .from('yearly_incomes')
+        .update(updateData)
+        .eq('id', id);
+
+    return !error;
+}
+
+export async function deleteYearlyIncome(id: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase
+        .from('yearly_incomes')
+        .delete()
+        .eq('id', id);
+
+    return !error;
 }
 
 // ==========================================
