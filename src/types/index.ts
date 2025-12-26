@@ -73,6 +73,13 @@ export interface UserProfile {
   birthPhoto?: string; // Baby photo for the "I Was Born" timeline card
   family?: FamilyMember[];
   bloodType?: string;
+  handedness?: 'left' | 'right' | 'ambidextrous';
+  birthTime?: string; // HH:mm 24-hour format
+  eyeColor?: string;
+  languages?: Array<{
+    language: string;
+    proficiency: 'basic' | 'conversational' | 'fluent' | 'native';
+  }>;
 }
 
 export type TimelineView =

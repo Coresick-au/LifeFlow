@@ -19,6 +19,10 @@ export const UserProfile: React.FC = () => {
     avatar: userProfile?.avatar || '',
     family: userProfile?.family || [],
     bloodType: userProfile?.bloodType || '',
+    handedness: userProfile?.handedness || 'right',
+    birthTime: userProfile?.birthTime || '',
+    eyeColor: userProfile?.eyeColor || '',
+    languages: userProfile?.languages || [],
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -40,6 +44,10 @@ export const UserProfile: React.FC = () => {
         avatar: userProfile.avatar || '',
         family: userProfile.family || [],
         bloodType: userProfile.bloodType || '',
+        handedness: userProfile.handedness || 'right',
+        birthTime: userProfile.birthTime || '',
+        eyeColor: userProfile.eyeColor || '',
+        languages: userProfile.languages || [],
       });
     }
   }, [userProfile]);
@@ -182,6 +190,10 @@ export const UserProfile: React.FC = () => {
       avatar: formData.avatar,
       family: formData.family,
       bloodType: formData.bloodType,
+      handedness: formData.handedness,
+      birthTime: formData.birthTime,
+      eyeColor: formData.eyeColor,
+      languages: formData.languages,
     };
 
     await setUserProfile(profile);
@@ -621,6 +633,20 @@ export const UserProfile: React.FC = () => {
             </div>
 
             <div>
+              <label htmlFor="birthTime" className="block text-sm font-medium text-theme-secondary mb-1">
+                <Clock className="inline w-4 h-4 mr-1" />
+                Birth Time (optional)
+              </label>
+              <input
+                type="time"
+                id="birthTime"
+                value={formData.birthTime}
+                onChange={(e) => setFormData({ ...formData, birthTime: e.target.value })}
+                className="w-full px-3 py-2 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
               <label htmlFor="birthLocation" className="block text-sm font-medium text-theme-secondary mb-1">
                 <MapPin className="inline w-4 h-4 mr-1" />
                 Birth Location (optional)
@@ -688,6 +714,130 @@ export const UserProfile: React.FC = () => {
                   <option value="O-">O-</option>
                 </select>
                 <p className="mt-1 text-xs text-theme-tertiary">Useful for health/emergency context</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="handedness" className="block text-sm font-medium text-theme-secondary mb-1">
+                  Handedness
+                </label>
+                <select
+                  id="handedness"
+                  value={formData.handedness || 'right'}
+                  onChange={(e) => setFormData({ ...formData, handedness: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="right">Right</option>
+                  <option value="left">Left</option>
+                  <option value="ambidextrous">Ambidextrous</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="eyeColor" className="block text-sm font-medium text-theme-secondary mb-1">
+                  Eye Color
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="eye-colors"
+                    id="eyeColor"
+                    value={formData.eyeColor}
+                    onChange={(e) => setFormData({ ...formData, eyeColor: e.target.value })}
+                    className="w-full px-3 py-2 border border-theme-border bg-theme-primary text-theme-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Select or type..."
+                  />
+                  <datalist id="eye-colors">
+                    <option value="Brown" />
+                    <option value="Blue" />
+                    <option value="Green" />
+                    <option value="Hazel" />
+                    <option value="Grey" />
+                    <option value="Amber" />
+                  </datalist>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-theme-secondary mb-2">
+                <BookOpen className="inline w-4 h-4 mr-1" />
+                Languages
+              </label>
+              <div className="space-y-3">
+                {formData.languages?.map((lang, index) => (
+                  <div key={index} className="flex items-center gap-2 bg-theme-tertiary p-2 rounded-md">
+                    <span className="font-medium flex-1">{lang.language}</span>
+                    <span className="text-xs px-2 py-1 bg-theme-background rounded-full text-theme-secondary border border-theme-border">
+                      {lang.proficiency}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newLangs = [...(formData.languages || [])];
+                        newLangs.splice(index, 1);
+                        setFormData({ ...formData, languages: newLangs });
+                      }}
+                      className="p-1 hover:text-red-500 text-theme-secondary"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+
+                <div className="flex gap-2 items-end p-3 border border-dashed border-theme-border rounded-lg">
+                  <div className="flex-1">
+                    <label className="text-xs text-theme-tertiary mb-1 block">Language</label>
+                    <input
+                      type="text"
+                      id="new-lang-name"
+                      placeholder="e.g. French"
+                      className="w-full px-2 py-1 text-sm border border-theme-border bg-theme-primary rounded"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('add-lang-btn')?.click();
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="w-1/3">
+                    <label className="text-xs text-theme-tertiary mb-1 block">Proficiency</label>
+                    <select
+                      id="new-lang-prof"
+                      className="w-full px-2 py-1 text-sm border border-theme-border bg-theme-primary rounded"
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="conversational">Conversational</option>
+                      <option value="fluent">Fluent</option>
+                      <option value="native">Native</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    id="add-lang-btn"
+                    onClick={() => {
+                      const nameInput = document.getElementById('new-lang-name') as HTMLInputElement;
+                      const profInput = document.getElementById('new-lang-prof') as HTMLSelectElement;
+                      const val = nameInput.value.trim();
+                      if (val) {
+                        setFormData({
+                          ...formData,
+                          languages: [...(formData.languages || []), {
+                            language: val,
+                            proficiency: profInput.value as any
+                          }]
+                        });
+                        nameInput.value = '';
+                        nameInput.focus();
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-theme-accent text-white text-sm rounded hover:opacity-90 transition-opacity"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
             </div>
 
